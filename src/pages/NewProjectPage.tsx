@@ -132,13 +132,13 @@ export function NewProjectPage() {
       }),
     }));
 
-    const project = createProject({
+    createProject({
       name: name.trim(),
       description: description.trim() || undefined,
       unit,
       activities,
     });
-    navigate(`/projetos/${project.id}/cronograma`);
+    navigate('/projetos');
   }
 
   return (
