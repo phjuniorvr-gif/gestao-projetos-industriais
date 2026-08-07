@@ -98,11 +98,15 @@ export function GanttTable({
             >
               Estrutura
             </th>
+            <th
+              rowSpan={3}
+              className={`${thClass} top-0 min-w-[120px] text-center ${compact ? 'z-30 border-r border-border' : ''}`}
+              style={compact ? { left: STATUS_COL_LEFT } : undefined}
+            >
+              Status
+            </th>
             {!compact && (
               <>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Categoria
-                </th>
                 <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Predecessora(s)
                 </th>
@@ -118,15 +122,11 @@ export function GanttTable({
                 <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Fim real
                 </th>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
+                  Categoria
+                </th>
               </>
             )}
-            <th
-              rowSpan={3}
-              className={`${thClass} top-0 min-w-[120px] text-center ${compact ? 'z-30 border-r border-border' : ''}`}
-              style={compact ? { left: STATUS_COL_LEFT } : undefined}
-            >
-              Status
-            </th>
             <th
               className={`relative ${thClass} top-0 border-b border-border/70`}
               style={{ width, height: HEADER_ROW_HEIGHT }}
@@ -226,16 +226,6 @@ export function GanttTable({
                       )}
                     </div>
                   </td>
-                  {!compact && (
-                    <>
-                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
-                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.plannedStart)}</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.plannedEnd)}</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.actualStart)}</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.actualEnd)}</td>
-                    </>
-                  )}
                   <td
                     className={`px-4 py-3.5 text-center ${
                       compact ? `${frozenTdClass} border-r border-border bg-card` : ''
@@ -244,6 +234,16 @@ export function GanttTable({
                   >
                     <StatusBadge status={project.status} />
                   </td>
+                  {!compact && (
+                    <>
+                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
+                      <td className={dateTdClass}>{formatDatePtBr(project.plannedStart)}</td>
+                      <td className={dateTdClass}>{formatDatePtBr(project.plannedEnd)}</td>
+                      <td className={dateTdClass}>{formatDatePtBr(project.actualStart)}</td>
+                      <td className={dateTdClass}>{formatDatePtBr(project.actualEnd)}</td>
+                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
+                    </>
+                  )}
                   <td className="relative px-4 py-3.5" style={{ width }}>
                     <TodayLine range={range} />
                     <GanttBars
@@ -304,16 +304,6 @@ export function GanttTable({
                               )}
                             </div>
                           </td>
-                          {!compact && (
-                            <>
-                              <td className="px-4 py-3.5" />
-                              <td className="px-4 py-3.5" />
-                              <td className={dateTdClass}>{formatDatePtBr(activity.plannedStart)}</td>
-                              <td className={dateTdClass}>{formatDatePtBr(activity.plannedEnd)}</td>
-                              <td className={dateTdClass}>{formatDatePtBr(activity.actualStart)}</td>
-                              <td className={dateTdClass}>{formatDatePtBr(activity.actualEnd)}</td>
-                            </>
-                          )}
                           <td
                             className={`px-4 py-3.5 text-center ${
                               compact ? `${frozenTdClass} border-r border-border bg-card` : ''
@@ -322,6 +312,16 @@ export function GanttTable({
                           >
                             <StatusBadge status={activity.status} />
                           </td>
+                          {!compact && (
+                            <>
+                              <td className="px-4 py-3.5" />
+                              <td className={dateTdClass}>{formatDatePtBr(activity.plannedStart)}</td>
+                              <td className={dateTdClass}>{formatDatePtBr(activity.plannedEnd)}</td>
+                              <td className={dateTdClass}>{formatDatePtBr(activity.actualStart)}</td>
+                              <td className={dateTdClass}>{formatDatePtBr(activity.actualEnd)}</td>
+                              <td className="px-4 py-3.5" />
+                            </>
+                          )}
                           <td className="relative px-4 py-3.5" style={{ width }}>
                             <TodayLine range={range} />
                             <GanttBars
