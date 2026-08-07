@@ -29,46 +29,16 @@ export const STATUS_COLOR: Record<ProjectStatus, string> = {
   blocked: '#7C3AED',
 };
 
-export type Category =
-  | 'compras'
-  | 'importacao'
-  | 'civil'
-  | 'mecanica'
-  | 'eletrica'
-  | 'hidraulica'
-  | 'automacao'
-  | 'seguranca'
-  | 'qualidade'
-  | 'transporte'
-  | 'documentacao';
+// Categorias agora são dados dinâmicos (tabela `categories` no Supabase, geridas via useCategories()),
+// não mais um union fixo — o tipo abaixo só documenta que é um id de categoria.
+export type Category = string;
 
-export const CATEGORY_LABEL: Record<Category, string> = {
-  compras: 'Compras',
-  importacao: 'Importação',
-  civil: 'Civil',
-  mecanica: 'Mecânica',
-  eletrica: 'Elétrica',
-  hidraulica: 'Hidráulica',
-  automacao: 'Automação',
-  seguranca: 'Segurança',
-  qualidade: 'Qualidade',
-  transporte: 'Transporte',
-  documentacao: 'Documentação',
-};
-
-export const CATEGORY_COLOR: Record<Category, string> = {
-  compras: '#92400E',
-  importacao: '#991B1B',
-  civil: '#475569',
-  mecanica: '#C2410C',
-  eletrica: '#1D4ED8',
-  hidraulica: '#0E7490',
-  automacao: '#6D28D9',
-  seguranca: '#B91C1C',
-  qualidade: '#15803D',
-  transporte: '#4338CA',
-  documentacao: '#525252',
-};
+export interface CategoryEntry {
+  id: string;
+  label: string;
+  color: string;
+  position: number;
+}
 
 export interface Task {
   id: string;

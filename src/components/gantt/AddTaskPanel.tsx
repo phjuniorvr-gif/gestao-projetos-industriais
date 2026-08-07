@@ -1,19 +1,24 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
-import { CATEGORY_LABEL, type Activity, type ActivityTemplate, type Category } from '../../types';
+import type { Activity, ActivityTemplate, Category, CategoryEntry } from '../../types';
 
 interface AddTaskPanelProps {
   activity: Activity | null;
   catalog: ActivityTemplate[];
+  categories: CategoryEntry[];
   onClose: () => void;
   onAdd: (names: { name: string; category: Category }[]) => void;
 }
 
-export function AddTaskPanel({ activity, catalog, onClose, onAdd }: AddTaskPanelProps) {
-  const [category, setCategory] = useState<Category>('compras');
+export function AddTaskPanel({ activity, catalog, categories, onClose, onAdd }: AddTaskPanelProps) {
+  const [category, setCategory] = useState<Category>(categories[0]?.id ?? '');
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [customName, setCustomName] = useState('');
+
+  useEffect(() => {
+    if (!category && categories[0]) setCategory(categories[0].id);
+  }, [categories, category]);
 
   const suggestions = useMemo(
     () => catalog.find((entry) => entry.active && entry.name === activity?.name && entry.category === category),
@@ -50,9 +55,9 @@ export function AddTaskPanel({ activity, catalog, onClose, onAdd }: AddTaskPanel
 
         <FormField label="Categoria" required>
           <Select value={category} onChange={(e) => setCategory(e.target.value as Category)} className="w-full">
-            {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
               </option>
             ))}
           </Select>
@@ -74,7 +79,8 @@ export function AddTaskPanel({ activity, catalog, onClose, onAdd }: AddTaskPanel
             </ul>
           ) : (
             <p className="text-sm text-text-muted">
-              Nenhum modelo cadastrado para "{activity.name}" + "{CATEGORY_LABEL[category]}" no catálogo.
+              Nenhum modelo cadastrado para "{activity.name}" + "
+              {categories.find((c) => c.id === category)?.label ?? category}" no catálogo.
             </p>
           )}
         </div>

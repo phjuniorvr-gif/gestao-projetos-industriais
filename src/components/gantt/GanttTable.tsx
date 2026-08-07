@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
-import type { Activity, Project, Task } from '../../types';
+import type { Activity, CategoryEntry, Project, Task } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
 import {
@@ -20,6 +20,7 @@ interface GanttTableProps {
   projects: Project[];
   collapsedProjectIds: Set<string>;
   collapsedActivityIds: Set<string>;
+  categories: CategoryEntry[];
   /** Quando verdadeiro, mostra só Linha / Estrutura / Status / Gantt. */
   compact: boolean;
   onToggleProject: (projectId: string) => void;
@@ -32,6 +33,7 @@ export function GanttTable({
   projects,
   collapsedProjectIds,
   collapsedActivityIds,
+  categories,
   compact,
   onToggleProject,
   onToggleActivity,
@@ -234,6 +236,7 @@ export function GanttTable({
                               task={task}
                               range={range}
                               tasksByRowNumber={tasksByRowNumber}
+                              categories={categories}
                               compact={compact}
                               onClick={() => onOpenTask(task)}
                             />

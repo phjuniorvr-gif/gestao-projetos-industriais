@@ -4,7 +4,7 @@ import { PageHeader } from '../components/layout';
 import { Button, Card, FormField, Input, Select, Textarea, Badge } from '../components/ui';
 import { ActivitySourceForm, SelectedActivitiesList } from '../components/wizard';
 import type { DraftActivity } from '../components/wizard';
-import { useCatalog, useProjects } from '../hooks';
+import { useCatalog, useCategories, useProjects } from '../hooks';
 import { computeDatesFromDuration, nextProjectCode, todayISO } from '../utils';
 import type { NewActivityInput } from '../hooks';
 
@@ -14,6 +14,7 @@ export function NewProjectPage() {
   const navigate = useNavigate();
   const { projects, createProject } = useProjects();
   const { catalog } = useCatalog();
+  const { categories } = useCategories();
   const [step, setStep] = useState<0 | 1>(0);
 
   const [name, setName] = useState('');
@@ -207,7 +208,7 @@ export function NewProjectPage() {
                 </div>
               </Card>
 
-              <ActivitySourceForm catalog={catalog} onAddActivity={handleAddActivity} />
+              <ActivitySourceForm catalog={catalog} categories={categories} onAddActivity={handleAddActivity} />
             </div>
 
             <div className="lg:sticky lg:top-6 lg:self-start">

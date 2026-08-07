@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
-import { CATEGORY_LABEL, type ActivityTemplate, type Category } from '../../types';
+import type { ActivityTemplate, Category, CategoryEntry } from '../../types';
 import { STANDARD_ACTIVITY_NAMES } from '../../data/constants';
 import type { CatalogEntryInput } from '../../hooks';
 
 interface CatalogEntryFormProps {
   entry: ActivityTemplate | null;
+  categories: CategoryEntry[];
   onSave: (input: CatalogEntryInput) => void;
   onCancel: () => void;
 }
 
-export function CatalogEntryForm({ entry, onSave, onCancel }: CatalogEntryFormProps) {
+export function CatalogEntryForm({ entry, categories, onSave, onCancel }: CatalogEntryFormProps) {
   const [name, setName] = useState(entry?.name ?? STANDARD_ACTIVITY_NAMES[0]);
-  const [category, setCategory] = useState<Category>(entry?.category ?? 'compras');
+  const [category, setCategory] = useState<Category>(entry?.category ?? categories[0]?.id ?? '');
   const [tasks, setTasks] = useState<string[]>(entry?.tasks.map((t) => t.name) ?? ['']);
   const [active, setActive] = useState(entry?.active ?? true);
 
@@ -46,9 +47,9 @@ export function CatalogEntryForm({ entry, onSave, onCancel }: CatalogEntryFormPr
         </FormField>
         <FormField label="Categoria" required>
           <Select value={category} onChange={(e) => setCategory(e.target.value as Category)} className="w-full">
-            {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
               </option>
             ))}
           </Select>

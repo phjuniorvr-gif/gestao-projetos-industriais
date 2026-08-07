@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, Checkbox, FormField, Select } from '../components/ui';
 import { getSettings as getStoredSettings, setSettings as persistSettings } from '../services/localSettings';
-import { CATEGORY_LABEL, STATUS_LABEL, type Category, type ProjectStatus } from '../types';
+import { useCategories } from '../hooks';
+import { STATUS_LABEL, type Category, type ProjectStatus } from '../types';
 
 interface Settings {
   defaultUnit: string;
@@ -17,7 +18,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultUnit: 'Matriz',
   dateFormat: 'dd/mm/aaaa',
   primaryColor: '#2563EB',
-  enabledCategories: Object.keys(CATEGORY_LABEL) as Category[],
+  enabledCategories: [],
   enabledStatuses: Object.keys(STATUS_LABEL) as ProjectStatus[],
   scheduleScale: 'mensal',
 };
@@ -27,10 +28,21 @@ const UNIT_OPTIONS = ['Matriz', 'MEC', 'Feira', 'Amélia'];
 export function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
+  const { categories } = useCategories();
 
   useEffect(() => {
     setSettings(getStoredSettings(DEFAULT_SETTINGS));
   }, []);
+
+  // Preferência recém-criada (nenhuma categoria salva ainda) começa com todas habilitadas.
+  useEffect(() => {
+    if (categories.length === 0) return;
+    setSettings((current) =>
+      current.enabledCategories.length === 0
+        ? { ...current, enabledCategories: categories.map((c) => c.id) }
+        : current,
+    );
+  }, [categories]);
 
   function toggleCategory(category: Category) {
     setSettings((current) => ({
@@ -108,12 +120,12 @@ export function SettingsPage() {
 
         <FormField label="Categorias disponíveis">
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
+            {categories.map((c) => (
               <Checkbox
-                key={value}
-                label={label}
-                checked={settings.enabledCategories.includes(value as Category)}
-                onChange={() => toggleCategory(value as Category)}
+                key={c.id}
+                label={c.label}
+                checked={settings.enabledCategories.includes(c.id)}
+                onChange={() => toggleCategory(c.id)}
               />
             ))}
           </div>

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
-import { CATEGORY_LABEL, type ActivityTemplate, type Category } from '../../types';
+import type { ActivityTemplate, Category, CategoryEntry } from '../../types';
 import type { DraftActivity } from './types';
 
 interface ActivitySourceFormProps {
   catalog: ActivityTemplate[];
+  categories: CategoryEntry[];
   onAddActivity: (draft: DraftActivity) => void;
 }
 
@@ -21,7 +22,8 @@ function uid(): string {
   return crypto.randomUUID();
 }
 
-export function ActivitySourceForm({ catalog, onAddActivity }: ActivitySourceFormProps) {
+export function ActivitySourceForm({ catalog, categories, onAddActivity }: ActivitySourceFormProps) {
+  const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
   const [mode, setMode] = useState<Mode>('catalog');
 
   const technicalAreas = useMemo(
@@ -87,7 +89,7 @@ export function ActivitySourceForm({ catalog, onAddActivity }: ActivitySourceFor
   }
 
   function handleAddManual() {
-    const area = manualArea || technicalAreas[0] || 'documentacao';
+    const area = manualArea || technicalAreas[0] || categories[0]?.id || '';
     const cleanTasks = manualTasks.filter((t) => t.name.trim());
     if (!manualName.trim() || cleanTasks.length === 0) return;
     onAddActivity({
@@ -147,7 +149,7 @@ export function ActivitySourceForm({ catalog, onAddActivity }: ActivitySourceFor
               >
                 {technicalAreas.map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORY_LABEL[c]}
+                    {categoryLabel(c)}
                   </option>
                 ))}
               </Select>
@@ -209,10 +211,14 @@ export function ActivitySourceForm({ catalog, onAddActivity }: ActivitySourceFor
       ) : (
         <Card className="space-y-4 p-4">
           <FormField label="Área técnica">
-            <Select value={manualArea || technicalAreas[0] || ''} onChange={(e) => setManualArea(e.target.value as Category)} className="w-full">
-              {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+            <Select
+              value={manualArea || technicalAreas[0] || categories[0]?.id || ''}
+              onChange={(e) => setManualArea(e.target.value as Category)}
+              className="w-full"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
                 </option>
               ))}
             </Select>

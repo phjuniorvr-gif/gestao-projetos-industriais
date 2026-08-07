@@ -1,4 +1,4 @@
-import { CATEGORY_COLOR, CATEGORY_LABEL, type Task } from '../../types';
+import type { CategoryEntry, Task } from '../../types';
 import { formatDatePtBr, formatPredecessors } from '../../utils';
 import { Badge } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -11,14 +11,16 @@ interface GanttRowProps {
   task: Task;
   range: DateRange;
   tasksByRowNumber: Map<number, Task>;
+  categories: CategoryEntry[];
   compact: boolean;
   onClick: () => void;
 }
 
 const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-xs text-text-muted';
 
-export function GanttRow({ task, range, tasksByRowNumber, compact, onClick }: GanttRowProps) {
+export function GanttRow({ task, range, tasksByRowNumber, categories, compact, onClick }: GanttRowProps) {
   const width = totalWidth(range);
+  const category = categories.find((c) => c.id === task.category);
 
   const predecessorEnds = task.predecessorRowNumbers
     .map((rowNumber) => tasksByRowNumber.get(rowNumber)?.plannedEnd)
@@ -43,7 +45,7 @@ export function GanttRow({ task, range, tasksByRowNumber, compact, onClick }: Ga
       {!compact && (
         <>
           <td className="whitespace-nowrap px-4 py-3.5">
-            <Badge color={CATEGORY_COLOR[task.category]}>{CATEGORY_LABEL[task.category]}</Badge>
+            <Badge color={category?.color}>{category?.label ?? task.category}</Badge>
           </td>
           <td className="whitespace-nowrap px-4 py-3.5 text-xs text-text-muted">
             {task.predecessorRowNumbers.length ? formatPredecessors(task.predecessorRowNumbers) : '—'}

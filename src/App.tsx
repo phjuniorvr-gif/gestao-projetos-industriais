@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout, ProtectedRoute } from './components/layout';
 import {
   ActivitiesPage,
+  CategoriesPage,
   DashboardPage,
   DeletedProjectsPage,
   LoginPage,
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="cronograma" element={<ProjectSchedulePage />} />
             <Route path="projetos/:id/cronograma" element={<ProjectSchedulePage />} />
             <Route path="atividades" element={<ActivitiesPage />} />
+            <Route path="categorias" element={<CategoriesPage />} />
             <Route path="excluidos" element={<DeletedProjectsPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>

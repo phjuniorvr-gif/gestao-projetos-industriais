@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
 import { AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
-import { useCatalog, useProjects } from '../hooks';
+import { useCatalog, useCategories, useProjects } from '../hooks';
 import type { Activity, Task } from '../types';
 import { addDays, todayISO } from '../utils';
 
@@ -11,6 +11,7 @@ export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
   const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors } = useProjects();
   const { catalog } = useCatalog();
+  const { categories } = useCategories();
 
   const projectsToShow = useMemo(
     () => (id ? projects.filter((p) => p.id === id) : projects),
@@ -135,6 +136,7 @@ export function ProjectSchedulePage() {
               projects={projectsToShow}
               collapsedProjectIds={collapsedProjectIds}
               collapsedActivityIds={collapsedActivityIds}
+              categories={categories}
               compact={compact}
               onToggleProject={toggleProject}
               onToggleActivity={toggleActivity}
@@ -148,6 +150,7 @@ export function ProjectSchedulePage() {
       <TaskPanel
         task={liveSelectedTask}
         allTasks={allTasks}
+        categories={categories}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, patch) => {
           const owningProjectId = activityIdToProjectId.get(
@@ -171,6 +174,7 @@ export function ProjectSchedulePage() {
       <AddTaskPanel
         activity={addingToActivity}
         catalog={catalog}
+        categories={categories}
         onClose={() => setAddingToActivity(null)}
         onAdd={(names) => {
           if (!addingToActivity) return;

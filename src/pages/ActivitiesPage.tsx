@@ -3,11 +3,13 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Badge, Button, Card, ConfirmDialog, EmptyState } from '../components/ui';
 import { CatalogEntryForm } from '../components/catalog';
-import { useCatalog } from '../hooks';
-import { CATEGORY_LABEL, type ActivityTemplate } from '../types';
+import { useCatalog, useCategories } from '../hooks';
+import type { ActivityTemplate } from '../types';
 
 export function ActivitiesPage() {
   const { catalog, createEntry, updateEntry, removeEntry, toggleActive } = useCatalog();
+  const { categories } = useCategories();
+  const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
   const [editing, setEditing] = useState<ActivityTemplate | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ActivityTemplate | null>(null);
 
@@ -26,6 +28,7 @@ export function ActivitiesPage() {
       {editing && (
         <CatalogEntryForm
           entry={editing === 'new' ? null : editing}
+          categories={categories}
           onCancel={() => setEditing(null)}
           onSave={(input) => {
             if (editing === 'new') createEntry(input);
@@ -53,7 +56,7 @@ export function ActivitiesPage() {
               {catalog.map((entry) => (
                 <tr key={entry.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5 text-text">{entry.name}</td>
-                  <td className="px-4 py-2.5 text-text-muted">{CATEGORY_LABEL[entry.category]}</td>
+                  <td className="px-4 py-2.5 text-text-muted">{categoryLabel(entry.category)}</td>
                   <td className="px-4 py-2.5 text-text-muted">{entry.tasks.length}</td>
                   <td className="px-4 py-2.5">
                     <button type="button" onClick={() => toggleActive(entry.id)}>
@@ -90,7 +93,7 @@ export function ActivitiesPage() {
       <ConfirmDialog
         open={Boolean(deleting)}
         title="Excluir combinação"
-        message={deleting ? `Excluir "${deleting.name}" + "${CATEGORY_LABEL[deleting.category]}"?` : ''}
+        message={deleting ? `Excluir "${deleting.name}" + "${categoryLabel(deleting.category)}"?` : ''}
         confirmLabel="Excluir"
         danger
         onCancel={() => setDeleting(null)}

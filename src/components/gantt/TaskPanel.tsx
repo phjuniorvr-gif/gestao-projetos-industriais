@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { Trash2, X } from 'lucide-react';
 import { Button, Card, FormField, Input, Select } from '../ui';
-import { CATEGORY_LABEL, type Category, type Task } from '../../types';
+import type { Category, CategoryEntry, Task } from '../../types';
 import { TaskDependencyInput } from './TaskDependencyInput';
 
 interface TaskPanelProps {
   task: Task | null;
   allTasks: Task[];
+  categories: CategoryEntry[];
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
   onDelete: (taskId: string) => void;
 }
 
-export function TaskPanel({ task, allTasks, onClose, onSave, onDelete }: TaskPanelProps) {
+export function TaskPanel({ task, allTasks, categories, onClose, onSave, onDelete }: TaskPanelProps) {
   const [dependencyError, setDependencyError] = useState(false);
 
   if (!task) return null;
@@ -41,9 +42,9 @@ export function TaskPanel({ task, allTasks, onClose, onSave, onDelete }: TaskPan
               onChange={(e) => onSave(task.id, { category: e.target.value as Category })}
               className="w-full"
             >
-              {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
                 </option>
               ))}
             </Select>
