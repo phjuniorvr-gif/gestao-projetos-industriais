@@ -95,6 +95,7 @@ export function ActivitiesPage() {
           onSave={(input) => {
             if (editing === 'new') createEntry(input);
             else updateEntry(editing.id, input);
+            setSelectedCategory(input.category);
             setEditing(null);
           }}
         />
