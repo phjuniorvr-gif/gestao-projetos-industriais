@@ -8,13 +8,15 @@ import type { CatalogEntryInput } from '../../hooks';
 interface CatalogEntryFormProps {
   entry: ActivityTemplate | null;
   categories: CategoryEntry[];
+  /** Categoria pré-selecionada ao criar uma atividade nova (ex.: filtro já aplicado na tela). */
+  defaultCategory?: string;
   onSave: (input: CatalogEntryInput) => void;
   onCancel: () => void;
 }
 
-export function CatalogEntryForm({ entry, categories, onSave, onCancel }: CatalogEntryFormProps) {
+export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, onCancel }: CatalogEntryFormProps) {
   const [name, setName] = useState(entry?.name ?? STANDARD_ACTIVITY_NAMES[0]);
-  const [category, setCategory] = useState<Category>(entry?.category ?? categories[0]?.id ?? '');
+  const [category, setCategory] = useState<Category>(entry?.category ?? defaultCategory ?? categories[0]?.id ?? '');
   const [tasks, setTasks] = useState<string[]>(entry?.tasks.map((t) => t.name) ?? ['']);
   const [active, setActive] = useState(entry?.active ?? true);
 
@@ -34,7 +36,7 @@ export function CatalogEntryForm({ entry, categories, onSave, onCancel }: Catalo
 
   return (
     <Card className="p-5">
-      <p className="mb-4 text-sm font-semibold text-text">{entry ? 'Editar combinação' : 'Nova combinação'}</p>
+      <p className="mb-4 text-sm font-semibold text-text">{entry ? 'Editar atividade' : 'Nova atividade'}</p>
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Atividade" required>
           <Select value={name} onChange={(e) => setName(e.target.value)} className="w-full">
