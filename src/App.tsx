@@ -3,6 +3,7 @@ import { AppLayout, ProtectedRoute } from './components/layout';
 import {
   ActivitiesPage,
   DashboardPage,
+  DeletedProjectsPage,
   LoginPage,
   NewProjectPage,
   ProjectSchedulePage,
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="cronograma" element={<ProjectSchedulePage />} />
             <Route path="projetos/:id/cronograma" element={<ProjectSchedulePage />} />
             <Route path="atividades" element={<ActivitiesPage />} />
+            <Route path="excluidos" element={<DeletedProjectsPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
         </Route>

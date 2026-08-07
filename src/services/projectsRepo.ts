@@ -14,6 +14,7 @@ interface ProjectRow {
   status: ProjectStatus;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 interface ActivityRow {
@@ -42,11 +43,15 @@ function orNull(value: string | undefined): string | null {
   return value ?? null;
 }
 
-/** Busca todos os projetos e remonta a árvore Project → Activity → Task, já recalculando status/rollup. */
-export async function fetchProjects(): Promise<Project[]> {
+/** Busca projetos (ativos ou excluídos) e remonta a árvore Project → Activity → Task, já recalculando status/rollup. */
+async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
+  const projectsQuery = deleted
+    ? supabase.from('projects').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false })
+    : supabase.from('projects').select('*').is('deleted_at', null).order('code');
+
   const [{ data: projectRows, error: projectsError }, { data: activityRows, error: activitiesError }, { data: taskRows, error: tasksError }] =
     await Promise.all([
-      supabase.from('projects').select('*').order('code'),
+      projectsQuery,
       supabase.from('activities').select('*').order('position'),
       supabase.from('tasks').select('*').order('position'),
     ]);
@@ -103,8 +108,17 @@ export async function fetchProjects(): Promise<Project[]> {
       activities: activitiesByProject.get(row.id) ?? [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      deletedAt: row.deleted_at ?? undefined,
     }),
   );
+}
+
+export function fetchProjects(): Promise<Project[]> {
+  return fetchProjectsWhere(false);
+}
+
+export function fetchDeletedProjects(): Promise<Project[]> {
+  return fetchProjectsWhere(true);
 }
 
 function formatIdList(ids: string[]): string {
@@ -186,6 +200,18 @@ export async function saveProjectTree(project: Project): Promise<void> {
   if (deleteTasksError) throw deleteTasksError;
 }
 
+/** Move o projeto para "Excluídos" sem apagar os dados. */
+export async function softDeleteProjectRemote(projectId: string): Promise<void> {
+  const { error } = await supabase.from('projects').update({ deleted_at: new Date().toISOString() }).eq('id', projectId);
+  if (error) throw error;
+}
+
+export async function restoreProjectRemote(projectId: string): Promise<void> {
+  const { error } = await supabase.from('projects').update({ deleted_at: null }).eq('id', projectId);
+  if (error) throw error;
+}
+
+/** Apaga o projeto de verdade (usado a partir da aba "Excluídos"). */
 export async function deleteProjectRemote(projectId: string): Promise<void> {
   const { error } = await supabase.from('projects').delete().eq('id', projectId);
   if (error) throw error;

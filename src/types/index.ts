@@ -113,6 +113,7 @@ export interface Project {
   activities: Activity[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
 export interface TaskTemplate {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Settings } from 'lucide-react';
+import { CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Settings, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks';
 
 interface NavItem {
@@ -40,6 +40,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Atividades',
     icon: ListChecks,
     isActive: (pathname) => pathname === '/atividades',
+  },
+  {
+    to: '/excluidos',
+    label: 'Excluídos',
+    icon: Trash2,
+    isActive: (pathname) => pathname === '/excluidos',
   },
   {
     to: '/configuracoes',

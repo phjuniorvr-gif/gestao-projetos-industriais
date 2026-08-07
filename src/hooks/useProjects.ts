@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteProjectRemote, fetchProjects, saveProjectTree } from '../services/projectsRepo';
+import { fetchProjects, saveProjectTree, softDeleteProjectRemote } from '../services/projectsRepo';
 import type { Activity, Category, Project, Task } from '../types';
 import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
 import type { DependencyValidation } from '../utils';
@@ -106,7 +106,7 @@ export function useProjects() {
 
   const removeProject = useCallback((projectId: string) => {
     setProjects((current) => current.filter((p) => p.id !== projectId));
-    deleteProjectRemote(projectId).catch((err) => console.error('Falha ao excluir projeto no Supabase', err));
+    softDeleteProjectRemote(projectId).catch((err) => console.error('Falha ao excluir projeto no Supabase', err));
   }, []);
 
   const updateProjectInfo = useCallback(
