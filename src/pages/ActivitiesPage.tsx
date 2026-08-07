@@ -106,15 +106,8 @@ export function ActivitiesPage() {
                     <tr className="border-b border-border last:border-0">
                       <td className="px-4 py-2.5 text-text">{entry.name}</td>
                       <td className="px-4 py-2.5 text-text-muted">{categoryLabel(entry.category)}</td>
-                      <td className="px-4 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpanded(entry.id)}
-                          className="inline-flex items-center gap-1 text-text-muted hover:text-action"
-                        >
-                          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                          {entry.tasks.length} {entry.tasks.length === 1 ? 'tarefa' : 'tarefas'}
-                        </button>
+                      <td className="px-4 py-2.5 text-text-muted">
+                        {entry.tasks.length} {entry.tasks.length === 1 ? 'tarefa' : 'tarefas'}
                       </td>
                       <td className="px-4 py-2.5">
                         <button type="button" onClick={() => toggleActive(entry.id)}>
@@ -122,7 +115,14 @@ export function ActivitiesPage() {
                         </button>
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="secondary"
+                            icon={expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            onClick={() => toggleExpanded(entry.id)}
+                          >
+                            {expanded ? 'Ocultar tarefas' : 'Expandir tarefas'}
+                          </Button>
                           <button
                             type="button"
                             onClick={() => setEditing(entry)}
