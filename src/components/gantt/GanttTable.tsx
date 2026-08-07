@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import type { Activity, CategoryEntry, Project, Task } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -28,6 +28,7 @@ interface GanttTableProps {
   onOpenTask: (task: Task) => void;
   onAddTask: (activity: Activity) => void;
   onAddActivity: (project: Project) => void;
+  onRemoveActivity: (activity: Activity) => void;
 }
 
 export function GanttTable({
@@ -41,6 +42,7 @@ export function GanttTable({
   onOpenTask,
   onAddTask,
   onAddActivity,
+  onRemoveActivity,
 }: GanttTableProps) {
   const range = calculatePortfolioRange(projects);
   const width = totalWidth(range);
@@ -234,6 +236,14 @@ export function GanttTable({
                                 className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
                               >
                                 <Plus className="h-3.5 w-3.5" /> Tarefa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onRemoveActivity(activity)}
+                                className="text-text-muted hover:text-status-delayed"
+                                aria-label="Excluir atividade"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </td>

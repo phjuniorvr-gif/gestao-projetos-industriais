@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
-import { Button, Card, EmptyState, Skeleton } from '../components/ui';
+import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
 import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useProjects } from '../hooks';
@@ -10,7 +10,8 @@ import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
-  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, addActivity } = useProjects();
+  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, addActivity, removeActivity } =
+    useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
@@ -48,6 +49,7 @@ export function ProjectSchedulePage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
   const [addingActivityToProject, setAddingActivityToProject] = useState<Project | null>(null);
+  const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
 
   const ganttProjects = useMemo(() => {
     if (!categoryFilter) return visibleProjects;
@@ -225,6 +227,7 @@ export function ProjectSchedulePage() {
               onOpenTask={setSelectedTask}
               onAddTask={setAddingToActivity}
               onAddActivity={setAddingActivityToProject}
+              onRemoveActivity={setDeletingActivity}
             />
           </div>
         </Card>
@@ -284,6 +287,24 @@ export function ProjectSchedulePage() {
             });
             cursor = end;
           }
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletingActivity)}
+        title="Excluir atividade"
+        message={
+          deletingActivity
+            ? `Tem certeza que deseja excluir "${deletingActivity.name}" e todas as suas tarefas? As linhas das tarefas restantes serão renumeradas.`
+            : ''
+        }
+        confirmLabel="Excluir"
+        danger
+        onCancel={() => setDeletingActivity(null)}
+        onConfirm={() => {
+          const owningProjectId = deletingActivity ? activityIdToProjectId.get(deletingActivity.id) : undefined;
+          if (deletingActivity && owningProjectId) removeActivity(owningProjectId, deletingActivity.id);
+          setDeletingActivity(null);
         }}
       />
     </div>

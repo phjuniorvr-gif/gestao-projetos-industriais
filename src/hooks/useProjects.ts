@@ -129,6 +129,40 @@ export function useProjects() {
     [updateProject],
   );
 
+  /** Remove a atividade e todas as suas tarefas, renumerando o restante do projeto e ajustando predecessoras. */
+  const removeActivity = useCallback(
+    (projectId: string, activityId: string) => {
+      updateProject(projectId, (project) => {
+        const activityToRemove = project.activities.find((a) => a.id === activityId);
+        if (!activityToRemove) return project;
+
+        const removedRowNumbers = new Set(activityToRemove.tasks.map((t) => t.rowNumber));
+        const remainingActivities = project.activities.filter((a) => a.id !== activityId);
+        const remainingTasksSorted = remainingActivities
+          .flatMap((a) => a.tasks)
+          .sort((a, b) => a.rowNumber - b.rowNumber);
+
+        const rowNumberMap = new Map<number, number>();
+        remainingTasksSorted.forEach((task, index) => rowNumberMap.set(task.rowNumber, index + 1));
+
+        return {
+          ...project,
+          activities: remainingActivities.map((a) => ({
+            ...a,
+            tasks: a.tasks.map((task) => ({
+              ...task,
+              rowNumber: rowNumberMap.get(task.rowNumber)!,
+              predecessorRowNumbers: task.predecessorRowNumbers
+                .filter((row) => !removedRowNumbers.has(row))
+                .map((row) => rowNumberMap.get(row)!),
+            })),
+          })),
+        };
+      });
+    },
+    [updateProject],
+  );
+
   const addTask = useCallback(
     (projectId: string, activityId: string, input: NewTaskInput) => {
       updateProject(projectId, (project) => {
@@ -225,6 +259,7 @@ export function useProjects() {
     removeProject,
     updateProjectInfo,
     addActivity,
+    removeActivity,
     addTask,
     updateTask,
     removeTask,
