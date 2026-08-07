@@ -27,6 +27,7 @@ interface GanttTableProps {
   onToggleActivity: (activityId: string) => void;
   onOpenTask: (task: Task) => void;
   onAddTask: (activity: Activity) => void;
+  onAddActivity: (project: Project) => void;
   onEditProject: (project: Project) => void;
   onEditActivity: (activity: Activity) => void;
 }
@@ -41,6 +42,7 @@ export function GanttTable({
   onToggleActivity,
   onOpenTask,
   onAddTask,
+  onAddActivity,
   onEditProject,
   onEditActivity,
 }: GanttTableProps) {
@@ -182,6 +184,13 @@ export function GanttTable({
                         aria-label="Editar projeto"
                       >
                         <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onAddActivity(project)}
+                        className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Atividade
                       </button>
                     </div>
                   </td>

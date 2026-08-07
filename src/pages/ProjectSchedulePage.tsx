@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
-import { AddTaskPanel, EditActivityDialog, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
+import {
+  AddActivityDialog,
+  AddTaskPanel,
+  EditActivityDialog,
+  GanttTable,
+  ScheduleLegend,
+  TaskPanel,
+} from '../components/gantt';
 import {
   EMPTY_FILTERS,
   EditProjectDialog,
@@ -16,8 +23,17 @@ import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
-  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, updateProjectInfo, updateActivity } =
-    useProjects();
+  const {
+    projects,
+    loaded,
+    addTask,
+    updateTask,
+    removeTask,
+    setTaskPredecessors,
+    updateProjectInfo,
+    addActivity,
+    updateActivity,
+  } = useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
@@ -54,6 +70,7 @@ export function ProjectSchedulePage() {
   const [compact, setCompact] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
+  const [addingActivityToProject, setAddingActivityToProject] = useState<Project | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
@@ -232,6 +249,7 @@ export function ProjectSchedulePage() {
               onToggleActivity={toggleActivity}
               onOpenTask={setSelectedTask}
               onAddTask={setAddingToActivity}
+              onAddActivity={setAddingActivityToProject}
               onEditProject={setEditingProject}
               onEditActivity={setEditingActivity}
             />
@@ -260,6 +278,16 @@ export function ProjectSchedulePage() {
             allTasks.find((t) => t.id === taskId)?.activityId ?? '',
           );
           if (owningProjectId) removeTask(owningProjectId, taskId);
+        }}
+      />
+
+      <AddActivityDialog
+        project={addingActivityToProject}
+        onCancel={() => setAddingActivityToProject(null)}
+        onAdd={(name) => {
+          if (!addingActivityToProject) return;
+          addActivity(addingActivityToProject.id, name);
+          setAddingActivityToProject(null);
         }}
       />
 
