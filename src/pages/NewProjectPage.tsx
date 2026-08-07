@@ -145,8 +145,8 @@ export function NewProjectPage() {
     <div className="space-y-6">
       <PageHeader title="Novo Projeto" subtitle={step === 0 ? 'Informações gerais' : 'Seleção de atividades'} />
 
-      <Card className="max-w-3xl p-6">
-        {step === 0 ? (
+      {step === 0 ? (
+        <Card className="max-w-3xl p-6">
           <div className="space-y-4">
             <Badge color="#2563EB">Código do projeto: {code}</Badge>
 
@@ -183,46 +183,59 @@ export function NewProjectPage() {
               </Button>
             </div>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <FormField label="Data inicial" required>
-              <Input type="date" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} className="w-full max-w-xs" />
-              <p className="mt-1 text-xs text-text-muted">
-                Esta será a data-base para calcular o planejamento das tarefas do projeto.
-              </p>
-            </FormField>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
+            <div className="space-y-6">
+              <Card className="space-y-4 p-6">
+                <FormField label="Data inicial" required>
+                  <Input
+                    type="date"
+                    value={scheduleStart}
+                    onChange={(e) => setScheduleStart(e.target.value)}
+                    className="w-full max-w-xs"
+                  />
+                  <p className="mt-1 text-xs text-text-muted">
+                    Esta será a data-base para calcular o planejamento das tarefas do projeto.
+                  </p>
+                </FormField>
 
-            <div className="rounded-md border border-action/30 bg-action/5 p-3 text-xs text-text-muted">
-              Tarefas sem predecessora começam na data inicial do projeto. Tarefas com predecessora começam após a
-              conclusão da tarefa indicada.
+                <div className="rounded-md border border-action/30 bg-action/5 p-3 text-xs text-text-muted">
+                  Tarefas sem predecessora começam na data inicial do projeto. Tarefas com predecessora começam após
+                  a conclusão da tarefa indicada.
+                </div>
+              </Card>
+
+              <ActivitySourceForm catalog={catalog} onAddActivity={handleAddActivity} />
             </div>
 
-            <ActivitySourceForm catalog={catalog} onAddActivity={handleAddActivity} />
-
-            <div>
-              <p className="mb-2 text-xs font-medium text-text-muted">Atividades selecionadas para o projeto</p>
-              <SelectedActivitiesList
-                activities={draftActivities}
-                onToggleExpand={handleToggleExpand}
-                onRemove={handleRemoveActivity}
-                onChangeDuration={handleChangeDuration}
-                onChangePredecessors={handleChangePredecessors}
-              />
-            </div>
-
-            {advanceError && <p className="text-xs text-status-delayed">{advanceError}</p>}
-
-            <div className="flex justify-between pt-2">
-              <Button variant="ghost" onClick={() => setStep(0)}>
-                Voltar
-              </Button>
-              <Button variant="primary" onClick={handleCreate}>
-                Criar Projeto
-              </Button>
+            <div className="lg:sticky lg:top-6 lg:self-start">
+              <Card className="max-h-[calc(100vh-3rem)] overflow-y-auto p-4">
+                <p className="mb-3 text-xs font-medium text-text-muted">Atividades selecionadas para o projeto</p>
+                <SelectedActivitiesList
+                  activities={draftActivities}
+                  onToggleExpand={handleToggleExpand}
+                  onRemove={handleRemoveActivity}
+                  onChangeDuration={handleChangeDuration}
+                  onChangePredecessors={handleChangePredecessors}
+                />
+              </Card>
             </div>
           </div>
-        )}
-      </Card>
+
+          {advanceError && <p className="text-xs text-status-delayed">{advanceError}</p>}
+
+          <div className="flex justify-between pt-2">
+            <Button variant="ghost" onClick={() => setStep(0)}>
+              Voltar
+            </Button>
+            <Button variant="primary" onClick={handleCreate}>
+              Criar Projeto
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
