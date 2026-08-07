@@ -5,8 +5,8 @@ import { Button, Card, EmptyState, Skeleton } from '../components/ui';
 import { AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useProjects } from '../hooks';
-import { STATUS_LABEL, type Activity, type Task } from '../types';
-import { addDays, todayISO } from '../utils';
+import { STATUS_LABEL, type Activity, type Project, type Task } from '../types';
+import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
@@ -51,13 +51,18 @@ export function ProjectSchedulePage() {
   const ganttProjects = useMemo(() => {
     if (!categoryFilter) return visibleProjects;
     return visibleProjects
-      .map((p) => ({
-        ...p,
-        activities: p.activities
-          .map((a) => ({ ...a, tasks: a.tasks.filter((t) => t.category === categoryFilter) }))
-          .filter((a) => a.tasks.length > 0),
-      }))
-      .filter((p) => p.activities.length > 0);
+      .map((p): Project | null => {
+        const activities = p.activities
+          .map((a): Activity | null => {
+            const tasks = a.tasks.filter((t) => t.category === categoryFilter);
+            if (tasks.length === 0) return null;
+            return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
+          })
+          .filter((a): a is Activity => a !== null);
+        if (activities.length === 0) return null;
+        return { ...p, activities, ...rollUpDates(activities), status: rollUpStatus(activities) };
+      })
+      .filter((p): p is Project => p !== null);
   }, [visibleProjects, categoryFilter]);
 
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
@@ -144,7 +149,15 @@ export function ProjectSchedulePage() {
                 options={categories.map((c) => ({ value: c.id, label: c.label }))}
               />
               {!project && projectsToShow.length > 0 && (
-                <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
+                <ProjectFilters
+                  filters={filters}
+                  units={units}
+                  years={years}
+                  onChange={(next) => {
+                    setFilters(next);
+                    if (next === EMPTY_FILTERS) setCategoryFilter('');
+                  }}
+                />
               )}
             </div>
           </div>
