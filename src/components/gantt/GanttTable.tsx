@@ -71,16 +71,26 @@ export function GanttTable({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const todayMarkerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
+    function scrollToToday() {
       const container = scrollContainerRef.current;
       const marker = todayMarkerRef.current;
       if (!container || !marker) return;
       const containerRect = container.getBoundingClientRect();
       const markerRect = marker.getBoundingClientRect();
       const markerOffsetWithinContent = markerRect.left - containerRect.left + container.scrollLeft;
-      container.scrollLeft = markerOffsetWithinContent;
+      container.scrollLeft = Math.max(0, markerOffsetWithinContent);
+    }
+    // Espera dois frames (e mais um pequeno atraso) para rodar depois de qualquer
+    // reflow provocado por outros efeitos iniciais (ex.: recolher tudo ao carregar).
+    const frame1 = requestAnimationFrame(() => {
+      const frame2 = requestAnimationFrame(scrollToToday);
+      return () => cancelAnimationFrame(frame2);
     });
-    return () => cancelAnimationFrame(frame);
+    const timeout = setTimeout(scrollToToday, 150);
+    return () => {
+      cancelAnimationFrame(frame1);
+      clearTimeout(timeout);
+    };
   }, [range.start, range.end]);
 
   return (
