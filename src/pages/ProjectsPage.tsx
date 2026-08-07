@@ -45,41 +45,43 @@ export function ProjectsPage() {
 
   const counts = useMemo(
     () => ({
-      total: projects.length,
-      completed: projects.filter((p) => p.status === 'completed' || p.status === 'completed_late').length,
-      inProgress: projects.filter((p) => p.status === 'in_progress').length,
-      delayed: projects.filter((p) => p.status === 'delayed').length,
-      toStart: projects.filter((p) => p.status === 'to_start').length,
-      planned: projects.filter((p) => p.status === 'planned').length,
+      total: filtered.length,
+      completed: filtered.filter((p) => p.status === 'completed' || p.status === 'completed_late').length,
+      inProgress: filtered.filter((p) => p.status === 'in_progress').length,
+      delayed: filtered.filter((p) => p.status === 'delayed').length,
+      toStart: filtered.filter((p) => p.status === 'to_start').length,
+      planned: filtered.filter((p) => p.status === 'planned').length,
     }),
-    [projects],
+    [filtered],
   );
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Status de Projetos"
-        subtitle="Visão Geral - Automação"
-        actions={
-          <>
-            <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/novo-projeto')}>
-              Novo Projeto
-            </Button>
-            <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
-          </>
-        }
-      />
+      <div className="sticky top-0 z-10 -mx-8 -mt-6 space-y-5 border-b border-border bg-page px-8 pt-6 pb-5">
+        <PageHeader
+          title="Status de Projetos"
+          subtitle="Visão Geral - Automação"
+          actions={
+            <>
+              <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/novo-projeto')}>
+                Novo Projeto
+              </Button>
+              <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
+            </>
+          }
+        />
 
-      <div className="flex flex-wrap gap-3">
-        <StatusCard label="Total de Projetos" value={counts.total} color="#111827" />
-        <StatusCard label="Concluído" value={counts.completed} color="#166534" />
-        <StatusCard label="Em Andamento" value={counts.inProgress} color="#FDE000" />
-        <StatusCard label="Atrasado" value={counts.delayed} color="#F43F5E" />
-        <StatusCard label="À Iniciar" value={counts.toStart} color="#A3A3A3" />
-        <StatusCard label="Planejado" value={counts.planned} color="#39BDF2" />
+        <div className="flex flex-wrap gap-3">
+          <StatusCard label="Total de Projetos" value={counts.total} color="#111827" />
+          <StatusCard label="Concluído" value={counts.completed} color="#166534" />
+          <StatusCard label="Em Andamento" value={counts.inProgress} color="#FDE000" />
+          <StatusCard label="Atrasado" value={counts.delayed} color="#F43F5E" />
+          <StatusCard label="À Iniciar" value={counts.toStart} color="#A3A3A3" />
+          <StatusCard label="Planejado" value={counts.planned} color="#39BDF2" />
+        </div>
+
+        <Legend />
       </div>
-
-      <Legend />
 
       {filtered.length === 0 ? (
         <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />
