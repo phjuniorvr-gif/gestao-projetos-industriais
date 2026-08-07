@@ -69,16 +69,22 @@ export function GanttTable({
 
   // Ao carregar (ou trocar o intervalo exibido), começa a rolagem horizontal no mês atual.
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const todayMarkerRef = useRef<HTMLDivElement>(null);
+  // Célula do cabeçalho onde a linha do tempo (ano/mês/semana) começa — mede a largura real
+  // de tudo que vem antes dela (Linha/Estrutura/Status/etc.), sem precisar presumir larguras fixas.
+  const timelineHeaderRef = useRef<HTMLTableCellElement>(null);
   useEffect(() => {
     function scrollToToday() {
       const container = scrollContainerRef.current;
-      const marker = todayMarkerRef.current;
-      if (!container || !marker) return;
+      const timelineHeader = timelineHeaderRef.current;
+      if (!container || !timelineHeader) return;
+      // Mede com a rolagem zerada, pra "left" do cabeçalho refletir a posição real dentro
+      // do conteúdo (o sticky só afeta a posição visual quando rolado, não a medição em si).
+      container.scrollLeft = 0;
       const containerRect = container.getBoundingClientRect();
-      const markerRect = marker.getBoundingClientRect();
-      const markerOffsetWithinContent = markerRect.left - containerRect.left + container.scrollLeft;
-      container.scrollLeft = Math.max(0, markerOffsetWithinContent);
+      const timelineRect = timelineHeader.getBoundingClientRect();
+      const timelineStartWithinContent = timelineRect.left - containerRect.left;
+      const target = timelineStartWithinContent + LABEL_COLUMN_WIDTH + offsetPx(range, todayISO());
+      container.scrollLeft = Math.max(0, target);
     }
     // Espera dois frames (e mais um pequeno atraso) para rodar depois de qualquer
     // reflow provocado por outros efeitos iniciais (ex.: recolher tudo ao carregar).
@@ -138,15 +144,11 @@ export function GanttTable({
               </>
             )}
             <th
+              ref={timelineHeaderRef}
               className={`relative ${thClass} top-0 border-b border-border/70`}
               style={{ width, height: HEADER_ROW_HEIGHT }}
             >
               <TodayLine range={range} />
-              <div
-                ref={todayMarkerRef}
-                className="pointer-events-none absolute inset-y-0 w-px"
-                style={{ left: LABEL_COLUMN_WIDTH + offsetPx(range, todayISO()) }}
-              />
               <div className="relative flex h-full" style={{ width, paddingLeft: LABEL_COLUMN_WIDTH }}>
                 {yearTicks.map((tick) => (
                   <div
