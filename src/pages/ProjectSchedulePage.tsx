@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2, Pencil } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
 import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
@@ -46,6 +46,7 @@ export function ProjectSchedulePage() {
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
   const [compact, setCompact] = useState(true);
+  const [editMode, setEditMode] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
   const [addingActivityToProject, setAddingActivityToProject] = useState<Project | null>(null);
@@ -192,6 +193,13 @@ export function ProjectSchedulePage() {
               >
                 {allExpanded ? 'Recolher tudo' : 'Expandir tudo'}
               </Button>
+              <Button
+                variant={editMode ? 'primary' : 'secondary'}
+                icon={<Pencil className="h-4 w-4" />}
+                onClick={() => setEditMode((e) => !e)}
+              >
+                Editar
+              </Button>
             </div>
           </div>
         )}
@@ -222,6 +230,7 @@ export function ProjectSchedulePage() {
               collapsedActivityIds={collapsedActivityIds}
               categories={categories}
               compact={compact}
+              editMode={editMode}
               onToggleProject={toggleProject}
               onToggleActivity={toggleActivity}
               onOpenTask={setSelectedTask}

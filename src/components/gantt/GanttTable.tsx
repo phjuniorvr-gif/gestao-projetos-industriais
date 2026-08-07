@@ -23,6 +23,8 @@ interface GanttTableProps {
   categories: CategoryEntry[];
   /** Quando verdadeiro, mostra só Linha / Estrutura / Status / Gantt. */
   compact: boolean;
+  /** Quando verdadeiro, mostra os botões de adicionar/excluir atividade e tarefa. */
+  editMode: boolean;
   onToggleProject: (projectId: string) => void;
   onToggleActivity: (activityId: string) => void;
   onOpenTask: (task: Task) => void;
@@ -37,6 +39,7 @@ export function GanttTable({
   collapsedActivityIds,
   categories,
   compact,
+  editMode,
   onToggleProject,
   onToggleActivity,
   onOpenTask,
@@ -175,13 +178,15 @@ export function GanttTable({
                         <RowTypeBadge type="project" />
                         {project.code} — {project.name}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onAddActivity(project)}
-                        className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
-                      >
-                        <Plus className="h-3.5 w-3.5" /> Atividade
-                      </button>
+                      {editMode && (
+                        <button
+                          type="button"
+                          onClick={() => onAddActivity(project)}
+                          className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Atividade
+                        </button>
+                      )}
                     </div>
                   </td>
                   {!compact && (
@@ -230,21 +235,25 @@ export function GanttTable({
                                 <RowTypeBadge type="activity" />
                                 {activity.name}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => onAddTask(activity)}
-                                className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
-                              >
-                                <Plus className="h-3.5 w-3.5" /> Tarefa
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onRemoveActivity(activity)}
-                                className="text-text-muted hover:text-status-delayed"
-                                aria-label="Excluir atividade"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {editMode && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => onAddTask(activity)}
+                                    className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
+                                  >
+                                    <Plus className="h-3.5 w-3.5" /> Tarefa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onRemoveActivity(activity)}
+                                    className="text-text-muted hover:text-status-delayed"
+                                    aria-label="Excluir atividade"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                           {!compact && (
