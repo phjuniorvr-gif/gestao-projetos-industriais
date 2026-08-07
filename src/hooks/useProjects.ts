@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { deleteProjectRemote, fetchProjects, saveProjectTree } from '../services/projectsRepo';
-import type { Activity, Project, Task } from '../types';
+import type { Activity, Category, Project, Task } from '../types';
 import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
 import type { DependencyValidation } from '../utils';
 
@@ -9,13 +9,24 @@ function uid(): string {
   return crypto.randomUUID();
 }
 
+export interface NewActivityInput {
+  name: string;
+  tasks: {
+    name: string;
+    category: Category;
+    plannedStart: string;
+    plannedEnd: string;
+    predecessorRowNumbers: number[];
+  }[];
+}
+
 export interface NewProjectInput {
   name: string;
   description?: string;
   unit: string;
   sector?: string;
   responsible?: string;
-  activities: { name: string }[];
+  activities: NewActivityInput[];
 }
 
 export interface NewTaskInput {
@@ -53,13 +64,25 @@ export function useProjects() {
     (input: NewProjectInput): Project => {
       const id = uid();
       const now = new Date().toISOString();
-      const activities: Activity[] = input.activities.map((a) => ({
-        id: uid(),
-        projectId: id,
-        name: a.name,
-        tasks: [],
-        status: 'planned',
-      }));
+      let rowNumber = 0;
+      const activities: Activity[] = input.activities.map((a) => {
+        const activityId = uid();
+        const tasks: Task[] = a.tasks.map((t) => {
+          rowNumber += 1;
+          return {
+            id: uid(),
+            rowNumber,
+            activityId,
+            name: t.name,
+            category: t.category,
+            predecessorRowNumbers: t.predecessorRowNumbers,
+            plannedStart: t.plannedStart,
+            plannedEnd: t.plannedEnd,
+            status: 'planned',
+          };
+        });
+        return { id: activityId, projectId: id, name: a.name, tasks, status: 'planned' };
+      });
       const project = recomputeProject({
         id,
         code: nextProjectCode(projects.map((p) => p.code)),
