@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react';
 import type { Activity, CategoryEntry, Project, Task } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -27,6 +27,8 @@ interface GanttTableProps {
   onToggleActivity: (activityId: string) => void;
   onOpenTask: (task: Task) => void;
   onAddTask: (activity: Activity) => void;
+  onEditProject: (project: Project) => void;
+  onEditActivity: (activity: Activity) => void;
 }
 
 export function GanttTable({
@@ -39,6 +41,8 @@ export function GanttTable({
   onToggleActivity,
   onOpenTask,
   onAddTask,
+  onEditProject,
+  onEditActivity,
 }: GanttTableProps) {
   const range = calculatePortfolioRange(projects);
   const width = totalWidth(range);
@@ -161,15 +165,25 @@ export function GanttTable({
                     className={`${frozenTdClass} border-r border-border bg-card px-4 py-3.5`}
                     style={{ left: LINHA_COL_WIDTH }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => onToggleProject(project.id)}
-                      className="flex items-center gap-2 whitespace-nowrap font-semibold text-text hover:text-action"
-                    >
-                      {projectCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      <RowTypeBadge type="project" />
-                      {project.code} — {project.name}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onToggleProject(project.id)}
+                        className="flex items-center gap-2 whitespace-nowrap font-semibold text-text hover:text-action"
+                      >
+                        {projectCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        <RowTypeBadge type="project" />
+                        {project.code} — {project.name}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEditProject(project)}
+                        className="text-text-muted hover:text-action"
+                        aria-label="Editar projeto"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
                   {!compact && (
                     <>
@@ -223,6 +237,14 @@ export function GanttTable({
                                 className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
                               >
                                 <Plus className="h-3.5 w-3.5" /> Tarefa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onEditActivity(activity)}
+                                className="text-text-muted hover:text-action"
+                                aria-label="Editar atividade"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </td>

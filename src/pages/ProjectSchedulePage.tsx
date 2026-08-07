@@ -2,15 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
-import { AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
-import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
+import { AddTaskPanel, EditActivityDialog, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
+import {
+  EMPTY_FILTERS,
+  EditProjectDialog,
+  FilterSelect,
+  ProjectFilters,
+  type ProjectFiltersState,
+} from '../components/projects';
 import { useCatalog, useCategories, useProjects } from '../hooks';
 import { STATUS_LABEL, type Activity, type Project, type Task } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
-  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors } = useProjects();
+  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, updateProjectInfo, updateActivity } =
+    useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
@@ -47,6 +54,8 @@ export function ProjectSchedulePage() {
   const [compact, setCompact] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
   const ganttProjects = useMemo(() => {
     if (!categoryFilter) return visibleProjects;
@@ -223,6 +232,8 @@ export function ProjectSchedulePage() {
               onToggleActivity={toggleActivity}
               onOpenTask={setSelectedTask}
               onAddTask={setAddingToActivity}
+              onEditProject={setEditingProject}
+              onEditActivity={setEditingActivity}
             />
           </div>
         </Card>
@@ -272,6 +283,27 @@ export function ProjectSchedulePage() {
             });
             cursor = end;
           }
+        }}
+      />
+
+      <EditProjectDialog
+        key={editingProject?.id ?? 'closed'}
+        project={editingProject}
+        onCancel={() => setEditingProject(null)}
+        onSave={(patch) => {
+          if (editingProject) updateProjectInfo(editingProject.id, patch);
+          setEditingProject(null);
+        }}
+      />
+
+      <EditActivityDialog
+        key={editingActivity?.id ?? 'closed'}
+        activity={editingActivity}
+        onCancel={() => setEditingActivity(null)}
+        onSave={(patch) => {
+          const owningProjectId = editingActivity ? activityIdToProjectId.get(editingActivity.id) : undefined;
+          if (editingActivity && owningProjectId) updateActivity(owningProjectId, editingActivity.id, patch);
+          setEditingActivity(null);
         }}
       />
     </div>
