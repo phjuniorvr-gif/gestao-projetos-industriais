@@ -68,13 +68,23 @@ export function GanttTable({
   const estruturaThClass = compact ? 'w-[340px] truncate' : 'min-w-[340px]';
 
   // Ao carregar (ou trocar o intervalo exibido), começa a rolagem horizontal no mês atual.
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const todayMarkerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    todayMarkerRef.current?.scrollIntoView({ inline: 'start', block: 'nearest' });
+    const frame = requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      const marker = todayMarkerRef.current;
+      if (!container || !marker) return;
+      const containerRect = container.getBoundingClientRect();
+      const markerRect = marker.getBoundingClientRect();
+      const markerOffsetWithinContent = markerRect.left - containerRect.left + container.scrollLeft;
+      container.scrollLeft = markerOffsetWithinContent;
+    });
+    return () => cancelAnimationFrame(frame);
   }, [range.start, range.end]);
 
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
+    <div ref={scrollContainerRef} className="max-h-[70vh] overflow-auto rounded-lg border border-border">
       <table className="min-w-full border-collapse text-sm">
         <thead className="border-b border-border">
           <tr className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
