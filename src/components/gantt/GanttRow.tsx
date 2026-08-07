@@ -12,13 +12,14 @@ interface GanttRowProps {
   range: DateRange;
   tasksByRowNumber: Map<number, Task>;
   categories: CategoryEntry[];
+  frozenColWidth: number;
   compact: boolean;
   onClick: () => void;
 }
 
 const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-xs text-text-muted';
 
-export function GanttRow({ task, range, tasksByRowNumber, categories, compact, onClick }: GanttRowProps) {
+export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColWidth, compact, onClick }: GanttRowProps) {
   const width = totalWidth(range);
   const category = categories.find((c) => c.id === task.category);
 
@@ -29,8 +30,10 @@ export function GanttRow({ task, range, tasksByRowNumber, categories, compact, o
 
   return (
     <tr className="border-b border-border/70 bg-card hover:bg-page/60">
-      <td className="px-4 py-3.5 text-center text-xs text-text-muted">{task.rowNumber}</td>
-      <td className="py-3.5 pl-14 pr-4">
+      <td className="sticky left-0 z-10 bg-card px-4 py-3.5 text-center text-xs text-text-muted">
+        {task.rowNumber}
+      </td>
+      <td className="sticky z-10 bg-card py-3.5 pl-14 pr-4" style={{ left: frozenColWidth }}>
         <div className="flex items-center gap-2">
           <RowTypeBadge type="task" />
           <button

@@ -81,29 +81,20 @@ export function ProjectSchedulePage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{title}</h1>
-          <p className="mt-1.5 text-sm text-text-muted">
-            Somente as tarefas recebem número. As dependências são informadas pelo número da tarefa predecessora.
-          </p>
+      <div className="sticky top-0 z-30 -mx-8 -mt-6 space-y-4 border-b border-border bg-page px-8 pt-6 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-text">{title}</h1>
+            <p className="mt-1.5 text-sm text-text-muted">
+              Somente as tarefas recebem número. As dependências são informadas pelo número da tarefa predecessora.
+            </p>
+          </div>
+
+          <ScheduleLegend />
         </div>
 
-        <ScheduleLegend />
-      </div>
-
-      {projectsToShow.length === 0 ? (
-        <EmptyState title="Nenhum projeto cadastrado" description="Crie um projeto para ver o cronograma aqui." />
-      ) : allTasks.length === 0 ? (
-        <EmptyState
-          title="Nenhuma tarefa cadastrada"
-          description="Use o botão “+ Tarefa” em cada atividade abaixo para começar a montar o cronograma."
-        />
-      ) : null}
-
-      {projectsToShow.length > 0 && (
-        <Card className="space-y-4 p-0">
-          <div className="flex items-center justify-between border-b border-border bg-page/60 px-4 py-3.5">
+        {projectsToShow.length > 0 && (
+          <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5">
             <p className="text-sm font-semibold text-text">
               {project ? 'Cronograma do projeto' : 'Cronograma dos projetos'}
             </p>
@@ -130,8 +121,21 @@ export function ProjectSchedulePage() {
               </Button>
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="px-4 pb-4">
+      {projectsToShow.length === 0 ? (
+        <EmptyState title="Nenhum projeto cadastrado" description="Crie um projeto para ver o cronograma aqui." />
+      ) : allTasks.length === 0 ? (
+        <EmptyState
+          title="Nenhuma tarefa cadastrada"
+          description="Use o botão “+ Tarefa” em cada atividade abaixo para começar a montar o cronograma."
+        />
+      ) : null}
+
+      {projectsToShow.length > 0 && (
+        <Card className="space-y-4 p-0">
+          <div className="px-4 pb-4 pt-4">
             <GanttTable
               projects={projectsToShow}
               collapsedProjectIds={collapsedProjectIds}

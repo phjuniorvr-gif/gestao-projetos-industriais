@@ -49,47 +49,53 @@ export function GanttTable({
     projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)).map((t) => [t.rowNumber, t]),
   );
 
-  const thClass = 'whitespace-nowrap bg-page px-4 align-middle';
+  const thClass = 'whitespace-nowrap bg-page px-4 align-middle sticky z-20';
   const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-xs text-text-muted';
   const HEADER_ROW_HEIGHT = 30;
+  // Larguras fixas das colunas congeladas (Linha/Estrutura), usadas para alinhar o `left` do sticky.
+  const LINHA_COL_WIDTH = 64; // w-16
+  const frozenTdClass = 'sticky z-10';
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
       <table className="min-w-full border-collapse text-sm">
         <thead className="border-b border-border">
           <tr className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
-            <th rowSpan={3} className={`${thClass} w-16 text-center`}>
+            <th rowSpan={3} className={`${thClass} top-0 left-0 z-30 w-16 text-center`}>
               Linha
             </th>
-            <th rowSpan={3} className={`${thClass} min-w-[340px]`}>
+            <th rowSpan={3} className={`${thClass} top-0 z-30 min-w-[340px]`} style={{ left: LINHA_COL_WIDTH }}>
               Estrutura
             </th>
             {!compact && (
               <>
-                <th rowSpan={3} className={`${thClass} min-w-[140px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[140px]`}>
                   Categoria
                 </th>
-                <th rowSpan={3} className={`${thClass} min-w-[150px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[150px]`}>
                   Predecessora(s)
                 </th>
-                <th rowSpan={3} className={`${thClass} min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
                   Início prev.
                 </th>
-                <th rowSpan={3} className={`${thClass} min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
                   Fim prev.
                 </th>
-                <th rowSpan={3} className={`${thClass} min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
                   Início real
                 </th>
-                <th rowSpan={3} className={`${thClass} min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
                   Fim real
                 </th>
               </>
             )}
-            <th rowSpan={3} className={`${thClass} min-w-[150px]`}>
+            <th rowSpan={3} className={`${thClass} top-0 min-w-[150px]`}>
               Status
             </th>
-            <th className={`relative ${thClass} border-b border-border/70`} style={{ width, height: HEADER_ROW_HEIGHT }}>
+            <th
+              className={`relative ${thClass} top-0 border-b border-border/70`}
+              style={{ width, height: HEADER_ROW_HEIGHT }}
+            >
               <TodayLine range={range} />
               <div className="relative flex h-full" style={{ width, paddingLeft: LABEL_COLUMN_WIDTH }}>
                 {yearTicks.map((tick) => (
@@ -105,7 +111,10 @@ export function GanttTable({
             </th>
           </tr>
           <tr className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
-            <th className={`relative ${thClass} border-b border-border/70`} style={{ width, height: HEADER_ROW_HEIGHT }}>
+            <th
+              className={`relative ${thClass} border-b border-border/70`}
+              style={{ width, height: HEADER_ROW_HEIGHT, top: HEADER_ROW_HEIGHT }}
+            >
               <div className="relative flex h-full" style={{ width, paddingLeft: LABEL_COLUMN_WIDTH }}>
                 {monthTicks.map((tick) => (
                   <div
@@ -120,7 +129,7 @@ export function GanttTable({
             </th>
           </tr>
           <tr className="text-left text-xs font-medium text-text-muted">
-            <th className={`relative ${thClass}`} style={{ width, height: HEADER_ROW_HEIGHT }}>
+            <th className={`relative ${thClass}`} style={{ width, height: HEADER_ROW_HEIGHT, top: HEADER_ROW_HEIGHT * 2 }}>
               <div className="relative flex h-full" style={{ width, paddingLeft: LABEL_COLUMN_WIDTH }}>
                 {weekTicks.map((tick) => (
                   <div
@@ -141,8 +150,10 @@ export function GanttTable({
             return (
               <Fragment key={project.id}>
                 <tr className="border-b border-border bg-page/70">
-                  <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
-                  <td className="px-4 py-3.5">
+                  <td className={`${frozenTdClass} left-0 bg-page/70 px-4 py-3.5 text-center text-xs text-text-muted`}>
+                    —
+                  </td>
+                  <td className={`${frozenTdClass} bg-page/70 px-4 py-3.5`} style={{ left: LINHA_COL_WIDTH }}>
                     <button
                       type="button"
                       onClick={() => onToggleProject(project.id)}
@@ -184,8 +195,8 @@ export function GanttTable({
                     return (
                       <Fragment key={activity.id}>
                         <tr className="border-b border-border bg-page/35">
-                          <td className="px-4 py-3.5" />
-                          <td className="py-3.5 pl-7 pr-4">
+                          <td className={`${frozenTdClass} left-0 bg-page/35 px-4 py-3.5`} />
+                          <td className={`${frozenTdClass} bg-page/35 py-3.5 pl-7 pr-4`} style={{ left: LINHA_COL_WIDTH }}>
                             <div className="flex items-center gap-3">
                               <button
                                 type="button"
@@ -237,6 +248,7 @@ export function GanttTable({
                               range={range}
                               tasksByRowNumber={tasksByRowNumber}
                               categories={categories}
+                              frozenColWidth={LINHA_COL_WIDTH}
                               compact={compact}
                               onClick={() => onOpenTask(task)}
                             />
