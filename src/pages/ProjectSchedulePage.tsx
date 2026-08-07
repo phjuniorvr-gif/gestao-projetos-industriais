@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
@@ -42,8 +42,8 @@ export function ProjectSchedulePage() {
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
-  const [allExpanded, setAllExpanded] = useState(true);
-  const [compact, setCompact] = useState(false);
+  const [allExpanded, setAllExpanded] = useState(false);
+  const [compact, setCompact] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
 
@@ -53,6 +53,15 @@ export function ProjectSchedulePage() {
     () => new Map(visibleProjects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
     [visibleProjects],
   );
+
+  // Ao abrir a página, começa com tudo recolhido (só mostra a linha do projeto).
+  const collapsedOnLoadRef = useRef(false);
+  useEffect(() => {
+    if (loaded && !collapsedOnLoadRef.current && projectsToShow.length > 0) {
+      setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
+      collapsedOnLoadRef.current = true;
+    }
+  }, [loaded, projectsToShow]);
 
   if (!loaded) {
     return (
