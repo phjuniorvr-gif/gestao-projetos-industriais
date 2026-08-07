@@ -13,13 +13,23 @@ interface GanttRowProps {
   tasksByRowNumber: Map<number, Task>;
   categories: CategoryEntry[];
   frozenColWidth: number;
+  statusColLeft: number;
   compact: boolean;
   onClick: () => void;
 }
 
 const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted';
 
-export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColWidth, compact, onClick }: GanttRowProps) {
+export function GanttRow({
+  task,
+  range,
+  tasksByRowNumber,
+  categories,
+  frozenColWidth,
+  statusColLeft,
+  compact,
+  onClick,
+}: GanttRowProps) {
   const width = totalWidth(range);
   const category = categories.find((c) => c.id === task.category);
 
@@ -33,15 +43,18 @@ export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColW
       <td className="sticky left-0 z-25 bg-card px-4 py-3.5 text-center text-xs text-text-muted">
         {task.rowNumber}
       </td>
-      <td className="sticky z-25 border-r border-border bg-card py-3.5 pl-14 pr-4" style={{ left: frozenColWidth }}>
-        <div className="flex items-center gap-2">
+      <td
+        className={`sticky z-25 bg-card py-3.5 pl-14 pr-4 ${compact ? 'w-[340px] overflow-hidden' : 'border-r border-border'}`}
+        style={{ left: frozenColWidth }}
+      >
+        <div className="flex min-w-0 items-center gap-2">
           <RowTypeBadge type="task" />
           <button
             type="button"
             onClick={onClick}
-            className="text-left text-sm text-text hover:text-action hover:underline"
+            className="min-w-0 text-left text-sm text-text hover:text-action hover:underline"
           >
-            {task.name}
+            <span className={compact ? 'truncate' : ''}>{task.name}</span>
           </button>
         </div>
       </td>
@@ -59,7 +72,12 @@ export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColW
           <td className={dateTdClass}>{formatDatePtBr(task.actualEnd)}</td>
         </>
       )}
-      <td className="whitespace-nowrap px-4 py-3.5 text-center">
+      <td
+        className={`whitespace-nowrap px-4 py-3.5 text-center ${
+          compact ? 'sticky z-25 border-r border-border bg-card' : ''
+        }`}
+        style={compact ? { left: statusColLeft } : undefined}
+      >
         <StatusBadge status={task.status} />
       </td>
       <td className="relative px-4 py-3.5" style={{ width }}>

@@ -1,7 +1,7 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import type { Activity, CategoryEntry, Project, Task } from '../../types';
-import { formatDatePtBr } from '../../utils';
+import { formatDatePtBr, todayISO } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
 import {
   calculatePortfolioRange,
@@ -9,6 +9,7 @@ import {
   getWeekTicks,
   getYearTicks,
   LABEL_COLUMN_WIDTH,
+  offsetPx,
   totalWidth,
 } from './ganttMath';
 import { GanttBars } from './GanttBars';
@@ -59,9 +60,18 @@ export function GanttTable({
   const thClass = 'whitespace-nowrap bg-page px-4 align-middle sticky z-20';
   const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted';
   const HEADER_ROW_HEIGHT = 30;
-  // Larguras fixas das colunas congeladas (Linha/Estrutura), usadas para alinhar o `left` do sticky.
+  // Larguras fixas das colunas congeladas (Linha/Estrutura/Status na visão compacta), usadas para alinhar o `left` do sticky.
   const LINHA_COL_WIDTH = 64; // w-16
+  const ESTRUTURA_COL_WIDTH = 340;
+  const STATUS_COL_LEFT = LINHA_COL_WIDTH + ESTRUTURA_COL_WIDTH;
   const frozenTdClass = 'sticky z-25';
+  const estruturaThClass = compact ? 'w-[340px] truncate' : 'min-w-[340px]';
+
+  // Ao carregar (ou trocar o intervalo exibido), começa a rolagem horizontal no mês atual.
+  const todayMarkerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    todayMarkerRef.current?.scrollIntoView({ inline: 'start', block: 'nearest' });
+  }, [range.start, range.end]);
 
   return (
     <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
@@ -73,7 +83,7 @@ export function GanttTable({
             </th>
             <th
               rowSpan={3}
-              className={`${thClass} top-0 z-30 min-w-[340px] border-r border-border`}
+              className={`${thClass} top-0 z-30 ${estruturaThClass} ${!compact ? 'border-r border-border' : ''}`}
               style={{ left: LINHA_COL_WIDTH }}
             >
               Estrutura
@@ -100,7 +110,11 @@ export function GanttTable({
                 </th>
               </>
             )}
-            <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
+            <th
+              rowSpan={3}
+              className={`${thClass} top-0 min-w-[120px] text-center ${compact ? 'z-30 border-r border-border' : ''}`}
+              style={compact ? { left: STATUS_COL_LEFT } : undefined}
+            >
               Status
             </th>
             <th
@@ -108,6 +122,11 @@ export function GanttTable({
               style={{ width, height: HEADER_ROW_HEIGHT }}
             >
               <TodayLine range={range} />
+              <div
+                ref={todayMarkerRef}
+                className="pointer-events-none absolute inset-y-0 w-px"
+                style={{ left: LABEL_COLUMN_WIDTH + offsetPx(range, todayISO()) }}
+              />
               <div className="relative flex h-full" style={{ width, paddingLeft: LABEL_COLUMN_WIDTH }}>
                 {yearTicks.map((tick) => (
                   <div
@@ -165,24 +184,32 @@ export function GanttTable({
                     —
                   </td>
                   <td
-                    className={`${frozenTdClass} border-r border-border bg-card px-4 py-3.5`}
+                    className={`${frozenTdClass} bg-card px-4 py-3.5 ${
+                      compact ? 'w-[340px] overflow-hidden' : 'border-r border-border'
+                    }`}
                     style={{ left: LINHA_COL_WIDTH }}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <button
                         type="button"
                         onClick={() => onToggleProject(project.id)}
-                        className="flex items-center gap-2 whitespace-nowrap font-semibold text-text hover:text-action"
+                        className="flex min-w-0 items-center gap-2 font-semibold text-text hover:text-action"
                       >
-                        {projectCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {projectCollapsed ? (
+                          <ChevronRight className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 shrink-0" />
+                        )}
                         <RowTypeBadge type="project" />
-                        {project.code} — {project.name}
+                        <span className={compact ? 'truncate' : 'whitespace-nowrap'}>
+                          {project.code} — {project.name}
+                        </span>
                       </button>
                       {editMode && (
                         <button
                           type="button"
                           onClick={() => onAddActivity(project)}
-                          className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
+                          className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
                         >
                           <Plus className="h-3.5 w-3.5" /> Atividade
                         </button>
@@ -199,7 +226,12 @@ export function GanttTable({
                       <td className={dateTdClass}>{formatDatePtBr(project.actualEnd)}</td>
                     </>
                   )}
-                  <td className="px-4 py-3.5 text-center">
+                  <td
+                    className={`px-4 py-3.5 text-center ${
+                      compact ? `${frozenTdClass} border-r border-border bg-card` : ''
+                    }`}
+                    style={compact ? { left: STATUS_COL_LEFT } : undefined}
+                  >
                     <StatusBadge status={project.status} />
                   </td>
                   <td className="relative px-4 py-3.5" style={{ width }}>
@@ -222,32 +254,38 @@ export function GanttTable({
                         <tr className="border-b border-border bg-page/35">
                           <td className={`${frozenTdClass} left-0 bg-card px-4 py-3.5`} />
                           <td
-                            className={`${frozenTdClass} border-r border-border bg-card py-3.5 pl-7 pr-4`}
+                            className={`${frozenTdClass} bg-card py-3.5 pl-7 pr-4 ${
+                              compact ? 'w-[340px] overflow-hidden' : 'border-r border-border'
+                            }`}
                             style={{ left: LINHA_COL_WIDTH }}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
                               <button
                                 type="button"
                                 onClick={() => onToggleActivity(activity.id)}
-                                className="flex items-center gap-2 whitespace-nowrap font-medium text-text hover:text-action"
+                                className="flex min-w-0 items-center gap-2 font-medium text-text hover:text-action"
                               >
-                                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                {collapsed ? (
+                                  <ChevronRight className="h-4 w-4 shrink-0" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 shrink-0" />
+                                )}
                                 <RowTypeBadge type="activity" />
-                                {activity.name}
+                                <span className={compact ? 'truncate' : 'whitespace-nowrap'}>{activity.name}</span>
                               </button>
                               {editMode && (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() => onAddTask(activity)}
-                                    className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
+                                    className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
                                   >
                                     <Plus className="h-3.5 w-3.5" /> Tarefa
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => onRemoveActivity(activity)}
-                                    className="text-text-muted hover:text-status-delayed"
+                                    className="shrink-0 text-text-muted hover:text-status-delayed"
                                     aria-label="Excluir atividade"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -266,7 +304,12 @@ export function GanttTable({
                               <td className={dateTdClass}>{formatDatePtBr(activity.actualEnd)}</td>
                             </>
                           )}
-                          <td className="px-4 py-3.5 text-center">
+                          <td
+                            className={`px-4 py-3.5 text-center ${
+                              compact ? `${frozenTdClass} border-r border-border bg-card` : ''
+                            }`}
+                            style={compact ? { left: STATUS_COL_LEFT } : undefined}
+                          >
                             <StatusBadge status={activity.status} />
                           </td>
                           <td className="relative px-4 py-3.5" style={{ width }}>
@@ -289,6 +332,7 @@ export function GanttTable({
                               tasksByRowNumber={tasksByRowNumber}
                               categories={categories}
                               frozenColWidth={LINHA_COL_WIDTH}
+                              statusColLeft={STATUS_COL_LEFT}
                               compact={compact}
                               onClick={() => onOpenTask(task)}
                             />
