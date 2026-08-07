@@ -8,5 +8,4 @@ export * from './TaskDependencyInput';
 export * from './TodayLine';
 export * from './TaskPanel';
 export * from './AddTaskPanel';
-export * from './EditActivityDialog';
 export * from './AddActivityDialog';
