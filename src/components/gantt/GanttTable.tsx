@@ -64,7 +64,11 @@ export function GanttTable({
             <th rowSpan={3} className={`${thClass} top-0 left-0 z-30 w-16 text-center`}>
               Linha
             </th>
-            <th rowSpan={3} className={`${thClass} top-0 z-30 min-w-[340px]`} style={{ left: LINHA_COL_WIDTH }}>
+            <th
+              rowSpan={3}
+              className={`${thClass} top-0 z-30 min-w-[340px] border-r border-border`}
+              style={{ left: LINHA_COL_WIDTH }}
+            >
               Estrutura
             </th>
             {!compact && (
@@ -150,10 +154,13 @@ export function GanttTable({
             return (
               <Fragment key={project.id}>
                 <tr className="border-b border-border bg-page/70">
-                  <td className={`${frozenTdClass} left-0 bg-page/70 px-4 py-3.5 text-center text-xs text-text-muted`}>
+                  <td className={`${frozenTdClass} left-0 bg-card px-4 py-3.5 text-center text-xs text-text-muted`}>
                     —
                   </td>
-                  <td className={`${frozenTdClass} bg-page/70 px-4 py-3.5`} style={{ left: LINHA_COL_WIDTH }}>
+                  <td
+                    className={`${frozenTdClass} border-r border-border bg-card px-4 py-3.5`}
+                    style={{ left: LINHA_COL_WIDTH }}
+                  >
                     <button
                       type="button"
                       onClick={() => onToggleProject(project.id)}
@@ -195,8 +202,11 @@ export function GanttTable({
                     return (
                       <Fragment key={activity.id}>
                         <tr className="border-b border-border bg-page/35">
-                          <td className={`${frozenTdClass} left-0 bg-page/35 px-4 py-3.5`} />
-                          <td className={`${frozenTdClass} bg-page/35 py-3.5 pl-7 pr-4`} style={{ left: LINHA_COL_WIDTH }}>
+                          <td className={`${frozenTdClass} left-0 bg-card px-4 py-3.5`} />
+                          <td
+                            className={`${frozenTdClass} border-r border-border bg-card py-3.5 pl-7 pr-4`}
+                            style={{ left: LINHA_COL_WIDTH }}
+                          >
                             <div className="flex items-center gap-3">
                               <button
                                 type="button"

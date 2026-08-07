@@ -3,8 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
 import { AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
+import { EMPTY_FILTERS, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useProjects } from '../hooks';
-import type { Activity, Task } from '../types';
+import { STATUS_LABEL, type Activity, type Task } from '../types';
 import { addDays, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
@@ -12,10 +13,31 @@ export function ProjectSchedulePage() {
   const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors } = useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
+  const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
 
   const projectsToShow = useMemo(
     () => (id ? projects.filter((p) => p.id === id) : projects),
     [projects, id],
+  );
+
+  const units = useMemo(() => Array.from(new Set(projects.map((p) => p.unit).filter(Boolean))).sort(), [projects]);
+  const years = useMemo(
+    () =>
+      Array.from(new Set(projects.map((p) => p.plannedStart?.slice(0, 4)).filter((y): y is string => Boolean(y)))).sort(),
+    [projects],
+  );
+
+  const visibleProjects = useMemo(
+    () =>
+      id
+        ? projectsToShow
+        : projectsToShow.filter((p) => {
+            if (filters.unit && p.unit !== filters.unit) return false;
+            if (filters.status && STATUS_LABEL[p.status] !== filters.status) return false;
+            if (filters.year && p.plannedStart?.slice(0, 4) !== filters.year) return false;
+            return true;
+          }),
+    [projectsToShow, filters, id],
   );
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
@@ -25,11 +47,11 @@ export function ProjectSchedulePage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
 
-  const allTasks = useMemo(() => projectsToShow.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [projectsToShow]);
+  const allTasks = useMemo(() => visibleProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [visibleProjects]);
 
   const activityIdToProjectId = useMemo(
-    () => new Map(projectsToShow.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
-    [projectsToShow],
+    () => new Map(visibleProjects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
+    [visibleProjects],
   );
 
   if (!loaded) {
@@ -47,7 +69,7 @@ export function ProjectSchedulePage() {
 
   function toggleExpandAll() {
     if (allExpanded) {
-      setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
+      setCollapsedProjectIds(new Set(visibleProjects.map((p) => p.id)));
       setAllExpanded(false);
     } else {
       setCollapsedProjectIds(new Set());
@@ -93,6 +115,10 @@ export function ProjectSchedulePage() {
           <ScheduleLegend />
         </div>
 
+        {!project && projectsToShow.length > 0 && (
+          <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
+        )}
+
         {projectsToShow.length > 0 && (
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5">
             <p className="text-sm font-semibold text-text">
@@ -126,6 +152,8 @@ export function ProjectSchedulePage() {
 
       {projectsToShow.length === 0 ? (
         <EmptyState title="Nenhum projeto cadastrado" description="Crie um projeto para ver o cronograma aqui." />
+      ) : visibleProjects.length === 0 ? (
+        <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />
       ) : allTasks.length === 0 ? (
         <EmptyState
           title="Nenhuma tarefa cadastrada"
@@ -133,11 +161,11 @@ export function ProjectSchedulePage() {
         />
       ) : null}
 
-      {projectsToShow.length > 0 && (
+      {visibleProjects.length > 0 && (
         <Card className="space-y-4 p-0">
           <div className="px-4 pb-4 pt-4">
             <GanttTable
-              projects={projectsToShow}
+              projects={visibleProjects}
               collapsedProjectIds={collapsedProjectIds}
               collapsedActivityIds={collapsedActivityIds}
               categories={categories}
