@@ -1,9 +1,10 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Select } from '../components/ui';
 import { CatalogEntryForm } from '../components/catalog';
+import { RowTypeBadge } from '../components/gantt/RowTypeBadge';
 import { useCatalog, useCategories } from '../hooks';
 import type { ActivityTemplate } from '../types';
 
@@ -17,15 +18,7 @@ export function ActivitiesPage() {
   const [deleting, setDeleting] = useState<ActivityTemplate | null>(null);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  function toggleExpanded(id: string) {
-    setExpandedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const [allExpanded, setAllExpanded] = useState(false);
 
   const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
 
@@ -36,6 +29,25 @@ export function ActivitiesPage() {
         : catalog.filter((entry) => entry.category === selectedCategory),
     [catalog, selectedCategory],
   );
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleExpandAll() {
+    if (allExpanded) {
+      setExpandedIds(new Set());
+      setAllExpanded(false);
+    } else {
+      setExpandedIds(new Set(filteredCatalog.map((entry) => entry.id)));
+      setAllExpanded(true);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -49,6 +61,13 @@ export function ActivitiesPage() {
             </Button>
             <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing('new')}>
               Nova atividade
+            </Button>
+            <Button
+              variant="primary"
+              icon={allExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
+              onClick={toggleExpandAll}
+            >
+              {allExpanded ? 'Recolher tudo' : 'Expandir tudo'}
             </Button>
           </>
         }
@@ -91,7 +110,7 @@ export function ActivitiesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-page/60 text-left text-xs font-medium uppercase tracking-wide text-text-muted">
-                <th className="px-4 py-2.5">Atividade</th>
+                <th className="px-4 py-2.5">Estrutura</th>
                 <th className="px-4 py-2.5">Categoria</th>
                 <th className="px-4 py-2.5">Tarefas</th>
                 <th className="px-4 py-2.5">Status</th>
@@ -104,7 +123,17 @@ export function ActivitiesPage() {
                 return (
                   <Fragment key={entry.id}>
                     <tr className="border-b border-border last:border-0">
-                      <td className="px-4 py-2.5 text-text">{entry.name}</td>
+                      <td className="px-4 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(entry.id)}
+                          className="flex items-center gap-2 text-text hover:text-action"
+                        >
+                          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          <RowTypeBadge type="activity" />
+                          {entry.name}
+                        </button>
+                      </td>
                       <td className="px-4 py-2.5 text-text-muted">{categoryLabel(entry.category)}</td>
                       <td className="px-4 py-2.5 text-text-muted">
                         {entry.tasks.length} {entry.tasks.length === 1 ? 'tarefa' : 'tarefas'}
@@ -115,14 +144,7 @@ export function ActivitiesPage() {
                         </button>
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="secondary"
-                            icon={expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            onClick={() => toggleExpanded(entry.id)}
-                          >
-                            {expanded ? 'Ocultar tarefas' : 'Expandir tarefas'}
-                          </Button>
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => setEditing(entry)}
@@ -142,23 +164,25 @@ export function ActivitiesPage() {
                         </div>
                       </td>
                     </tr>
-                    {expanded && (
-                      <tr className="border-b border-border bg-page/40 last:border-0">
-                        <td colSpan={5} className="px-4 py-3">
-                          {entry.tasks.length === 0 ? (
-                            <p className="text-xs text-text-muted">Nenhuma tarefa cadastrada.</p>
-                          ) : (
-                            <ol className="grid grid-cols-2 gap-1.5 pl-4 text-xs text-text-muted">
-                              {entry.tasks.map((task) => (
-                                <li key={task.id} className="list-decimal">
-                                  {task.name}
-                                </li>
-                              ))}
-                            </ol>
-                          )}
-                        </td>
-                      </tr>
-                    )}
+                    {expanded &&
+                      (entry.tasks.length === 0 ? (
+                        <tr className="border-b border-border bg-page/40 last:border-0">
+                          <td colSpan={5} className="px-4 py-3 pl-14 text-xs text-text-muted">
+                            Nenhuma tarefa cadastrada.
+                          </td>
+                        </tr>
+                      ) : (
+                        entry.tasks.map((task) => (
+                          <tr key={task.id} className="border-b border-border bg-page/40 last:border-0">
+                            <td className="py-2.5 pl-14 pr-4" colSpan={5}>
+                              <div className="flex items-center gap-2">
+                                <RowTypeBadge type="task" />
+                                <span className="text-text">{task.name}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ))}
                   </Fragment>
                 );
               })}
