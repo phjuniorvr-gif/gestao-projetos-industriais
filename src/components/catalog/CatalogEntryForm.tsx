@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
 import type { ActivityTemplate, Category, CategoryEntry } from '../../types';
-import { STANDARD_ACTIVITY_NAMES } from '../../data/constants';
 import type { CatalogEntryInput } from '../../hooks';
 
 interface CatalogEntryFormProps {
@@ -15,7 +14,7 @@ interface CatalogEntryFormProps {
 }
 
 export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, onCancel }: CatalogEntryFormProps) {
-  const [name, setName] = useState(entry?.name ?? STANDARD_ACTIVITY_NAMES[0]);
+  const [name, setName] = useState(entry?.name ?? '');
   const [category, setCategory] = useState<Category>(entry?.category ?? defaultCategory ?? categories[0]?.id ?? '');
   const [tasks, setTasks] = useState<string[]>(entry?.tasks.map((t) => t.name) ?? ['']);
   const [active, setActive] = useState(entry?.active ?? true);
@@ -30,8 +29,8 @@ export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, o
 
   function handleSave() {
     const cleanTasks = tasks.map((t) => t.trim()).filter(Boolean);
-    if (!name || cleanTasks.length === 0) return;
-    onSave({ name, category, tasks: cleanTasks, active });
+    if (!name.trim() || cleanTasks.length === 0) return;
+    onSave({ name: name.trim(), category, tasks: cleanTasks, active });
   }
 
   return (
@@ -39,13 +38,7 @@ export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, o
       <p className="mb-4 text-sm font-semibold text-text">{entry ? 'Editar atividade' : 'Nova atividade'}</p>
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Atividade" required>
-          <Select value={name} onChange={(e) => setName(e.target.value)} className="w-full">
-            {STANDARD_ACTIVITY_NAMES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="w-full" placeholder="Nome da atividade" />
         </FormField>
         <FormField label="Categoria" required>
           <Select value={category} onChange={(e) => setCategory(e.target.value as Category)} className="w-full">

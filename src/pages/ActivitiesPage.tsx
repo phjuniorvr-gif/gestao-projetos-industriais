@@ -1,24 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Select } from '../components/ui';
 import { CatalogEntryForm } from '../components/catalog';
 import { useCatalog, useCategories } from '../hooks';
 import type { ActivityTemplate } from '../types';
 
+const ALL_CATEGORIES = '';
+
 export function ActivitiesPage() {
+  const navigate = useNavigate();
   const { catalog, createEntry, updateEntry, removeEntry, toggleActive } = useCatalog();
   const { categories } = useCategories();
   const [editing, setEditing] = useState<ActivityTemplate | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ActivityTemplate | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
 
-  useEffect(() => {
-    if (!selectedCategory && categories[0]) setSelectedCategory(categories[0].id);
-  }, [categories, selectedCategory]);
+  const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
 
   const filteredCatalog = useMemo(
-    () => catalog.filter((entry) => entry.category === selectedCategory),
+    () =>
+      selectedCategory === ALL_CATEGORIES
+        ? catalog
+        : catalog.filter((entry) => entry.category === selectedCategory),
     [catalog, selectedCategory],
   );
 
@@ -28,15 +33,21 @@ export function ActivitiesPage() {
         title="Atividades"
         subtitle="Catálogo padrão de atividades e tarefas por categoria"
         actions={
-          <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing('new')}>
-            Nova atividade
-          </Button>
+          <>
+            <Button variant="secondary" icon={<ArrowLeft className="h-4 w-4" />} onClick={() => navigate(-1)}>
+              Voltar
+            </Button>
+            <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing('new')}>
+              Nova atividade
+            </Button>
+          </>
         }
       />
 
       <Card className="max-w-xs p-4">
         <FormField label="Categoria">
           <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full">
+            <option value={ALL_CATEGORIES}>Todos</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
@@ -50,7 +61,7 @@ export function ActivitiesPage() {
         <CatalogEntryForm
           entry={editing === 'new' ? null : editing}
           categories={categories}
-          defaultCategory={selectedCategory}
+          defaultCategory={selectedCategory || categories[0]?.id}
           onCancel={() => setEditing(null)}
           onSave={(input) => {
             if (editing === 'new') createEntry(input);
@@ -62,7 +73,7 @@ export function ActivitiesPage() {
 
       {filteredCatalog.length === 0 ? (
         <EmptyState
-          title="Nenhuma atividade cadastrada nesta categoria"
+          title="Nenhuma atividade cadastrada"
           description="Crie a primeira atividade desta categoria."
         />
       ) : (
@@ -71,6 +82,7 @@ export function ActivitiesPage() {
             <thead>
               <tr className="border-b border-border bg-page/60 text-left text-xs font-medium uppercase tracking-wide text-text-muted">
                 <th className="px-4 py-2.5">Atividade</th>
+                <th className="px-4 py-2.5">Categoria</th>
                 <th className="px-4 py-2.5">Tarefas</th>
                 <th className="px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5 text-right">Ações</th>
@@ -80,6 +92,7 @@ export function ActivitiesPage() {
               {filteredCatalog.map((entry) => (
                 <tr key={entry.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5 text-text">{entry.name}</td>
+                  <td className="px-4 py-2.5 text-text-muted">{categoryLabel(entry.category)}</td>
                   <td className="px-4 py-2.5 text-text-muted">{entry.tasks.length}</td>
                   <td className="px-4 py-2.5">
                     <button type="button" onClick={() => toggleActive(entry.id)}>
