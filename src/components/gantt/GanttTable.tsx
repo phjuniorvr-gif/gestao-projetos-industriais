@@ -50,7 +50,7 @@ export function GanttTable({
   );
 
   const thClass = 'whitespace-nowrap bg-page px-4 align-middle sticky z-20';
-  const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-xs text-text-muted';
+  const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted';
   const HEADER_ROW_HEIGHT = 30;
   // Larguras fixas das colunas congeladas (Linha/Estrutura), usadas para alinhar o `left` do sticky.
   const LINHA_COL_WIDTH = 64; // w-16
@@ -73,27 +73,27 @@ export function GanttTable({
             </th>
             {!compact && (
               <>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[140px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Categoria
                 </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[150px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Predecessora(s)
                 </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Início prev.
                 </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Fim prev.
                 </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Início real
                 </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px]`}>
+                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
                   Fim real
                 </th>
               </>
             )}
-            <th rowSpan={3} className={`${thClass} top-0 min-w-[150px]`}>
+            <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
               Status
             </th>
             <th
@@ -173,15 +173,15 @@ export function GanttTable({
                   </td>
                   {!compact && (
                     <>
-                      <td className="px-4 py-3.5 text-xs text-text-muted">—</td>
-                      <td className="px-4 py-3.5 text-xs text-text-muted">—</td>
+                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
+                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
                       <td className={dateTdClass}>{formatDatePtBr(project.plannedStart)}</td>
                       <td className={dateTdClass}>{formatDatePtBr(project.plannedEnd)}</td>
                       <td className={dateTdClass}>{formatDatePtBr(project.actualStart)}</td>
                       <td className={dateTdClass}>{formatDatePtBr(project.actualEnd)}</td>
                     </>
                   )}
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-3.5 text-center">
                     <StatusBadge status={project.status} />
                   </td>
                   <td className="relative px-4 py-3.5" style={{ width }}>
@@ -236,7 +236,7 @@ export function GanttTable({
                               <td className={dateTdClass}>{formatDatePtBr(activity.actualEnd)}</td>
                             </>
                           )}
-                          <td className="px-4 py-3.5">
+                          <td className="px-4 py-3.5 text-center">
                             <StatusBadge status={activity.status} />
                           </td>
                           <td className="relative px-4 py-3.5" style={{ width }}>

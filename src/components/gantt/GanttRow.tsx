@@ -17,7 +17,7 @@ interface GanttRowProps {
   onClick: () => void;
 }
 
-const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-xs text-text-muted';
+const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted';
 
 export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColWidth, compact, onClick }: GanttRowProps) {
   const width = totalWidth(range);
@@ -47,10 +47,10 @@ export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColW
       </td>
       {!compact && (
         <>
-          <td className="whitespace-nowrap px-4 py-3.5">
+          <td className="whitespace-nowrap px-4 py-3.5 text-center">
             <Badge color={category?.color}>{category?.label ?? task.category}</Badge>
           </td>
-          <td className="whitespace-nowrap px-4 py-3.5 text-xs text-text-muted">
+          <td className="whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted">
             {task.predecessorRowNumbers.length ? formatPredecessors(task.predecessorRowNumbers) : '—'}
           </td>
           <td className={dateTdClass}>{formatDatePtBr(task.plannedStart)}</td>
@@ -59,7 +59,7 @@ export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColW
           <td className={dateTdClass}>{formatDatePtBr(task.actualEnd)}</td>
         </>
       )}
-      <td className="whitespace-nowrap px-4 py-3.5">
+      <td className="whitespace-nowrap px-4 py-3.5 text-center">
         <StatusBadge status={task.status} />
       </td>
       <td className="relative px-4 py-3.5" style={{ width }}>
