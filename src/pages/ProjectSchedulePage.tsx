@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
 import { AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
-import { EMPTY_FILTERS, ProjectFilters, type ProjectFiltersState } from '../components/projects';
+import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useProjects } from '../hooks';
 import { STATUS_LABEL, type Activity, type Task } from '../types';
 import { addDays, todayISO } from '../utils';
@@ -14,6 +14,7 @@ export function ProjectSchedulePage() {
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   const projectsToShow = useMemo(
     () => (id ? projects.filter((p) => p.id === id) : projects),
@@ -47,11 +48,23 @@ export function ProjectSchedulePage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
 
-  const allTasks = useMemo(() => visibleProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [visibleProjects]);
+  const ganttProjects = useMemo(() => {
+    if (!categoryFilter) return visibleProjects;
+    return visibleProjects
+      .map((p) => ({
+        ...p,
+        activities: p.activities
+          .map((a) => ({ ...a, tasks: a.tasks.filter((t) => t.category === categoryFilter) }))
+          .filter((a) => a.tasks.length > 0),
+      }))
+      .filter((p) => p.activities.length > 0);
+  }, [visibleProjects, categoryFilter]);
+
+  const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
 
   const activityIdToProjectId = useMemo(
-    () => new Map(visibleProjects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
-    [visibleProjects],
+    () => new Map(ganttProjects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
+    [ganttProjects],
   );
 
   // Ao abrir a página, começa com tudo recolhido (só mostra a linha do projeto).
@@ -123,9 +136,17 @@ export function ProjectSchedulePage() {
 
           <div className="flex flex-col items-end gap-2">
             <ScheduleLegend />
-            {!project && projectsToShow.length > 0 && (
-              <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterSelect
+                label="Categoria"
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={categories.map((c) => ({ value: c.id, label: c.label }))}
+              />
+              {!project && projectsToShow.length > 0 && (
+                <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
+              )}
+            </div>
           </div>
         </div>
 
@@ -164,6 +185,11 @@ export function ProjectSchedulePage() {
         <EmptyState title="Nenhum projeto cadastrado" description="Crie um projeto para ver o cronograma aqui." />
       ) : visibleProjects.length === 0 ? (
         <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />
+      ) : ganttProjects.length === 0 && categoryFilter ? (
+        <EmptyState
+          title="Nenhuma tarefa encontrada"
+          description="Nenhuma tarefa desta categoria foi encontrada. Ajuste o filtro para encontrar o que procura."
+        />
       ) : allTasks.length === 0 ? (
         <EmptyState
           title="Nenhuma tarefa cadastrada"
@@ -171,11 +197,11 @@ export function ProjectSchedulePage() {
         />
       ) : null}
 
-      {visibleProjects.length > 0 && (
+      {ganttProjects.length > 0 && (
         <Card className="space-y-4 p-0">
           <div className="px-4 pb-4 pt-4">
             <GanttTable
-              projects={visibleProjects}
+              projects={ganttProjects}
               collapsedProjectIds={collapsedProjectIds}
               collapsedActivityIds={collapsedActivityIds}
               categories={categories}
