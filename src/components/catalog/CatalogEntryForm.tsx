@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
 import { CATEGORY_LABEL, type ActivityTemplate, type Category } from '../../types';
-import { STANDARD_ACTIVITY_NAMES } from '../../data/seed';
+import { STANDARD_ACTIVITY_NAMES } from '../../data/constants';
 import type { CatalogEntryInput } from '../../hooks';
 
 interface CatalogEntryFormProps {

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SEED_PROJECTS } from '../data/seed';
-import { getItem, setItem, STORAGE_KEYS } from '../services/storage';
+import { deleteProjectRemote, fetchProjects, saveProjectTree } from '../services/projectsRepo';
 import type { Activity, Project, Task } from '../types';
 import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
 import type { DependencyValidation } from '../utils';
 
-function uid(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
+// IDs precisam ser UUIDs válidos: são gravados direto nas colunas `uuid` do Supabase.
+function uid(): string {
+  return crypto.randomUUID();
 }
 
 export interface NewProjectInput {
@@ -31,26 +31,18 @@ export function useProjects() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = getItem<Project[] | null>(STORAGE_KEYS.projects, null);
-    if (stored) {
-      setProjects(stored);
-    } else {
-      setProjects(SEED_PROJECTS);
-      setItem(STORAGE_KEYS.projects, SEED_PROJECTS);
-    }
-    setLoaded(true);
-  }, []);
-
-  const persist = useCallback((next: Project[]) => {
-    setProjects(next);
-    setItem(STORAGE_KEYS.projects, next);
+    fetchProjects()
+      .then(setProjects)
+      .catch((err) => console.error('Falha ao carregar projetos do Supabase', err))
+      .finally(() => setLoaded(true));
   }, []);
 
   const updateProject = useCallback(
     (projectId: string, updater: (project: Project) => Project) => {
       setProjects((current) => {
         const next = current.map((p) => (p.id === projectId ? recomputeProject(updater(p)) : p));
-        setItem(STORAGE_KEYS.projects, next);
+        const updated = next.find((p) => p.id === projectId);
+        if (updated) saveProjectTree(updated).catch((err) => console.error('Falha ao salvar projeto no Supabase', err));
         return next;
       });
     },
@@ -59,10 +51,10 @@ export function useProjects() {
 
   const createProject = useCallback(
     (input: NewProjectInput): Project => {
-      const id = uid('project');
+      const id = uid();
       const now = new Date().toISOString();
       const activities: Activity[] = input.activities.map((a) => ({
-        id: uid('activity'),
+        id: uid(),
         projectId: id,
         name: a.name,
         tasks: [],
@@ -82,18 +74,17 @@ export function useProjects() {
         createdAt: now,
         updatedAt: now,
       });
-      persist([...projects, project]);
+      setProjects((current) => [...current, project]);
+      saveProjectTree(project).catch((err) => console.error('Falha ao criar projeto no Supabase', err));
       return project;
     },
-    [projects, persist],
+    [projects],
   );
 
-  const removeProject = useCallback(
-    (projectId: string) => {
-      persist(projects.filter((p) => p.id !== projectId));
-    },
-    [projects, persist],
-  );
+  const removeProject = useCallback((projectId: string) => {
+    setProjects((current) => current.filter((p) => p.id !== projectId));
+    deleteProjectRemote(projectId).catch((err) => console.error('Falha ao excluir projeto no Supabase', err));
+  }, []);
 
   const updateProjectInfo = useCallback(
     (projectId: string, patch: Partial<Pick<Project, 'name' | 'description' | 'unit' | 'sector' | 'responsible'>>) => {
@@ -108,7 +99,7 @@ export function useProjects() {
         ...project,
         activities: [
           ...project.activities,
-          { id: uid('activity'), projectId, name, tasks: [], status: 'planned' },
+          { id: uid(), projectId, name, tasks: [], status: 'planned' },
         ],
       }));
     },
@@ -121,7 +112,7 @@ export function useProjects() {
         const allRowNumbers = project.activities.flatMap((a) => a.tasks.map((t) => t.rowNumber));
         const nextRowNumber = allRowNumbers.length > 0 ? Math.max(...allRowNumbers) + 1 : 1;
         const task: Task = {
-          id: uid('task'),
+          id: uid(),
           rowNumber: nextRowNumber,
           activityId,
           name: input.name,

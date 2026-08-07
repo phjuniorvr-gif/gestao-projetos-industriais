@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SEED_CATALOG } from '../data/seed';
-import { getItem, setItem, STORAGE_KEYS } from '../services/storage';
+import { deleteTemplateRemote, fetchCatalog, saveTemplate } from '../services/catalogRepo';
 import type { ActivityTemplate, Category } from '../types';
 
-function uid(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
+// IDs precisam ser UUIDs válidos: são gravados direto nas colunas `uuid` do Supabase.
+function uid(): string {
+  return crypto.randomUUID();
 }
 
 export interface CatalogEntryInput {
@@ -18,66 +18,55 @@ export function useCatalog() {
   const [catalog, setCatalog] = useState<ActivityTemplate[]>([]);
 
   useEffect(() => {
-    const stored = getItem<ActivityTemplate[] | null>(STORAGE_KEYS.catalog, null);
-    if (stored) {
-      setCatalog(stored);
-    } else {
-      setCatalog(SEED_CATALOG);
-      setItem(STORAGE_KEYS.catalog, SEED_CATALOG);
-    }
+    fetchCatalog()
+      .then(setCatalog)
+      .catch((err) => console.error('Falha ao carregar catálogo do Supabase', err));
   }, []);
 
-  const persist = useCallback((next: ActivityTemplate[]) => {
-    setCatalog(next);
-    setItem(STORAGE_KEYS.catalog, next);
+  const createEntry = useCallback((input: CatalogEntryInput) => {
+    const entry: ActivityTemplate = {
+      id: uid(),
+      name: input.name,
+      category: input.category,
+      active: input.active,
+      tasks: input.tasks.map((name) => ({ id: uid(), name })),
+    };
+    setCatalog((current) => [...current, entry]);
+    saveTemplate(entry).catch((err) => console.error('Falha ao salvar item do catálogo no Supabase', err));
   }, []);
 
-  const createEntry = useCallback(
-    (input: CatalogEntryInput) => {
-      const entry: ActivityTemplate = {
-        id: uid('template'),
-        name: input.name,
-        category: input.category,
-        active: input.active,
-        tasks: input.tasks.map((name) => ({ id: uid('template-task'), name })),
-      };
-      persist([...catalog, entry]);
-    },
-    [catalog, persist],
-  );
-
-  const updateEntry = useCallback(
-    (id: string, input: CatalogEntryInput) => {
-      persist(
-        catalog.map((entry) =>
-          entry.id === id
-            ? {
-                ...entry,
-                name: input.name,
-                category: input.category,
-                active: input.active,
-                tasks: input.tasks.map((name) => ({ id: uid('template-task'), name })),
-              }
-            : entry,
-        ),
+  const updateEntry = useCallback((id: string, input: CatalogEntryInput) => {
+    setCatalog((current) => {
+      const next = current.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              name: input.name,
+              category: input.category,
+              active: input.active,
+              tasks: input.tasks.map((name) => ({ id: uid(), name })),
+            }
+          : entry,
       );
-    },
-    [catalog, persist],
-  );
+      const updated = next.find((entry) => entry.id === id);
+      if (updated) saveTemplate(updated).catch((err) => console.error('Falha ao salvar item do catálogo no Supabase', err));
+      return next;
+    });
+  }, []);
 
-  const removeEntry = useCallback(
-    (id: string) => {
-      persist(catalog.filter((entry) => entry.id !== id));
-    },
-    [catalog, persist],
-  );
+  const removeEntry = useCallback((id: string) => {
+    setCatalog((current) => current.filter((entry) => entry.id !== id));
+    deleteTemplateRemote(id).catch((err) => console.error('Falha ao excluir item do catálogo no Supabase', err));
+  }, []);
 
-  const toggleActive = useCallback(
-    (id: string) => {
-      persist(catalog.map((entry) => (entry.id === id ? { ...entry, active: !entry.active } : entry)));
-    },
-    [catalog, persist],
-  );
+  const toggleActive = useCallback((id: string) => {
+    setCatalog((current) => {
+      const next = current.map((entry) => (entry.id === id ? { ...entry, active: !entry.active } : entry));
+      const updated = next.find((entry) => entry.id === id);
+      if (updated) saveTemplate(updated).catch((err) => console.error('Falha ao salvar item do catálogo no Supabase', err));
+      return next;
+    });
+  }, []);
 
   return { catalog, createEntry, updateEntry, removeEntry, toggleActive };
 }

@@ -82,6 +82,7 @@ export function ProjectsPage() {
       )}
 
       <EditProjectDialog
+        key={editing?.id ?? 'closed'}
         project={editing}
         onCancel={() => setEditing(null)}
         onSave={(patch) => {

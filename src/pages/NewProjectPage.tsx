@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, X } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, FormField, Input, Select, Textarea, Badge } from '../components/ui';
-import { STANDARD_ACTIVITY_NAMES } from '../data/seed';
+import { STANDARD_ACTIVITY_NAMES } from '../data/constants';
 import { useProjects } from '../hooks';
 import { nextProjectCode } from '../utils';
 

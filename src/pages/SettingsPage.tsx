@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, Checkbox, FormField, Select } from '../components/ui';
-import { getItem, setItem, STORAGE_KEYS } from '../services/storage';
+import { getSettings as getStoredSettings, setSettings as persistSettings } from '../services/localSettings';
 import { CATEGORY_LABEL, STATUS_LABEL, type Category, type ProjectStatus } from '../types';
 
 interface Settings {
@@ -29,7 +29,7 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setSettings(getItem(STORAGE_KEYS.settings, DEFAULT_SETTINGS));
+    setSettings(getStoredSettings(DEFAULT_SETTINGS));
   }, []);
 
   function toggleCategory(category: Category) {
@@ -51,7 +51,7 @@ export function SettingsPage() {
   }
 
   function handleSave() {
-    setItem(STORAGE_KEYS.settings, settings);
+    persistSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }

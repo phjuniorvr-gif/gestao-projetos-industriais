@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarRange, FolderKanban, LayoutDashboard, ListChecks, Menu, Plus, Settings } from 'lucide-react';
+import { CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Settings } from 'lucide-react';
+import { useAuth } from '../../hooks';
 
 interface NavItem {
   to: string;
@@ -51,6 +52,7 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { signOut } = useAuth();
 
   return (
     <aside
@@ -94,6 +96,20 @@ export function Sidebar() {
             );
           })}
         </nav>
+      </div>
+
+      <div className="mt-auto px-2.5 py-4">
+        <button
+          type="button"
+          onClick={() => signOut()}
+          title={collapsed ? 'Sair' : undefined}
+          className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10 ${
+            collapsed ? 'justify-center px-0' : ''
+          }`}
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          {!collapsed && <span className="whitespace-nowrap">Sair</span>}
+        </button>
       </div>
     </aside>
   );
