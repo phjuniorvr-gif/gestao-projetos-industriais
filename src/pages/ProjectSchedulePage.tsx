@@ -1,24 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Card, EmptyState, Skeleton } from '../components/ui';
 import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
-import {
-  EMPTY_FILTERS,
-  EditProjectDialog,
-  FilterSelect,
-  ProjectFilters,
-  type ProjectFiltersState,
-} from '../components/projects';
+import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useProjects } from '../hooks';
 import { STATUS_LABEL, type Activity, type Project, type Task } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
-  const navigate = useNavigate();
-  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, updateProjectInfo, addActivity } =
-    useProjects();
+  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, addActivity } = useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
@@ -56,7 +48,6 @@ export function ProjectSchedulePage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
   const [addingActivityToProject, setAddingActivityToProject] = useState<Project | null>(null);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const ganttProjects = useMemo(() => {
     if (!categoryFilter) return visibleProjects;
@@ -234,8 +225,6 @@ export function ProjectSchedulePage() {
               onOpenTask={setSelectedTask}
               onAddTask={setAddingToActivity}
               onAddActivity={setAddingActivityToProject}
-              onEditProject={setEditingProject}
-              onEditActivity={() => navigate('/atividades')}
             />
           </div>
         </Card>
@@ -295,16 +284,6 @@ export function ProjectSchedulePage() {
             });
             cursor = end;
           }
-        }}
-      />
-
-      <EditProjectDialog
-        key={editingProject?.id ?? 'closed'}
-        project={editingProject}
-        onCancel={() => setEditingProject(null)}
-        onSave={(patch) => {
-          if (editingProject) updateProjectInfo(editingProject.id, patch);
-          setEditingProject(null);
         }}
       />
     </div>

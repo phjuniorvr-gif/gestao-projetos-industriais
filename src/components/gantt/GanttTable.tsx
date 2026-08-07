@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import type { Activity, CategoryEntry, Project, Task } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -28,8 +28,6 @@ interface GanttTableProps {
   onOpenTask: (task: Task) => void;
   onAddTask: (activity: Activity) => void;
   onAddActivity: (project: Project) => void;
-  onEditProject: (project: Project) => void;
-  onEditActivity: (activity: Activity) => void;
 }
 
 export function GanttTable({
@@ -43,8 +41,6 @@ export function GanttTable({
   onOpenTask,
   onAddTask,
   onAddActivity,
-  onEditProject,
-  onEditActivity,
 }: GanttTableProps) {
   const range = calculatePortfolioRange(projects);
   const width = totalWidth(range);
@@ -179,14 +175,6 @@ export function GanttTable({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onEditProject(project)}
-                        className="text-text-muted hover:text-action"
-                        aria-label="Editar projeto"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => onAddActivity(project)}
                         className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
                       >
@@ -246,14 +234,6 @@ export function GanttTable({
                                 className="flex items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
                               >
                                 <Plus className="h-3.5 w-3.5" /> Tarefa
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onEditActivity(activity)}
-                                className="text-text-muted hover:text-action"
-                                aria-label="Editar atividade"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </td>
