@@ -186,7 +186,7 @@ export function NewProjectPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="space-y-6">
               <Card className="space-y-4 p-6">
                 <FormField label="Data inicial" required>
