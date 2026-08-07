@@ -30,10 +30,10 @@ export function GanttRow({ task, range, tasksByRowNumber, categories, frozenColW
 
   return (
     <tr className="border-b border-border/70 bg-card hover:bg-page/60">
-      <td className="sticky left-0 z-10 bg-card px-4 py-3.5 text-center text-xs text-text-muted">
+      <td className="sticky left-0 z-25 bg-card px-4 py-3.5 text-center text-xs text-text-muted">
         {task.rowNumber}
       </td>
-      <td className="sticky z-10 border-r border-border bg-card py-3.5 pl-14 pr-4" style={{ left: frozenColWidth }}>
+      <td className="sticky z-25 border-r border-border bg-card py-3.5 pl-14 pr-4" style={{ left: frozenColWidth }}>
         <div className="flex items-center gap-2">
           <RowTypeBadge type="task" />
           <button

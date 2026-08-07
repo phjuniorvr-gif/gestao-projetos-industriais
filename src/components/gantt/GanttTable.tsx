@@ -54,7 +54,7 @@ export function GanttTable({
   const HEADER_ROW_HEIGHT = 30;
   // Larguras fixas das colunas congeladas (Linha/Estrutura), usadas para alinhar o `left` do sticky.
   const LINHA_COL_WIDTH = 64; // w-16
-  const frozenTdClass = 'sticky z-10';
+  const frozenTdClass = 'sticky z-25';
 
   return (
     <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">

@@ -112,12 +112,13 @@ export function ProjectSchedulePage() {
             </p>
           </div>
 
-          <ScheduleLegend />
+          <div className="flex flex-col items-end gap-2">
+            <ScheduleLegend />
+            {!project && projectsToShow.length > 0 && (
+              <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
+            )}
+          </div>
         </div>
-
-        {!project && projectsToShow.length > 0 && (
-          <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
-        )}
 
         {projectsToShow.length > 0 && (
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5">
