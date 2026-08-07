@@ -63,7 +63,7 @@ export function ActivitiesPage() {
               Nova atividade
             </Button>
             <Button
-              variant="primary"
+              variant={allExpanded ? 'secondary' : 'primary'}
               icon={allExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
               onClick={toggleExpandAll}
             >

@@ -180,21 +180,21 @@ export function ProjectSchedulePage() {
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Link>
               <Button
-                variant="secondary"
+                variant={compact ? 'primary' : 'secondary'}
                 icon={compact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
                 onClick={() => setCompact((c) => !c)}
               >
                 {compact ? 'Visão completa' : 'Visão compacta'}
               </Button>
               <Button
-                variant="primary"
+                variant={allExpanded ? 'secondary' : 'primary'}
                 icon={allExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
                 onClick={toggleExpandAll}
               >
                 {allExpanded ? 'Recolher tudo' : 'Expandir tudo'}
               </Button>
               <Button
-                variant={editMode ? 'primary' : 'secondary'}
+                variant={editMode ? 'secondary' : 'primary'}
                 icon={<Pencil className="h-4 w-4" />}
                 onClick={() => setEditMode((e) => !e)}
               >
