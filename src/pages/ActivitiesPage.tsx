@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Select } from '../components/ui';
 import { CatalogEntryForm } from '../components/catalog';
@@ -16,6 +16,16 @@ export function ActivitiesPage() {
   const [editing, setEditing] = useState<ActivityTemplate | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ActivityTemplate | null>(null);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
 
@@ -89,38 +99,69 @@ export function ActivitiesPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredCatalog.map((entry) => (
-                <tr key={entry.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 text-text">{entry.name}</td>
-                  <td className="px-4 py-2.5 text-text-muted">{categoryLabel(entry.category)}</td>
-                  <td className="px-4 py-2.5 text-text-muted">{entry.tasks.length}</td>
-                  <td className="px-4 py-2.5">
-                    <button type="button" onClick={() => toggleActive(entry.id)}>
-                      <Badge color={entry.active ? '#22C55E' : '#A3A3A3'}>{entry.active ? 'Ativo' : 'Inativo'}</Badge>
-                    </button>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditing(entry)}
-                        className="rounded-md p-2 text-text-muted hover:bg-page hover:text-text"
-                        aria-label="Editar"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleting(entry)}
-                        className="rounded-md p-2 text-text-muted hover:bg-status-delayed/10 hover:text-status-delayed"
-                        aria-label="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredCatalog.map((entry) => {
+                const expanded = expandedIds.has(entry.id);
+                return (
+                  <Fragment key={entry.id}>
+                    <tr className="border-b border-border last:border-0">
+                      <td className="px-4 py-2.5 text-text">{entry.name}</td>
+                      <td className="px-4 py-2.5 text-text-muted">{categoryLabel(entry.category)}</td>
+                      <td className="px-4 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(entry.id)}
+                          className="inline-flex items-center gap-1 text-text-muted hover:text-action"
+                        >
+                          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          {entry.tasks.length} {entry.tasks.length === 1 ? 'tarefa' : 'tarefas'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <button type="button" onClick={() => toggleActive(entry.id)}>
+                          <Badge color={entry.active ? '#22C55E' : '#A3A3A3'}>{entry.active ? 'Ativo' : 'Inativo'}</Badge>
+                        </button>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditing(entry)}
+                            className="rounded-md p-2 text-text-muted hover:bg-page hover:text-text"
+                            aria-label="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleting(entry)}
+                            className="rounded-md p-2 text-text-muted hover:bg-status-delayed/10 hover:text-status-delayed"
+                            aria-label="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr className="border-b border-border bg-page/40 last:border-0">
+                        <td colSpan={5} className="px-4 py-3">
+                          {entry.tasks.length === 0 ? (
+                            <p className="text-xs text-text-muted">Nenhuma tarefa cadastrada.</p>
+                          ) : (
+                            <ol className="grid grid-cols-2 gap-1.5 pl-4 text-xs text-text-muted">
+                              {entry.tasks.map((task) => (
+                                <li key={task.id} className="list-decimal">
+                                  {task.name}
+                                </li>
+                              ))}
+                            </ol>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </Card>
