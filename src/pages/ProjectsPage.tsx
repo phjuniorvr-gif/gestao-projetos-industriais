@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import {
   EMPTY_FILTERS,
@@ -9,11 +11,12 @@ import {
   StatusCard,
   type ProjectFiltersState,
 } from '../components/projects';
-import { ConfirmDialog, EmptyState } from '../components/ui';
+import { Button, ConfirmDialog, EmptyState } from '../components/ui';
 import { useProjects } from '../hooks';
 import { STATUS_LABEL, type Project } from '../types';
 
 export function ProjectsPage() {
+  const navigate = useNavigate();
   const { projects, removeProject, updateProjectInfo } = useProjects();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [editing, setEditing] = useState<Project | null>(null);
@@ -57,7 +60,14 @@ export function ProjectsPage() {
       <PageHeader
         title="Status de Projetos"
         subtitle="Visão Geral - Automação"
-        actions={<ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />}
+        actions={
+          <>
+            <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/novo-projeto')}>
+              Novo Projeto
+            </Button>
+            <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
+          </>
+        }
       />
 
       <div className="flex flex-wrap gap-3">
