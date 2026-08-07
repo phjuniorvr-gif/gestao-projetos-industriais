@@ -44,7 +44,7 @@ export function GanttBars({
         <div className="relative h-3" style={{ width }}>
           {planned && (
             <div
-              className="absolute top-0 z-30 h-3 rounded-md border border-action bg-blue-200"
+              className="absolute top-0 z-[21] h-3 rounded-md border border-action bg-blue-200"
               style={{ left: planned.left, width: planned.width }}
             />
           )}
@@ -58,18 +58,18 @@ export function GanttBars({
           {real ? (
             <>
               <div
-                className="absolute top-0 z-30 h-3 rounded-md bg-action"
+                className="absolute top-0 z-[21] h-3 rounded-md bg-action"
                 style={{ left: real.left, width: real.width }}
               />
               {overrun && (
                 <div
-                  className="absolute top-0 z-30 h-3 rounded-md bg-status-delayed"
+                  className="absolute top-0 z-[21] h-3 rounded-md bg-status-delayed"
                   style={{ left: overrun.left, width: overrun.width }}
                 />
               )}
             </>
           ) : (
-            <span className="absolute left-0 top-0 z-30 bg-card text-[10px] italic text-text-muted">
+            <span className="absolute left-0 top-0 z-[21] bg-card text-[10px] italic text-text-muted">
               Não iniciado
             </span>
           )}
