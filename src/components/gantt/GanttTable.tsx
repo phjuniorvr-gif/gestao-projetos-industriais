@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import type { Activity, CategoryEntry, Project, Task } from '../../types';
-import { formatDatePtBr, todayISO } from '../../utils';
+import { formatDatePtBr } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
 import {
   calculatePortfolioRange,
@@ -9,7 +9,6 @@ import {
   getWeekTicks,
   getYearTicks,
   LABEL_COLUMN_WIDTH,
-  offsetPx,
   totalWidth,
 } from './ganttMath';
 import { GanttBars } from './GanttBars';
@@ -67,40 +66,8 @@ export function GanttTable({
   const frozenTdClass = 'sticky z-25';
   const estruturaThClass = compact ? 'w-[340px] truncate' : 'min-w-[340px]';
 
-  // Ao carregar (ou trocar o intervalo exibido), começa a rolagem horizontal no mês atual.
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  // Célula do cabeçalho onde a linha do tempo (ano/mês/semana) começa — mede a largura real
-  // de tudo que vem antes dela (Linha/Estrutura/Status/etc.), sem precisar presumir larguras fixas.
-  const timelineHeaderRef = useRef<HTMLTableCellElement>(null);
-  useEffect(() => {
-    function scrollToToday() {
-      const container = scrollContainerRef.current;
-      const timelineHeader = timelineHeaderRef.current;
-      if (!container || !timelineHeader) return;
-      // Mede com a rolagem zerada, pra "left" do cabeçalho refletir a posição real dentro
-      // do conteúdo (o sticky só afeta a posição visual quando rolado, não a medição em si).
-      container.scrollLeft = 0;
-      const containerRect = container.getBoundingClientRect();
-      const timelineRect = timelineHeader.getBoundingClientRect();
-      const timelineStartWithinContent = timelineRect.left - containerRect.left;
-      const target = timelineStartWithinContent + LABEL_COLUMN_WIDTH + offsetPx(range, todayISO());
-      container.scrollLeft = Math.max(0, target);
-    }
-    // Espera dois frames (e mais um pequeno atraso) para rodar depois de qualquer
-    // reflow provocado por outros efeitos iniciais (ex.: recolher tudo ao carregar).
-    const frame1 = requestAnimationFrame(() => {
-      const frame2 = requestAnimationFrame(scrollToToday);
-      return () => cancelAnimationFrame(frame2);
-    });
-    const timeout = setTimeout(scrollToToday, 150);
-    return () => {
-      cancelAnimationFrame(frame1);
-      clearTimeout(timeout);
-    };
-  }, [range.start, range.end]);
-
   return (
-    <div ref={scrollContainerRef} className="max-h-[70vh] overflow-auto rounded-lg border border-border">
+    <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
       <table className="min-w-full border-collapse text-sm">
         <thead className="border-b border-border">
           <tr className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -144,7 +111,6 @@ export function GanttTable({
               </>
             )}
             <th
-              ref={timelineHeaderRef}
               className={`relative ${thClass} top-0 border-b border-border/70`}
               style={{ width, height: HEADER_ROW_HEIGHT }}
             >
