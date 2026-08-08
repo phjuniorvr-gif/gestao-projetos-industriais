@@ -58,6 +58,20 @@ export function GanttRow({
           </button>
         </div>
       </td>
+      {!compact && (
+        <>
+          <td className="whitespace-nowrap px-4 py-3.5 text-center">
+            <Badge color={category?.color}>{category?.label ?? task.category}</Badge>
+          </td>
+          <td className="whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted">
+            {task.predecessorRowNumbers.length ? formatPredecessors(task.predecessorRowNumbers) : '—'}
+          </td>
+          <td className={dateTdClass}>{formatDatePtBr(task.plannedStart)}</td>
+          <td className={dateTdClass}>{formatDatePtBr(task.plannedEnd)}</td>
+          <td className={dateTdClass}>{formatDatePtBr(task.actualStart)}</td>
+          <td className={dateTdClass}>{formatDatePtBr(task.actualEnd)}</td>
+        </>
+      )}
       <td
         className={`whitespace-nowrap px-4 py-3.5 text-center ${
           compact ? 'sticky z-25 border-r border-border bg-card' : ''
@@ -66,20 +80,6 @@ export function GanttRow({
       >
         <StatusBadge status={task.status} />
       </td>
-      {!compact && (
-        <>
-          <td className="whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted">
-            {task.predecessorRowNumbers.length ? formatPredecessors(task.predecessorRowNumbers) : '—'}
-          </td>
-          <td className={dateTdClass}>{formatDatePtBr(task.plannedStart)}</td>
-          <td className={dateTdClass}>{formatDatePtBr(task.plannedEnd)}</td>
-          <td className={dateTdClass}>{formatDatePtBr(task.actualStart)}</td>
-          <td className={dateTdClass}>{formatDatePtBr(task.actualEnd)}</td>
-          <td className="whitespace-nowrap px-4 py-3.5 text-center">
-            <Badge color={category?.color}>{category?.label ?? task.category}</Badge>
-          </td>
-        </>
-      )}
       <td className="relative px-4 py-3.5" style={{ width }}>
         <TodayLine range={range} />
         <GanttBars
