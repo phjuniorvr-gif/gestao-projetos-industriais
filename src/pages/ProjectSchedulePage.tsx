@@ -16,6 +16,7 @@ export function ProjectSchedulePage() {
   const { categories } = useCategories();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [projectFilter, setProjectFilter] = useState('');
 
   const projectsToShow = useMemo(
     () => (id ? projects.filter((p) => p.id === id) : projects),
@@ -34,12 +35,13 @@ export function ProjectSchedulePage() {
       id
         ? projectsToShow
         : projectsToShow.filter((p) => {
+            if (projectFilter && p.id !== projectFilter) return false;
             if (filters.unit && p.unit !== filters.unit) return false;
             if (filters.status && STATUS_LABEL[p.status] !== filters.status) return false;
             if (filters.year && p.plannedStart?.slice(0, 4) !== filters.year) return false;
             return true;
           }),
-    [projectsToShow, filters, id],
+    [projectsToShow, filters, projectFilter, id],
   );
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
@@ -153,15 +155,26 @@ export function ProjectSchedulePage() {
                 options={categories.map((c) => ({ value: c.id, label: c.label }))}
               />
               {!project && projectsToShow.length > 0 && (
-                <ProjectFilters
-                  filters={filters}
-                  units={units}
-                  years={years}
-                  onChange={(next) => {
-                    setFilters(next);
-                    if (next === EMPTY_FILTERS) setCategoryFilter('');
-                  }}
-                />
+                <>
+                  <FilterSelect
+                    label="Projeto"
+                    value={projectFilter}
+                    onChange={setProjectFilter}
+                    options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))}
+                  />
+                  <ProjectFilters
+                    filters={filters}
+                    units={units}
+                    years={years}
+                    onChange={(next) => {
+                      setFilters(next);
+                      if (next === EMPTY_FILTERS) {
+                        setCategoryFilter('');
+                        setProjectFilter('');
+                      }
+                    }}
+                  />
+                </>
               )}
             </div>
           </div>
