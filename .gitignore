@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# dumps manuais do Supabase (dados reais — não versionar; migrations em
+# supabase/migrations/, se vierem a existir, vão pro Git normalmente)
+supabase/backups/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

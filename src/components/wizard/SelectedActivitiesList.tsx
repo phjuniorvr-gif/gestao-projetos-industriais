@@ -119,7 +119,7 @@ export function SelectedActivitiesList({
                                 }
                                 className="w-16"
                               />
-                              <span className="text-xs text-text-muted">dias</span>
+                              <span className="text-xs text-text-muted">du</span>
                             </div>
                           </td>
                           <td className="px-3 py-2">

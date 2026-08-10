@@ -246,7 +246,7 @@ export function ActivitySourceForm({ catalog, categories, onAddActivity }: Activ
                     onChange={(e) => updateManualTaskRow(t.key, { duration: Math.max(1, Number(e.target.value) || 1) })}
                     className="w-24"
                   />
-                  <span className="text-xs text-text-muted">dias</span>
+                  <span className="text-xs text-text-muted">du</span>
                   <button
                     type="button"
                     onClick={() => removeManualTaskRow(t.key)}

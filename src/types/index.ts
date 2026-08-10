@@ -43,6 +43,19 @@ export interface CategoryEntry {
   position: number;
 }
 
+// Feriado NÃO calculável (municipal, ponto facultativo, parada de fábrica).
+// Feriado nacional não mora aqui — é calculado em src/utils/dates.ts (nationalHolidays),
+// espelhando a função SQL feriados_nacionais(). Ver design.md / CLAUDE.md (Fase 2.6).
+export type HolidayType = 'municipal' | 'ponto_facultativo' | 'parada_fabrica';
+
+export interface Holiday {
+  id: string;
+  date: string;
+  unit?: string;
+  type: HolidayType;
+  description?: string;
+}
+
 export interface Task {
   id: string;
   rowNumber: number;

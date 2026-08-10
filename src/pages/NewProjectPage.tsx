@@ -4,7 +4,7 @@ import { PageHeader } from '../components/layout';
 import { Button, Card, FormField, Input, Select, Textarea, Badge } from '../components/ui';
 import { ActivitySourceForm, SelectedActivitiesList } from '../components/wizard';
 import type { DraftActivity } from '../components/wizard';
-import { useCatalog, useCategories, useProjects } from '../hooks';
+import { useCatalog, useCategories, useHolidays, useProjects } from '../hooks';
 import { computeDatesFromDuration, nextProjectCode, todayISO } from '../utils';
 import type { NewActivityInput } from '../hooks';
 
@@ -15,6 +15,7 @@ export function NewProjectPage() {
   const { projects, createProject } = useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
+  const { holidays } = useHolidays();
   const [step, setStep] = useState<0 | 1>(0);
 
   const [name, setName] = useState('');
@@ -117,6 +118,8 @@ export function NewProjectPage() {
         predecessorRowNumbers: t.predecessorRowNumbers,
       })),
       scheduleStart,
+      holidays,
+      unit,
     );
 
     const activities: NewActivityInput[] = draftActivities.map((a) => ({
