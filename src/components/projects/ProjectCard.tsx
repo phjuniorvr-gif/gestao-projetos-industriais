@@ -22,7 +22,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
 
   return (
     <Card
-      className="cursor-pointer p-4 transition-shadow hover:shadow-md"
+      className="cursor-pointer p-4 transition-colors hover:border-text-muted2"
       onClick={() => navigate(`/projetos/${project.id}/cronograma`)}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">

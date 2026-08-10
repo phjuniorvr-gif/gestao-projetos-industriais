@@ -1,22 +1,48 @@
 @import "tailwindcss";
 
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/inter/800.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
 @theme {
-  --color-sidebar: #1f6fb8;
-  --color-sidebar-dark: #195f9e;
-  --color-sidebar-active: #2f80c8;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --color-page: #f3f5f9;
+  /* raio: 7px em controles (rounded-md), 10px em cards (rounded-xl) — design.md */
+  --radius-md: 7px;
+  --radius-xl: 10px;
+
+  /* menu lateral — azul institucional escuro, não azul vivo chapado (design.md) */
+  --color-sidebar: #0d2a4f;
+  --color-sidebar-dark: #123a63;
+  --color-sidebar-active: #17456f;
+
+  /* neutros — 90% da interface */
+  --color-page: #f6f7f9;
   --color-card: #ffffff;
-  --color-text: #1f2937;
+  --color-text: #0f1720;
+  --color-text-ink2: #334155;
   --color-text-muted: #64748b;
-  --color-border: #dbe3ee;
-  --color-action: #2563eb;
+  --color-text-muted2: #94a3b8;
+  --color-border: #e4e8ee;
+  --color-border-2: #eef1f5;
 
-  --color-status-done: #22c55e;
-  --color-status-delayed: #f43f5e;
-  --color-status-progress: #fde000;
+  /* azul vivo — ação, foco, seleção e status "em andamento" (design.md) */
+  --color-action: #2563eb;
+  --color-action-2: #60a5fa;
+
+  /* cores de status — só usadas em status, nunca decorativamente (design.md) */
+  --color-status-done: #15803d;
+  --color-status-delayed: #c2410c;
+  --color-status-delayed-bg: #fff1e9;
+  --color-status-progress: #2563eb;
   --color-status-idle: #a3a3a3;
-  --color-status-planned: #39bdf2;
+  --color-status-planned: #7c3aed;
 }
 
 html,
@@ -29,6 +55,6 @@ body {
   margin: 0;
   background-color: var(--color-page);
   color: var(--color-text);
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }

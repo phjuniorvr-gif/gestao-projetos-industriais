@@ -13,7 +13,7 @@ import {
 } from '../components/projects';
 import { Button, ConfirmDialog, EmptyState } from '../components/ui';
 import { useProjects } from '../hooks';
-import { STATUS_LABEL, type Project } from '../types';
+import { STATUS_COLOR, STATUS_LABEL, type Project } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
@@ -72,12 +72,12 @@ export function ProjectsPage() {
         />
 
         <div className="flex flex-wrap gap-3">
-          <StatusCard label="Total de Projetos" value={counts.total} color="#111827" />
-          <StatusCard label="Concluído" value={counts.completed} color="#166534" />
-          <StatusCard label="Em Andamento" value={counts.inProgress} color="#FDE000" />
-          <StatusCard label="Atrasado" value={counts.delayed} color="#F43F5E" />
-          <StatusCard label="À Iniciar" value={counts.toStart} color="#A3A3A3" />
-          <StatusCard label="Planejado" value={counts.planned} color="#39BDF2" />
+          <StatusCard label="Total de Projetos" value={counts.total} color="#0F1720" />
+          <StatusCard label="Concluído" value={counts.completed} color={STATUS_COLOR.completed} />
+          <StatusCard label="Em Andamento" value={counts.inProgress} color={STATUS_COLOR.in_progress} />
+          <StatusCard label="Atrasado" value={counts.delayed} color={STATUS_COLOR.delayed} />
+          <StatusCard label="À Iniciar" value={counts.toStart} color={STATUS_COLOR.to_start} />
+          <StatusCard label="Planejado" value={counts.planned} color={STATUS_COLOR.planned} />
         </div>
 
         <Legend />

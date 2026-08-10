@@ -7,7 +7,7 @@ export function TodayLine({ range }: { range: DateRange }) {
   const left = LABEL_COLUMN_WIDTH + offsetPx(range, today);
   return (
     <div className="pointer-events-none absolute inset-y-0 z-20" style={{ left }}>
-      <div className="h-full w-0.5 bg-status-delayed" />
+      <div className="h-full w-0.5 bg-action" />
     </div>
   );
 }

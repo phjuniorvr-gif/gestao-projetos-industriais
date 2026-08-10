@@ -31,6 +31,19 @@ Vite + React + TypeScript, Supabase (Postgres + Auth + RLS), deploy na Vercel. C
 6. Mobile.
 7. Validações, QA e fechamento.
 
-## Decisões em aberto (levantadas na auditoria, a alinhar antes da fase correspondente)
+## Decisões de modelagem (definidas antes da Fase 2)
 
-- `useProjects.removeActivity()` hoje cascade-deleta as tarefas da atividade e renumera. A Fase 7 do spec pede o oposto: bloquear exclusão de atividade que tenha tarefas. Alinhar com o usuário antes de implementar a trava.
+- **Pessoas**: tabela nova `pessoas` (não é `auth.users` — `user_id` é opcional/nullable, porque responsável não precisa ter login no sistema). `gerente_id` (projeto) e `responsavel_id` (tarefa) são FK para `pessoas`, não mais texto livre. Migração: criar uma pessoa para cada valor distinto hoje presente em `projects.responsible`; **mostrar a lista de pessoas geradas antes de gravar**.
+- **Status continua em 4 valores** (`planejado`, `andamento`, `atrasado`, `concluido`). `blocked` (bloqueado por predecessora) e `completed_late` (concluído com atraso) não desaparecem da experiência — viram **condições derivadas exibidas como ícone/selo ao lado do status**, não um 5º/6º valor do status em si. O estado "à iniciar" do protótipo (token `--inic`) é ignorado — não faz parte do modelo novo.
+- **Exclusão de atividade com tarefas**: bloqueada por padrão (resolve a divergência apontada na auditoria — `useProjects.removeActivity()` hoje cascateia). Administrador tem ação explícita "excluir atividade e suas N tarefas", com **Desfazer de 6s** depois de executar (mesmo padrão de exclusão sem confirmação prévia da Fase 3).
+- **Toda migração de schema é precedida de um dump do banco**; o caminho onde o dump foi salvo é sempre informado ao usuário antes de aplicar a migração.
+
+## Permissões
+
+Configuradas em `.claude/settings.local.json` (local, fora do git) para não precisar aprovar comando por comando. Regras:
+
+- **Liberado sem perguntar**: comandos só de leitura/verificação — `git status`, `git diff`, `git log`, `ls`, `cat` — e os comandos de checagem — `npx tsc --noEmit`, `npm run build`, `npm run lint`.
+- **Escrita liberada** (criar/editar arquivo) em `src/**`, `referencia/**`, `CLAUDE.md` e `design.md`.
+- **Sempre pergunta antes** (nunca liberar por padrão, mesmo que uma regra futura tente cobrir): `git push`, `git reset --hard`, `git checkout` que descarte alterações (`git checkout -- <arquivo>`, `git checkout .`), qualquer `rm`, qualquer migration ou SQL direto no Supabase (`apply_migration`, `execute_sql`), e escrita em `.env*`, `package.json`, `vercel.json` e `supabase/**`.
+
+Se alguma dessas regras precisar mudar, atualizar `.claude/settings.local.json` e esta seção juntos.

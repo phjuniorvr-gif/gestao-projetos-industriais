@@ -19,13 +19,16 @@ export const STATUS_LABEL: Record<ProjectStatus, string> = {
   blocked: 'Bloqueado',
 };
 
+// Cores dos 4 status que sobrevivem ao modelo da Fase 2 (planejado/andamento/atrasado/concluído),
+// já na paleta do design.md. to_start/completed_late/blocked ficam com a cor antiga por ora —
+// viram selo/ícone derivado na Fase 2, não fazem mais parte do valor de status em si.
 export const STATUS_COLOR: Record<ProjectStatus, string> = {
-  planned: '#39BDF2',
+  planned: '#7C3AED',
   to_start: '#A3A3A3',
-  in_progress: '#FDE000',
-  completed: '#166534',
+  in_progress: '#2563EB',
+  completed: '#15803D',
   completed_late: '#F97316',
-  delayed: '#F43F5E',
+  delayed: '#C2410C',
   blocked: '#7C3AED',
 };
 
