@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Gestão de Projetos — mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0f1720; --ink2:#334155; --mut:#64748b; --mut2:#94a3b8;
+  --line:#e4e8ee; --line2:#eef1f5; --bg:#f6f7f9; --card:#fff;
+  --graphite:#0d2a4f; --brand:#2563eb;
+  --atras:#c2410c; --atras-bg:#fff1e9;
+  --andam:#2563eb; --andam-bg:#e8f0ff;
+  --concl:#15803d; --concl-bg:#e9f7ee;
+  --plan:#7c3aed;  --plan-bg:#f2ecfe;
+  --inic:#64748b;  --inic-bg:#f1f4f8;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#e9ecf1;color:var(--ink);
+  font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.num{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* moldura */
+.stage{min-height:100vh;display:grid;place-items:center;padding:26px 16px;background:#dfe3ea}
+.device{width:392px;height:844px;position:relative;border-radius:46px;padding:11px;
+  background:linear-gradient(160deg,#2a2f38,#12151a);box-shadow:0 30px 66px rgba(15,23,32,.34)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;position:relative;background:var(--bg);display:flex;flex-direction:column}
+.notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#0a0d12;border-radius:0 0 16px 16px;z-index:30}
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  font-size:12.5px;font-weight:700;flex:none;background:var(--card);color:var(--ink)}
+.caption{margin-top:13px;text-align:center;color:#8b93a1;font-size:12px}
+@media(max-width:700px){
+  .stage{padding:0;display:block;min-height:0}
+  .device{width:100%;height:100dvh;border-radius:0;padding:0;box-shadow:none;background:none}
+  .screen{border-radius:0}.notch{display:none}
+  .statusbar{height:env(safe-area-inset-top,0px);padding:0}.statusbar span{display:none}
+  .caption{display:none}
+}
+
+/* topo */
+.appbar{background:var(--card);border-bottom:1px solid var(--line);padding:4px 16px 0;flex:none}
+.abrow{display:flex;align-items:center;gap:11px;padding-bottom:10px}
+.sq{width:30px;height:30px;border-radius:8px;background:var(--graphite);color:#fff;display:grid;place-items:center;
+  font-weight:800;font-size:11px;flex:none}
+.abtxt{flex:1;min-width:0}
+.abtxt b{display:block;font-size:15px;font-weight:700;letter-spacing:-.02em}
+.abtxt small{display:block;font-size:11px;color:var(--mut)}
+.ic{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;display:grid;
+  place-items:center;color:var(--mut);flex:none}
+.ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+.app{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 16px 96px}
+.page{display:none}.page.on{display:block}
+h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:700;margin:20px 0 9px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px}
+
+/* hero */
+.hero{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--atras);
+  border-radius:13px;padding:15px;margin-top:14px}
+.hero .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:700}
+.hero .v{font-size:44px;font-weight:800;letter-spacing:-.045em;line-height:1;margin-top:3px;color:var(--atras)}
+.hero .s{font-size:12.5px;color:var(--ink2);margin-top:5px}
+.hero .s b{font-weight:700}
+.stack{display:flex;height:12px;border-radius:4px;overflow:hidden;background:var(--line2);margin-top:14px}
+.stack i{display:block}
+.keys{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.keys::-webkit-scrollbar{display:none}
+.key{flex:none;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;
+  border-radius:20px;padding:5px 11px 5px 9px;font-size:11.5px;color:var(--ink2);font-weight:500;white-space:nowrap}
+.key.on{border-color:var(--graphite);background:var(--graphite);color:#fff}
+.key .d{width:7px;height:7px;border-radius:2px;flex:none}
+.key b{font-family:'JetBrains Mono',monospace;font-weight:700}
+
+/* card de projeto */
+.pj{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:9px}
+.pj.crit{border-left:3px solid var(--atras)}
+.ptop{display:flex;gap:10px;align-items:flex-start}
+.ptop .tx{flex:1;min-width:0}
+.code{font-size:10.5px;font-weight:700;color:var(--mut2);font-family:'JetBrains Mono',monospace}
+.ptop .nm{font-size:14px;font-weight:600;letter-spacing:-.01em;line-height:1.3;margin-top:1px}
+.ptop .mt{font-size:11.5px;color:var(--mut);margin-top:3px}
+.tag{flex:none;display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+  padding:4px 9px;border-radius:20px;white-space:nowrap}
+.tag .d{width:6px;height:6px;border-radius:50%}
+
+.gt{position:relative;height:22px;margin-top:12px}
+.gt .prev{position:absolute;top:3px;height:6px;border-radius:3px;background:#dfe5ec}
+.gt .real{position:absolute;top:11px;height:7px;border-radius:3px}
+.gt .hoje{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:var(--graphite);opacity:.7}
+.gt .hoje::after{content:'';position:absolute;top:-3px;left:-2.5px;width:6px;height:6px;border-radius:50%;background:var(--graphite)}
+.gtd{display:flex;justify-content:space-between;font-size:10px;color:var(--mut2);font-family:'JetBrains Mono',monospace;margin-top:1px}
+
+.prow{display:flex;align-items:center;gap:12px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line2)}
+.prow .pg{flex:1;min-width:0}
+.pgtop{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+.pgtop b{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12.5px}
+.pgtop span{color:var(--mut)}
+.pbar{height:6px;border-radius:3px;background:var(--line2);position:relative;overflow:hidden}
+.pbar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.pbar .exp{position:absolute;top:-3px;bottom:-3px;width:1.5px;background:var(--ink2)}
+.dev{flex:none;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px}
+.dev small{display:block;font-size:9px;font-weight:600;color:var(--mut2);text-transform:uppercase;
+  letter-spacing:.04em;font-family:Inter,sans-serif}
+.dev.bad{color:var(--atras)}.dev.ok{color:var(--concl)}.dev.n{color:var(--mut2);font-weight:500}
+
+/* atenção / equipe */
+.it{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2);align-items:flex-start}
+.it:last-child{border:0;padding-bottom:2px}
+.it .bul{width:6px;height:6px;border-radius:50%;margin-top:6px;flex:none}
+.it .tx{flex:1;min-width:0}
+.it .tx b{font-size:13px;font-weight:600;display:block;line-height:1.3}
+.it .tx small{font-size:11.5px;color:var(--mut)}
+.it .rt{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;flex:none}
+.av{width:34px;height:34px;border-radius:50%;background:#e8edf3;color:var(--ink2);display:grid;place-items:center;
+  font-size:12px;font-weight:700;flex:none}
+.mini{height:5px;border-radius:3px;background:var(--line2);margin-top:5px;overflow:hidden}
+.mini i{display:block;height:100%;border-radius:3px}
+
+/* cronograma */
+.axis{display:flex;position:sticky;top:0;background:var(--bg);padding:8px 0 6px;z-index:5;
+  font-size:9.5px;color:var(--mut2);font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--line)}
+.axis span{flex:1;text-align:center}
+.cro{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 13px;margin-top:9px}
+.cro .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.cro .hd b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cro .hd span{font-size:10.5px;color:var(--mut2);font-family:'JetBrains Mono',monospace;flex:none}
+
+/* busca */
+.tools{display:flex;gap:8px;margin-top:14px}
+.srch{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 12px;
+  font-size:13.5px;font-family:inherit;color:var(--ink);outline:none}
+.srch:focus{border-color:var(--brand)}
+.selw{position:relative;flex:none}
+.sel{border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 30px 10px 12px;
+  font-size:13px;font-family:inherit;color:var(--ink2);appearance:none;outline:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--mut2) 50%),linear-gradient(135deg,var(--mut2) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 53%,calc(100% - 11px) 53%;background-size:5px 5px;background-repeat:no-repeat}
+
+/* sheet */
+.scrim{position:absolute;inset:0;background:rgba(15,23,32,.42);opacity:0;pointer-events:none;transition:opacity .22s;z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:20px 20px 0 0;
+  transform:translateY(100%);transition:transform .27s cubic-bezier(.32,.72,0,1);z-index:41;
+  max-height:86%;overflow-y:auto;padding:10px 18px 26px}
+.sheet.on{transform:none}
+.handle{width:38px;height:4px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.sheet h3{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.kv:last-of-type{border:0}
+.kv span:first-child{color:var(--mut)}
+.kv span:last-child{font-weight:600;font-family:'JetBrains Mono',monospace;font-size:12.5px}
+.btn{display:block;width:100%;text-align:center;border:0;border-radius:11px;padding:14px;font-weight:700;
+  font-size:14px;font-family:inherit;background:var(--graphite);color:#fff;margin-top:9px}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.sc{border:1px solid var(--line);border-radius:11px;padding:11px 12px}
+.sc .l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);font-weight:700}
+.sc .v{font-size:19px;font-weight:800;margin-top:3px;letter-spacing:-.03em}
+
+/* tabbar */
+.tabbar{position:absolute;left:0;right:0;bottom:0;z-index:25;display:grid;grid-template-columns:repeat(4,1fr);
+  background:rgba(255,255,255,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);
+  padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px))}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:var(--mut2);padding:3px 0}
+.tab svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--graphite)}
+.tab .bd{position:absolute;transform:translate(11px,-3px);background:var(--atras);color:#fff;font-size:9px;
+  font-weight:800;border-radius:9px;padding:1px 5px;font-family:'JetBrains Mono',monospace}
+.toast{position:absolute;left:16px;right:16px;bottom:88px;z-index:60;background:var(--graphite);color:#fff;
+  border-radius:11px;padding:12px 15px;font-size:12.5px;opacity:0;transform:translateY(10px);
+  transition:opacity .2s,transform .2s;pointer-events:none;box-shadow:0 12px 28px rgba(15,23,32,.3)}
+.toast.on{opacity:1;transform:none}
+.empty{padding:36px 10px;text-align:center;color:var(--mut2);font-size:13px}
+</style>
+</head>
+<body>
+<div class="stage">
+ <div class="device">
+  <div class="notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><span>▲ ⏻ 87%</span></div>
+
+    <div class="appbar">
+      <div class="abrow">
+        <div class="sq">GP</div>
+        <div class="abtxt"><b id="hTit">Resumo</b><small id="hSub">Engenharia · Automação</small></div>
+        <div class="ic" onclick="tst('Filtros por unidade e ano')"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></div>
+        <div class="ic" onclick="tst('Novo projeto')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+      </div>
+    </div>
+
+    <div class="app" id="app">
+
+      <!-- ============ RESUMO ============ -->
+      <section class="page on" id="p-resumo">
+        <div class="hero">
+          <div class="l">Precisam de ação</div>
+          <div class="v num" id="heroV">3</div>
+          <div class="s" id="heroS"></div>
+          <div class="stack" id="stack"></div>
+          <div class="keys" id="keys"></div>
+        </div>
+
+        <h2 class="sec">Atenção nos próximos 30 dias</h2>
+        <div class="card" id="atencao"></div>
+
+        <h2 class="sec">Carga por responsável</h2>
+        <div class="card" id="resp"></div>
+      </section>
+
+      <!-- ============ PROJETOS ============ -->
+      <section class="page" id="p-projetos">
+        <div class="tools">
+          <input class="srch" id="busca" placeholder="Buscar projeto ou responsável">
+          <div class="selw"><select class="sel" id="ord">
+            <option value="crit">Criticidade</option>
+            <option value="desvio">Atraso</option>
+            <option value="fim">Entrega</option>
+            <option value="nome">Nome</option>
+          </select></div>
+        </div>
+        <div class="keys" style="margin-top:11px" id="keys2"></div>
+        <div id="lista"></div>
+      </section>
+
+      <!-- ============ CRONOGRAMA ============ -->
+      <section class="page" id="p-crono">
+        <div class="axis" id="axis"></div>
+        <div id="crono"></div>
+        <div style="font-size:11.5px;color:var(--mut2);margin-top:14px;line-height:1.6">
+          Barra cinza = previsto. Barra colorida = real. A linha vertical é hoje.
+        </div>
+      </section>
+
+      <!-- ============ EQUIPE ============ -->
+      <section class="page" id="p-equipe">
+        <h2 class="sec">Responsáveis</h2>
+        <div id="equipe"></div>
+      </section>
+    </div>
+
+    <div class="scrim" id="scrim" onclick="fechar()"></div>
+    <div class="sheet" id="sheet"></div>
+    <div class="toast" id="toast"></div>
+
+    <nav class="tabbar">
+      <div class="tab on" data-t="resumo" data-l="Resumo">
+        <svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Resumo</div>
+      <div class="tab" data-t="projetos" data-l="Projetos">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
+        <span class="bd" id="badge">3</span>Projetos</div>
+      <div class="tab" data-t="crono" data-l="Cronograma">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Cronograma</div>
+      <div class="tab" data-t="equipe" data-l="Equipe">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2 20c0-3.4 3.1-5.5 7-5.5s7 2.1 7 5.5"/><path d="M17 8.5a3 3 0 1 0 0-1M22 20c0-2.6-1.7-4.3-4-5"/></svg>Equipe</div>
+    </nav>
+  </div>
+ </div>
+ <div class="caption">Protótipo — abra no celular ou estreite a janela pra ver em tela cheia</div>
+</div>
+
+<script>
+const HOJE=new Date(2026,7,8), T0=new Date(2026,2,1), T1=new Date(2027,1,28);
+const ST={
+  atrasado:{rot:'Atrasado',c:'#c2410c',bg:'#fff1e9'},
+  andamento:{rot:'Em andamento',c:'#2563eb',bg:'#e8f0ff'},
+  concluido:{rot:'Concluído',c:'#15803d',bg:'#e9f7ee'},
+  planejado:{rot:'Planejado',c:'#7c3aed',bg:'#f2ecfe'},
+  iniciar:{rot:'À iniciar',c:'#64748b',bg:'#f1f4f8'}
+};
+const P=[
+ {c:'P01',n:'Ampliação das Injetoras',u:'Matriz',resp:'Márcia Souza',st:'planejado',ini:'2026-08-26',fim:'2027-01-17',rIni:null,rFim:null,real:0,ativ:3,dep:0,tar:21},
+ {c:'P02',n:'Reforma da Subestação',u:'MEC',resp:'Fernanda Alves',st:'andamento',ini:'2026-07-07',fim:'2026-10-05',rIni:'2026-07-09',rFim:null,real:40,ativ:1,dep:1,tar:5},
+ {c:'P03',n:'Adequação NR-12 — Linha 3',u:'Feira',resp:'Ricardo Santos',st:'atrasado',ini:'2026-05-08',fim:'2026-07-27',rIni:'2026-05-13',rFim:null,real:50,ativ:3,dep:3,tar:4},
+ {c:'P04',n:'Modernização da Automação — L1',u:'Amélia',resp:'João Pereira',st:'concluido',ini:'2026-04-08',fim:'2026-07-07',rIni:'2026-04-10',rFim:'2026-07-07',real:100,ativ:1,dep:0,tar:4},
+ {c:'P05',n:'Implantação da Nova Linha',u:'Matriz',resp:'Carlos Henrique',st:'iniciar',ini:'2026-08-03',fim:'2026-12-18',rIni:null,rFim:null,real:0,ativ:2,dep:8,tar:9},
+ {c:'P06',n:'Retrofit da Esteira de Pintura',u:'MEC',resp:'Ricardo Santos',st:'atrasado',ini:'2026-04-20',fim:'2026-07-10',rIni:'2026-05-04',rFim:null,real:65,ativ:2,dep:2,tar:7},
+ {c:'P07',n:'Automação do Envase — Linha 5',u:'Feira',resp:'Fernanda Alves',st:'atrasado',ini:'2026-03-16',fim:'2026-06-30',rIni:'2026-03-30',rFim:null,real:78,ativ:4,dep:1,tar:12},
+ {c:'P08',n:'Troca do Sistema de Exaustão',u:'Matriz',resp:'Márcia Souza',st:'planejado',ini:'2026-10-05',fim:'2027-02-12',rIni:null,rFim:null,real:0,ativ:1,dep:4,tar:6}
+];
+let filtroSt=null, ordem='crit';
+
+const d=s=>s?new Date(s+'T00:00:00'):null;
+const dias=(a,b)=>Math.round((b-a)/864e5);
+const posx=dt=>Math.max(0,Math.min(100,(dt-T0)/(T1-T0)*100));
+const fmt=dt=>dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+const fmtL=dt=>dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+function calc(p){
+  const ini=d(p.ini),fim=d(p.fim),tot=Math.max(1,dias(ini,fim));
+  const prev=p.st==='concluido'?100:Math.max(0,Math.min(100,dias(ini,HOJE)/tot*100));
+  const atraso=(p.st!=='concluido'&&HOJE>fim)?dias(fim,HOJE):0;
+  const gap=Math.round(p.real-prev);
+  const critico=p.st==='atrasado'?100+atraso:p.st==='andamento'&&gap<-10?60:p.st==='iniciar'?40:p.st==='planejado'?20:0;
+  return{ini,fim,tot,prev,atraso,gap,critico};
+}
+function gantt(p,k,h){
+  const x1=posx(k.ini),x2=posx(k.fim),rIni=d(p.rIni),rFim=d(p.rFim);
+  let real='';
+  if(rIni){const a=posx(rIni),b=posx(rFim||HOJE);
+    real=`<div class="real" style="left:${a}%;width:${Math.max(1.5,b-a)}%;background:${ST[p.st].c}"></div>`}
+  return `<div class="gt" ${h?`style="height:${h}px"`:''}>
+    <div class="prev" style="left:${x1}%;width:${Math.max(1.5,x2-x1)}%"></div>${real}
+    <div class="hoje" style="left:${posx(HOJE)}%"></div></div>`;
+}
+
+function render(){
+  saude(); lista(); atencao(); equipe(); crono();
+}
+function saude(){
+  const ct={}; P.forEach(p=>ct[p.st]=(ct[p.st]||0)+1);
+  const pior=Math.max(...P.filter(p=>p.st==='atrasado').map(p=>calc(p).atraso),0);
+  document.getElementById('heroV').textContent=ct.atrasado||0;
+  document.getElementById('heroS').innerHTML=`projetos atrasados · o pior acumula <b>${pior} dias</b> de desvio`;
+  document.getElementById('badge').textContent=ct.atrasado||0;
+  const ord=['atrasado','andamento','concluido','iniciar','planejado'];
+  document.getElementById('stack').innerHTML=ord.map(s=>{const n=ct[s]||0;
+    return n?`<i style="width:${n/P.length*100}%;background:${ST[s].c}" onclick="filtrar('${s}')"></i>`:''}).join('');
+  const chips=`<span class="key ${!filtroSt?'on':''}" onclick="filtrar(null)">Todos <b>${P.length}</b></span>`+
+    ord.map(s=>{const n=ct[s]||0;return n?`<span class="key ${filtroSt===s?'on':''}" onclick="filtrar('${s}')">
+      <span class="d" style="background:${ST[s].c}"></span>${ST[s].rot} <b>${n}</b></span>`:''}).join('');
+  document.getElementById('keys').innerHTML=chips;
+  document.getElementById('keys2').innerHTML=chips;
+}
+function filtrar(s){filtroSt=(filtroSt===s)?null:s; render();
+  if(document.getElementById('p-projetos').classList.contains('on')) return;
+  irPara('projetos');}
+
+function lista(){
+  let L=P.map(p=>({p,k:calc(p)}));
+  const q=(document.getElementById('busca').value||'').toLowerCase();
+  if(q) L=L.filter(({p})=>(p.n+p.c+p.resp).toLowerCase().includes(q));
+  if(filtroSt) L=L.filter(({p})=>p.st===filtroSt);
+  const o={crit:(x,y)=>y.k.critico-x.k.critico,desvio:(x,y)=>y.k.atraso-x.k.atraso,
+           fim:(x,y)=>x.k.fim-y.k.fim,nome:(x,y)=>x.p.n.localeCompare(y.p.n)};
+  L.sort(o[ordem]);
+  if(!L.length){document.getElementById('lista').innerHTML='<div class="empty">Nenhum projeto com esse filtro.</div>';return}
+  document.getElementById('lista').innerHTML=L.map(({p,k})=>{
+    const s=ST[p.st];
+    const dev=p.st==='concluido'?`<div class="dev ok">ok<small>entregue</small></div>`
+      :k.atraso?`<div class="dev bad">+${k.atraso}d<small>vencido</small></div>`
+      :p.st==='andamento'?`<div class="dev ${k.gap<-10?'bad':'n'}">${k.gap>0?'+':''}${k.gap}%<small>vs prev.</small></div>`
+      :`<div class="dev n">—<small>não inic.</small></div>`;
+    return `<div class="pj ${p.st==='atrasado'?'crit':''}" onclick="detalhe('${p.c}')">
+      <div class="ptop"><div class="tx"><span class="code">${p.c}</span>
+        <div class="nm">${p.n}</div><div class="mt">${p.u} · ${p.resp} · ${p.tar} tarefas</div></div>
+        <span class="tag" style="background:${s.bg};color:${s.c}"><span class="d" style="background:${s.c}"></span>${s.rot}</span></div>
+      ${gantt(p,k)}
+      <div class="gtd"><span>${fmt(k.ini)}</span><span>${fmt(k.fim)}</span></div>
+      <div class="prow">
+        <div class="pg"><div class="pgtop"><b>${p.real}%</b><span>prev. ${Math.round(k.prev)}%</span></div>
+          <div class="pbar"><i style="width:${p.real}%;background:${s.c}"></i><div class="exp" style="left:${k.prev}%"></div></div></div>
+        ${dev}</div></div>`;
+  }).join('');
+}
+
+function atencao(){
+  const lim=new Date(HOJE.getTime()+30*864e5);
+  const I=P.map(p=>({p,k:calc(p)})).filter(({p,k})=>p.st!=='concluido'&&(k.atraso>0||(k.fim>=HOJE&&k.fim<=lim)||(k.ini>=HOJE&&k.ini<=lim)))
+    .sort((a,b)=>b.k.atraso-a.k.atraso||a.k.fim-b.k.fim).slice(0,5);
+  document.getElementById('atencao').innerHTML=I.map(({p,k})=>{
+    const v=k.atraso?`+${k.atraso}d`:k.ini>=HOJE?'inicia':`${dias(HOJE,k.fim)}d`;
+    const t=k.atraso?`venceu em ${fmt(k.fim)}`:k.ini>=HOJE?`previsto para ${fmt(k.ini)}`:`entrega em ${fmt(k.fim)}`;
+    return `<div class="it" onclick="detalhe('${p.c}')"><span class="bul" style="background:${ST[p.st].c}"></span>
+      <div class="tx"><b>${p.c} — ${p.n}</b><small>${t} · ${p.resp}</small></div>
+      <span class="rt" style="color:${k.atraso?'var(--atras)':'var(--mut)'}">${v}</span></div>`;
+  }).join('')||'<div style="font-size:12.5px;color:var(--mut2)">Nada vencendo nos próximos 30 dias.</div>';
+}
+
+function mapaResp(){
+  const m={};
+  P.forEach(p=>{const k=calc(p);(m[p.resp]=m[p.resp]||{n:0,atr:0,tar:0,proj:[]});
+    m[p.resp].n++;m[p.resp].tar+=p.tar;if(p.st==='atrasado')m[p.resp].atr++;m[p.resp].proj.push(p)});
+  return Object.entries(m).sort((a,b)=>b[1].atr-a[1].atr||b[1].n-a[1].n);
+}
+function equipe(){
+  const R=mapaResp();
+  document.getElementById('resp').innerHTML=R.map(([n,v])=>{
+    const i=n.split(' ').map(x=>x[0]).slice(0,2).join('');
+    return `<div class="it"><div class="av">${i}</div><div class="tx">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-weight:600">${n}</b>
+        <span class="rt" style="color:${v.atr?'var(--atras)':'var(--mut)'}">${v.n} proj${v.atr?` · ${v.atr} atr.`:''}</span></div>
+      <div class="mini"><i style="width:${v.atr/v.n*100}%;background:${v.atr?'var(--atras)':'var(--line)'}"></i></div>
+    </div></div>`}).join('');
+  document.getElementById('equipe').innerHTML=R.map(([n,v])=>{
+    const i=n.split(' ').map(x=>x[0]).slice(0,2).join('');
+    return `<div class="card" style="margin-top:9px">
+      <div style="display:flex;gap:11px;align-items:center">
+        <div class="av" style="width:40px;height:40px;font-size:13px">${i}</div>
+        <div style="flex:1"><b style="font-size:14.5px;font-weight:700">${n}</b>
+          <div style="font-size:11.5px;color:var(--mut)">${v.n} projetos · ${v.tar} tarefas</div></div>
+        ${v.atr?`<span class="tag" style="background:var(--atras-bg);color:var(--atras)">${v.atr} atrasado${v.atr>1?'s':''}</span>`
+               :`<span class="tag" style="background:var(--concl-bg);color:var(--concl)">em dia</span>`}</div>
+      <div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--line2)">
+        ${v.proj.map(p=>{const k=calc(p);return `<div class="it" style="padding:7px 0" onclick="detalhe('${p.c}')">
+          <span class="bul" style="background:${ST[p.st].c}"></span>
+          <div class="tx"><b style="font-size:12.5px;font-weight:500">${p.c} — ${p.n}</b></div>
+          <span class="rt" style="font-size:11px;color:${k.atraso?'var(--atras)':'var(--mut2)'}">${k.atraso?`+${k.atraso}d`:`${p.real}%`}</span></div>`}).join('')}
+      </div></div>`}).join('');
+}
+
+function crono(){
+  const meses=['mar','jun','set','dez','fev'];
+  document.getElementById('axis').innerHTML=meses.map(m=>`<span>${m}</span>`).join('');
+  document.getElementById('crono').innerHTML=P.map(p=>({p,k:calc(p)}))
+    .sort((a,b)=>a.k.ini-b.k.ini).map(({p,k})=>{
+      const s=ST[p.st];
+      return `<div class="cro" onclick="detalhe('${p.c}')">
+        <div class="hd"><b>${p.c} — ${p.n}</b>
+          <span style="color:${k.atraso?'var(--atras)':'var(--mut2)'}">${k.atraso?`+${k.atraso}d`:`${p.real}%`}</span></div>
+        ${gantt(p,k,20)}
+        <div class="gtd"><span>${fmt(k.ini)}</span>
+          <span style="color:${s.c};font-weight:700">${s.rot}</span><span>${fmt(k.fim)}</span></div></div>`}).join('');
+}
+
+function detalhe(cod){
+  const p=P.find(x=>x.c===cod),k=calc(p),s=ST[p.st];
+  document.getElementById('sheet').innerHTML=`<div class="handle"></div>
+    <span class="code">${p.c}</span><h3>${p.n}</h3>
+    <div style="margin-top:9px"><span class="tag" style="background:${s.bg};color:${s.c}">
+      <span class="d" style="background:${s.c}"></span>${s.rot}</span></div>
+    <div class="sgrid">
+      <div class="sc"><div class="l">Avanço real</div><div class="v num" style="color:${s.c}">${p.real}%</div></div>
+      <div class="sc"><div class="l">Previsto hoje</div><div class="v num">${Math.round(k.prev)}%</div></div>
+      <div class="sc"><div class="l">${k.atraso?'Atraso':'Desvio'}</div>
+        <div class="v num" style="color:${k.atraso||k.gap<-10?'var(--atras)':'var(--ink)'}">${k.atraso?`+${k.atraso}d`:`${k.gap>0?'+':''}${k.gap}%`}</div></div>
+      <div class="sc"><div class="l">Duração</div><div class="v num">${k.tot}d</div></div>
+    </div>
+    <h2 class="sec">Cronograma</h2>
+    ${gantt(p,k,24)}
+    <div class="kv"><span>Previsto</span><span>${fmtL(k.ini)} → ${fmtL(k.fim)}</span></div>
+    <div class="kv"><span>Real</span><span>${p.rIni?`${fmtL(d(p.rIni))} → ${p.rFim?fmtL(d(p.rFim)):'—'}`:'não iniciado'}</span></div>
+    <h2 class="sec">Escopo</h2>
+    <div class="kv"><span>Unidade</span><span>${p.u}</span></div>
+    <div class="kv"><span>Responsável</span><span style="font-family:Inter">${p.resp}</span></div>
+    <div class="kv"><span>Atividades</span><span>${p.ativ}</span></div>
+    <div class="kv"><span>Dependências</span><span>${p.dep}</span></div>
+    <div class="kv"><span>Tarefas</span><span>${p.tar}</span></div>
+    <button class="btn" onclick="tst('Abrir atividades de ${p.c}')">Ver atividades</button>
+    <button class="btn ghost" onclick="tst('Editar ${p.c}')">Editar projeto</button>`;
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+function fechar(){document.getElementById('sheet').classList.remove('on');document.getElementById('scrim').classList.remove('on')}
+let tt;function tst(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2600)}
+
+function irPara(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById('p-'+t).classList.add('on');
+  const lab={resumo:'Resumo',projetos:'Projetos',crono:'Cronograma',equipe:'Equipe'}[t];
+  document.getElementById('hTit').textContent=lab;
+  document.getElementById('hSub').textContent = t==='crono'?'mar/2026 → fev/2027':'Engenharia · Automação';
+  document.getElementById('app').scrollTop=0;
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>irPara(t.dataset.t));
+document.getElementById('busca').oninput=lista;
+document.getElementById('ord').onchange=e=>{ordem=e.target.value;lista()};
+render();
+</script>
+</body>
+</html>

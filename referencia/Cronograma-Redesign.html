@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cronograma de Projetos — redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0f1720; --ink2:#334155; --mut:#64748b; --mut2:#94a3b8;
+  --line:#e4e8ee; --line2:#eef1f5; --bg:#f6f7f9; --card:#fff;
+  --navy:#0d2a4f; --navy2:#17456f; --brand:#2563eb; --brand2:#60a5fa;
+  --atras:#c2410c; --atras-bg:#fff1e9;
+  --andam:#2563eb; --concl:#15803d; --plan:#7c3aed; --inic:#64748b;
+  --ROWH:34px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.num,.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.layout{display:flex;min-height:100vh}
+
+aside{width:212px;flex:none;background:var(--navy);color:#bcd2e8;padding:16px 12px}
+.mark{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+.mark .sq{width:28px;height:28px;border-radius:7px;background:#fff;color:var(--navy);display:grid;
+  place-items:center;font-weight:800;font-size:12px}
+.mark b{font-size:13.5px;color:#fff;font-weight:700}
+.mark small{display:block;font-size:10.5px;color:#6c90b8}
+.navlab{font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;color:#6c90b8;font-weight:700;padding:0 8px 7px}
+nav a{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:7px;color:#bcd2e8;
+  text-decoration:none;font-size:13px;font-weight:500;margin-bottom:1px}
+nav a:hover{background:#12395f;color:#fff}
+nav a.on{background:var(--navy2);color:#fff;font-weight:600;box-shadow:inset 2px 0 0 var(--brand2)}
+nav a svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7}
+
+main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh}
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:13px 20px;flex:none}
+.trow{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+h1{font-size:19px;font-weight:700;letter-spacing:-.022em}
+.crumb{font-size:12px;color:var(--mut);margin-top:2px}
+.tools{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.sel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 26px 7px 10px;font-size:12.5px;
+  color:var(--ink2);font-family:inherit;outline:none;cursor:pointer;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--mut2) 50%),linear-gradient(135deg,var(--mut2) 50%,transparent 50%);
+  background-position:calc(100% - 13px) 52%,calc(100% - 9px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+.btn{background:var(--navy);color:#fff;border:0;border-radius:7px;padding:8px 13px;font-size:12.5px;
+  font-weight:600;font-family:inherit;cursor:pointer}
+.btn:hover{background:var(--navy2)}
+.btn.gh{background:#fff;color:var(--ink2);border:1px solid var(--line)}
+.btn.gh:hover{background:#f4f6f9;border-color:var(--mut2)}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff}
+.seg button{border:0;background:none;padding:7px 11px;font-size:12.5px;font-family:inherit;color:var(--mut);
+  cursor:pointer;font-weight:600;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--navy);color:#fff}
+.chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--brand);width:14px;height:14px;cursor:pointer}
+.perfil{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:7px;padding:5px 6px 5px 10px;background:#fff}
+.perfil span{font-size:11px;color:var(--mut);font-weight:600}
+.perfil select{border:0;outline:none;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;background:none}
+.adm{background:#fff7ed;border-color:#fdba74}
+
+/* ---------------- gantt ---------------- */
+.pane{flex:1;min-height:0;margin:12px 20px 0;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.chart{flex:1;min-height:0;overflow:auto;position:relative}
+
+.hrow{display:flex;position:sticky;top:0;z-index:20}
+.hlef{position:sticky;left:0;z-index:22;background:#fbfcfd;border-right:2px solid var(--line);
+  border-bottom:1px solid var(--line);flex:none;display:flex;align-items:flex-end}
+.htim{flex:none;background:#fbfcfd;border-bottom:1px solid var(--line)}
+.h1r,.h2r{display:flex}
+.h1r > div{border-right:1px solid var(--line);font-size:11px;font-weight:700;color:var(--ink2);
+  padding:6px 8px;white-space:nowrap;overflow:hidden;height:29px}
+.h2r > div{border-right:1px solid var(--line2);font-size:9.5px;color:var(--mut);padding:5px 0;
+  text-align:center;font-family:'JetBrains Mono',monospace;height:27px;overflow:hidden}
+.h2r > div.fds{background:#eef2f7;color:var(--mut2)}
+.h2r > div.hj{background:var(--brand);color:#fff;font-weight:700}
+.hcols{display:flex;width:100%;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--mut);font-weight:700;padding:0 0 7px}
+.hcols span{padding:0 8px;flex:none;display:flex;align-items:center;gap:4px}
+
+.rows{position:relative}
+.row{display:flex;height:var(--ROWH);align-items:stretch;cursor:pointer}
+.row:hover .lef{background:#f2f7fd}
+.row:hover .tim{background:rgba(37,99,235,.03)}
+.lef{position:sticky;left:0;z-index:8;background:#fff;border-right:2px solid var(--line);
+  border-bottom:1px solid var(--line2);flex:none;display:flex;align-items:center;font-size:12.5px}
+.lef > span{padding:0 8px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tim{position:relative;flex:none;border-bottom:1px solid var(--line2)}
+
+.est{display:flex;align-items:center;gap:6px;min-width:0}
+.cv{width:15px;height:15px;flex:none;display:grid;place-items:center;color:var(--mut2);font-size:8px;
+  cursor:pointer;border-radius:3px;transition:transform .13s}
+.cv:hover{background:var(--line2);color:var(--ink)}
+.cv.op{transform:rotate(90deg)}
+.cv.vazio{visibility:hidden}
+.tp{font-size:8.5px;font-weight:800;letter-spacing:.06em;padding:2px 5px;border-radius:3px;flex:none}
+.tp.p{background:var(--navy);color:#fff}
+.tp.a{background:#dbe7f5;color:var(--navy)}
+.tp.t{background:#eef1f5;color:var(--mut)}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.r-projeto .nm{font-weight:700}
+.r-atividade .nm{font-weight:600;color:var(--ink2)}
+.r-tarefa .nm{font-weight:400;color:var(--ink2)}
+.rev{font-size:8.5px;font-weight:800;background:#fff7ed;color:#b45309;border:1px solid #fed7aa;
+  border-radius:3px;padding:1px 4px;flex:none;font-family:'JetBrains Mono',monospace}
+.lin{color:var(--mut2);font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right}
+.cat{font-size:10.5px;padding:2px 7px;border-radius:4px;background:#eef1f5;color:var(--ink2);font-weight:600}
+.dt{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink2)}
+.dt.vazio{color:var(--mut2);font-family:Inter,sans-serif;font-style:italic}
+.cad{color:var(--mut2);font-size:10px}
+.pcell{display:flex;align-items:center;gap:6px}
+.pmini{width:32px;height:5px;border-radius:3px;background:var(--line2);overflow:hidden;flex:none}
+.pmini i{display:block;height:100%}
+.ppc{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;width:30px;text-align:right}
+
+.grid{position:absolute;inset:0;pointer-events:none;z-index:0}
+.grid .v{position:absolute;top:0;bottom:0;width:1px;background:var(--line2)}
+.grid .m{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.grid .fds{position:absolute;top:0;bottom:0;background:#f2f5f9}
+.hoje{position:absolute;top:0;bottom:0;width:2px;background:var(--brand);z-index:6;pointer-events:none}
+.hojetag{position:absolute;z-index:24;transform:translateX(-50%);background:var(--brand);color:#fff;
+  font-size:9px;font-weight:800;padding:2px 6px;border-radius:0 0 4px 4px;font-family:'JetBrains Mono',monospace;
+  white-space:nowrap;top:56px}
+
+/* barras */
+.bar{position:absolute;border-radius:3px;z-index:2}
+.bar.res{height:9px;top:calc(50% - 9px);border-radius:2px}
+.bar.res::before,.bar.res::after{content:'';position:absolute;bottom:-4px;width:0;height:0;
+  border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor}
+.bar.res::before{left:0} .bar.res::after{right:0}
+.bar.tar{height:12px;top:calc(50% - 10px);overflow:hidden}
+.tagst{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.bar .resfill{position:absolute;left:0;top:0;bottom:0;background:var(--brand2);border-radius:2px 0 0 2px}
+.bar .fill{position:absolute;top:0;bottom:0;right:0;background:rgba(255,255,255,.5);
+  border-left:1px solid rgba(255,255,255,.75)}
+.base{position:absolute;height:4px;border-radius:2px;background:#c3cfdd;z-index:1;top:calc(50% + 5px)}
+.base.mov{background:repeating-linear-gradient(90deg,#c3cfdd 0 5px,transparent 5px 8px)}
+.excesso{position:absolute;height:12px;top:calc(50% - 10px);z-index:3;border-radius:0 3px 3px 0;
+  background:repeating-linear-gradient(135deg,var(--atras) 0 4px,#dd8155 4px 8px)}
+.marco{position:absolute;width:12px;height:12px;top:calc(50% - 7px);transform:rotate(45deg);border-radius:2px;z-index:3}
+.blab{position:absolute;font-size:10.5px;color:var(--mut);white-space:nowrap;top:calc(50% - 9px);
+  line-height:17px;font-family:'JetBrains Mono',monospace}
+.deps{position:absolute;top:0;left:0;pointer-events:none;z-index:4;overflow:visible}
+.deps text{font-family:'JetBrains Mono',monospace;font-size:8.5px;fill:var(--mut)}
+.deps text.bad{fill:var(--atras);font-weight:700}
+
+.legend{flex:none;border-top:1px solid var(--line);padding:8px 14px;display:flex;gap:16px;flex-wrap:wrap;
+  align-items:center;background:#fbfcfd;font-size:11.5px;color:var(--ink2)}
+.legend div{display:flex;align-items:center;gap:6px}
+.lg{width:24px;height:9px;border-radius:2px;flex:none}
+.lg.bs{height:4px;background:#c3cfdd}
+.lg.exc{background:repeating-linear-gradient(135deg,var(--atras) 0 4px,#dd8155 4px 8px)}
+.lg.dep{height:0;border-top:1.4px solid var(--mut2)}
+.lg.depbad{height:0;border-top:1.4px dashed var(--atras)}
+.legend .sp{margin-left:auto;color:var(--mut2)}
+
+.tip{position:fixed;z-index:90;background:var(--navy);color:#fff;border-radius:8px;padding:10px 12px;
+  font-size:11.5px;pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:0 10px 26px rgba(13,42,79,.32);
+  max-width:300px;line-height:1.55}
+.tip.on{opacity:1}
+.tip b{display:block;font-size:12.5px;margin-bottom:5px}
+.tip .l{color:#9fc3e8}
+.tip .w{color:#fdba74;font-weight:700;margin-top:5px;display:block}
+.tip .g{color:#86efac}
+
+/* modal replanejamento */
+.scrim{position:fixed;inset:0;background:rgba(13,42,79,.34);z-index:80;opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-48%) scale(.98);z-index:81;background:#fff;
+  border-radius:12px;width:min(560px,94vw);max-height:88vh;overflow-y:auto;opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .18s;box-shadow:0 24px 60px rgba(13,42,79,.28)}
+.modal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.mhd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.mhd h2{font-size:16px;font-weight:700;letter-spacing:-.02em;flex:1}
+.mhd .sub{font-size:11.5px;color:var(--mut);margin-top:2px}
+.x{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--mut);
+  cursor:pointer;font-size:15px;flex:none}
+.mbd{padding:18px 20px}
+.aviso{display:flex;gap:9px;align-items:flex-start;background:#f1f5f9;border:1px solid var(--line);
+  border-radius:8px;padding:11px 12px;font-size:12px;color:var(--ink2);margin-bottom:16px}
+.aviso.adm{background:#fff7ed;border-color:#fed7aa}
+.aviso b{font-weight:700}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.full{grid-column:1/-1}
+.f label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);font-weight:700;
+  display:flex;align-items:center;gap:5px}
+.f input,.f select{border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;
+  font-family:inherit;color:var(--ink);outline:none;background:#fff}
+.f input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.13)}
+.f input:disabled{background:#f6f8fa;color:var(--mut);cursor:not-allowed}
+.f .ro{font-size:13px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:2px 0}
+.sechd{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:700;
+  margin:20px 0 9px;padding-bottom:7px;border-bottom:1px solid var(--line2)}
+.hist{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:12px}
+.hist:last-child{border:0}
+.hist .qd{font-family:'JetBrains Mono',monospace;color:var(--mut);flex:none}
+.hist .ct{flex:1}
+.hist .ct b{font-weight:600;display:block}
+.hist .ct small{color:var(--mut)}
+
+/* botão + na linha */
+.add{opacity:0;width:19px;height:19px;border-radius:4px;border:1px solid var(--line);background:#fff;
+  color:var(--mut);display:grid;place-items:center;font-size:13px;line-height:1;flex:none;cursor:pointer;
+  font-weight:700;transition:opacity .12s}
+.row:hover .add{opacity:1}
+.add:hover{border-color:var(--brand);color:var(--brand);background:#eff6ff}
+
+/* editor de predecessoras */
+.depbox{border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.deprow{display:grid;grid-template-columns:1fr 118px 78px 30px;gap:8px;padding:9px 10px;
+  border-bottom:1px solid var(--line2);align-items:center}
+.deprow:last-child{border-bottom:0}
+.deprow select,.deprow input{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;
+  font-family:inherit;color:var(--ink);outline:none;background:#fff;width:100%}
+.deprow select:focus,.deprow input:focus{border-color:var(--brand)}
+.deprow .rm{border:1px solid var(--line);background:#fff;border-radius:6px;color:var(--mut);cursor:pointer;
+  height:28px;font-size:13px}
+.deprow .rm:hover{border-color:#fca5a5;color:#b91c1c;background:#fef2f2}
+.sug{grid-column:1/-1;display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--mut);
+  background:#f8fafc;border-radius:6px;padding:6px 9px;margin-top:-2px}
+.sug b{font-family:'JetBrains Mono',monospace;color:var(--ink2)}
+.sug button{border:1px solid var(--brand);background:#eff6ff;color:var(--brand);border-radius:5px;
+  padding:3px 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;margin-left:auto}
+.sug.bad{background:var(--atras-bg);color:var(--atras)}
+.sug.bad b{color:var(--atras)}
+.vazio2{padding:14px;text-align:center;color:var(--mut2);font-size:12.5px}
+.addlink{border:1px dashed var(--line);background:#fbfcfd;border-radius:7px;padding:9px;width:100%;
+  font-family:inherit;font-size:12.5px;color:var(--ink2);cursor:pointer;font-weight:600;margin-top:9px}
+.addlink:hover{border-color:var(--brand);color:var(--brand);background:#eff6ff}
+.erro{background:var(--atras-bg);border:1px solid #fdba74;color:#9a3412;border-radius:7px;
+  padding:9px 11px;font-size:12px;margin-bottom:12px}
+.mft{padding:13px 20px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end;
+  position:sticky;bottom:0;background:#fff}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,12px);z-index:95;background:var(--navy);
+  color:#fff;border-radius:9px;padding:11px 15px;font-size:12.5px;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;box-shadow:0 12px 30px rgba(13,42,79,.3)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="mark"><div class="sq">GP</div><div><b>Gestão de Projetos</b><small>Engenharia · Automação</small></div></div>
+    <div class="navlab">Operação</div>
+    <nav>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Projetos</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Dashboard</a>
+      <a href="#" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Cronograma</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Atividades</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="top">
+      <div class="trow">
+        <div>
+          <h1>Cronograma de Projetos</h1>
+          <div class="crumb">Durações em <b>dias úteis</b> · datas de projeto e atividade calculadas das tarefas · hoje, <span id="hojeTx"></span></div>
+        </div>
+        <div class="tools">
+          <div class="perfil" id="perfilBox"><span>Perfil</span>
+            <select id="perfil"><option value="user">Usuário</option><option value="adm">Administrador</option></select>
+          </div>
+          <select class="sel" id="fProj"></select>
+          <div class="seg" id="zoom">
+            <button data-z="dia">Dia</button><button data-z="sem" class="on">Semana</button><button data-z="mes">Mês</button>
+          </div>
+          <label class="chk"><input type="checkbox" id="cBase" checked> Linha de base</label>
+          <label class="chk"><input type="checkbox" id="cDet"> Colunas</label>
+          <button class="btn gh" id="bNovo">＋ Novo item</button>
+          <button class="btn gh" id="bExp">Recolher tudo</button>
+          <button class="btn" id="bHoje">Ir para hoje</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <div class="chart" id="chart"></div>
+      <div class="legend">
+        <div><span class="lg" style="background:var(--navy)"></span>Resumo</div>
+        <div><span class="lg" style="background:var(--andam)"></span>Em andamento</div>
+        <div><span class="lg" style="background:var(--concl)"></span>Concluído</div>
+        <div><span class="lg" style="background:var(--plan)"></span>Planejado</div>
+        <div><span class="lg exc"></span>Além do previsto</div>
+        <div><span class="lg bs"></span>Linha de base</div>
+        <div><span class="lg" style="background:var(--brand2)"></span>Avanço (tarefas concluídas)</div>
+        <div><span class="lg dep"></span>Dependência</div>
+        <div><span class="lg depbad"></span>Dependência violada</div>
+        <div class="sp" id="resumo"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="scrim" id="scrim" onclick="fecharModal()"></div>
+<div class="modal" id="modal"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const HOJE=new Date(2026,7,8);
+const ST={planejado:{rot:'Planejado',c:'#7c3aed'},andamento:{rot:'Em andamento',c:'#2563eb'},
+  concluido:{rot:'Concluído',c:'#15803d'},atrasado:{rot:'Atrasado',c:'#c2410c'}};
+const TDEP={FS:'Fim → Início',SS:'Início → Início',FF:'Fim → Fim',SF:'Início → Fim'};
+
+/* ===== ESTRUTURA =====
+   bIni/bFim = LINHA DE BASE congelada na aprovação (só administrador altera)
+   ini/fim   = previsto vigente
+   rIni/rFim = execução real
+   dep       = [{de, tipo:'FS|SS|FF|SF', lag: dias úteis}] */
+const D=[
+ {id:'P01',tipo:'projeto',nome:'P01 — Ampliação das Injetoras'},
+  {id:'A1',pai:'P01',tipo:'atividade',nome:'Aquisição do equipamento'},
+   {id:'t1',pai:'A1',tipo:'tarefa',num:1,nome:'Elaborar requisição de compra',cat:'Suprimentos',resp:'Márcia Souza',
+    bIni:'2026-08-26',bFim:'2026-09-01',ini:'2026-08-26',fim:'2026-09-01'},
+   {id:'t2',pai:'A1',tipo:'tarefa',num:2,nome:'Identificar fornecedores',cat:'Suprimentos',resp:'Márcia Souza',
+    bIni:'2026-09-02',bFim:'2026-09-11',ini:'2026-09-02',fim:'2026-09-11',dep:[{de:'t1',tipo:'FS',lag:0}]},
+   {id:'t3',pai:'A1',tipo:'tarefa',num:3,nome:'Solicitar cotações',cat:'Suprimentos',resp:'Carlos Henrique',
+    bIni:'2026-09-14',bFim:'2026-09-25',ini:'2026-09-14',fim:'2026-09-25',dep:[{de:'t2',tipo:'FS',lag:0}]},
+   {id:'t4',pai:'A1',tipo:'tarefa',num:4,nome:'Equalizar propostas',cat:'Suprimentos',resp:'Carlos Henrique',
+    bIni:'2026-09-28',bFim:'2026-10-07',ini:'2026-09-28',fim:'2026-10-07',dep:[{de:'t3',tipo:'FS',lag:0}]},
+   {id:'t5',pai:'A1',tipo:'tarefa',num:5,nome:'Negociar condições',cat:'Suprimentos',resp:'Márcia Souza',
+    bIni:'2026-10-08',bFim:'2026-10-16',ini:'2026-10-08',fim:'2026-10-16',dep:[{de:'t4',tipo:'FS',lag:0}]},
+   {id:'t6',pai:'A1',tipo:'tarefa',num:6,nome:'Pedido de compra emitido',cat:'Suprimentos',resp:'Márcia Souza',marco:true,
+    bIni:'2026-10-19',bFim:'2026-10-19',ini:'2026-10-19',fim:'2026-10-19',dep:[{de:'t5',tipo:'FS',lag:0}]},
+  {id:'A2',pai:'P01',tipo:'atividade',nome:'Instalação do equipamento'},
+   {id:'t7',pai:'A2',tipo:'tarefa',num:7,nome:'Preparar infraestrutura',cat:'Elétrica',resp:'Anderson Lima',
+    bIni:'2026-11-02',bFim:'2026-11-20',ini:'2026-11-02',fim:'2026-11-20',dep:[{de:'t6',tipo:'FS',lag:9}]},
+   {id:'t8',pai:'A2',tipo:'tarefa',num:8,nome:'Montagem mecânica',cat:'Mecânica',resp:'João Pereira',
+    bIni:'2026-11-23',bFim:'2026-12-11',ini:'2026-11-23',fim:'2026-12-11',dep:[{de:'t7',tipo:'FS',lag:0}]},
+   {id:'t9',pai:'A2',tipo:'tarefa',num:9,nome:'Realizar testes funcionais',cat:'Automação',resp:'João Pereira',
+    bIni:'2026-12-01',bFim:'2026-12-24',ini:'2026-12-01',fim:'2026-12-24',dep:[{de:'t8',tipo:'SS',lag:6}]},
+  {id:'A3',pai:'P01',tipo:'atividade',nome:'Comissionamento'},
+
+ {id:'P02',tipo:'projeto',nome:'P02 — Reforma da Subestação'},
+  {id:'A4',pai:'P02',tipo:'atividade',nome:'Reforma elétrica'},
+   {id:'t10',pai:'A4',tipo:'tarefa',num:1,nome:'Levantar carga elétrica',cat:'Elétrica',resp:'Fernanda Alves',
+    bIni:'2026-07-07',bFim:'2026-07-20',ini:'2026-07-07',fim:'2026-07-20',rIni:'2026-07-09',rFim:'2026-07-17'},
+   {id:'t11',pai:'A4',tipo:'tarefa',num:2,nome:'Preparar infraestrutura',cat:'Elétrica',resp:'Anderson Lima',
+    bIni:'2026-07-21',bFim:'2026-08-05',ini:'2026-07-21',fim:'2026-08-05',rIni:'2026-07-21',rFim:'2026-07-31',dep:[{de:'t10',tipo:'FS',lag:0}]},
+   {id:'t12',pai:'A4',tipo:'tarefa',num:3,nome:'Substituir transformador',cat:'Elétrica',resp:'Anderson Lima',
+    bIni:'2026-08-06',bFim:'2026-09-10',ini:'2026-08-06',fim:'2026-09-10',rIni:'2026-08-03',dep:[{de:'t11',tipo:'FS',lag:0}]},
+   {id:'t13',pai:'A4',tipo:'tarefa',num:4,nome:'Manter gerador provisório',cat:'Elétrica',resp:'Anderson Lima',
+    bIni:'2026-07-07',bFim:'2026-09-11',ini:'2026-07-07',fim:'2026-09-11',rIni:'2026-07-07',dep:[{de:'t14',tipo:'SF',lag:0}]},
+   {id:'t14',pai:'A4',tipo:'tarefa',num:5,nome:'Energizar e testar',cat:'Elétrica',resp:'Fernanda Alves',
+    bIni:'2026-09-11',bFim:'2026-10-05',ini:'2026-09-11',fim:'2026-10-05',dep:[{de:'t12',tipo:'FS',lag:0}]},
+
+ {id:'P03',tipo:'projeto',nome:'P03 — Adequação NR-12 — Linha 3'},
+  {id:'A5',pai:'P03',tipo:'atividade',nome:'Adequação das proteções'},
+   {id:'t15',pai:'A5',tipo:'tarefa',num:1,nome:'Levantamento de riscos',cat:'Segurança',resp:'Ricardo Santos',
+    bIni:'2026-05-08',bFim:'2026-06-05',ini:'2026-05-08',fim:'2026-06-05',rIni:'2026-05-13',rFim:'2026-06-05'},
+   {id:'t16',pai:'A5',tipo:'tarefa',num:2,nome:'Instalação das proteções',cat:'Mecânica',resp:'Anderson Lima',
+    bIni:'2026-06-08',bFim:'2026-07-03',ini:'2026-06-08',fim:'2026-07-10',rIni:'2026-06-15',dep:[{de:'t15',tipo:'FS',lag:0}],
+    hist:[{qd:'2026-06-26',quem:'Ricardo Santos',de:'2026-07-03',para:'2026-07-10',motivo:'Atraso na entrega das grades pelo fornecedor'}]},
+   {id:'t17',pai:'A5',tipo:'tarefa',num:3,nome:'Laudo e treinamento',cat:'Segurança',resp:'Márcia Souza',
+    bIni:'2026-07-06',bFim:'2026-07-17',ini:'2026-07-13',fim:'2026-07-27',dep:[{de:'t16',tipo:'FF',lag:5}],
+    hist:[{qd:'2026-06-26',quem:'Ricardo Santos',de:'2026-07-17',para:'2026-07-24',motivo:'Reflexo do replanejamento da instalação'},
+          {qd:'2026-07-15',quem:'Márcia Souza',de:'2026-07-24',para:'2026-07-27',motivo:'Agenda do instrutor'}]}
+];
+
+/* ---------- estado ---------- */
+let zoom='sem', mostraBase=true, mostraDatas=false, fProj='', perfil='user';
+const fechado=new Set();
+const PX={dia:26,sem:8,mes:2.9};
+const d=s=>s?new Date(s+'T00:00:00'):null;
+const iso=dt=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+const dias=(a,b)=>Math.round((b-a)/864e5);
+const addD=(dt,n)=>new Date(dt.getTime()+n*864e5);
+const fmt=dt=>dt?dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'';
+const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+/* ===== CALENDÁRIO DE DIAS ÚTEIS ===== */
+const util=dt=>![0,6].includes(dt.getDay());
+function du(a,b){ if(!a||!b||b<a) return 0; let n=0,x=new Date(a); while(x<=b){if(util(x))n++;x=addD(x,1);} return n; }
+function addDU(dt,n){ let x=new Date(dt),c=0; if(n===0){while(!util(x))x=addD(x,1);return x;}
+  const s=n>0?1:-1; while(c!==n){ x=addD(x,s); if(util(x)) c+=s; } return x; }
+
+const filhos=id=>D.filter(x=>x.pai===id);
+function per(n){
+  if(n.tipo==='tarefa'){
+    const pi=d(n.ini),pf=d(n.fim),ri=d(n.rIni),rf=d(n.rFim);
+    const ei=ri||pi, ef=rf||(ri?(n.st==='atrasado'&&HOJE>pf?HOJE:pf):pf);
+    return {pi,pf,ei,ef,bi:d(n.bIni),bf:d(n.bFim)};
+  }
+  const s=filhos(n.id).map(per).filter(x=>x.pi);
+  if(!s.length) return {pi:null,pf:null,ei:null,ef:null,bi:null,bf:null};
+  return {pi:new Date(Math.min(...s.map(x=>x.pi))),pf:new Date(Math.max(...s.map(x=>x.pf))),
+          ei:new Date(Math.min(...s.map(x=>x.ei))),ef:new Date(Math.max(...s.map(x=>x.ef))),
+          bi:new Date(Math.min(...s.map(x=>x.bi))),bf:new Date(Math.max(...s.map(x=>x.bf)))};
+}
+/* status da TAREFA é derivado das datas — não é campo digitado */
+function stDe(n){
+  if(n.tipo==='tarefa'){
+    const p=per(n);
+    if(n.rFim) return 'concluido';
+    if(HOJE>p.pf) return 'atrasado';
+    return n.rIni ? 'andamento' : 'planejado';
+  }
+  const s=filhos(n.id).map(stDe).filter(Boolean);
+  if(!s.length) return null;
+  if(s.includes('atrasado')) return 'atrasado';
+  if(s.every(x=>x==='concluido')) return 'concluido';
+  if(s.includes('andamento')||s.includes('concluido')) return 'andamento';
+  return 'planejado';
+}
+const tarefasDe=id=>{const n=D.find(z=>z.id===id); if(!n) return [];
+  if(n.tipo==='tarefa') return [n];
+  return filhos(id).flatMap(f=>tarefasDe(f.id));};
+/* ===== AVANÇO 100% AUTOMÁTICO =====
+   Tarefa é binária: concluída (tem fim real) ou não — não tem percentual.
+   Atividade = trabalho concluído ÷ trabalho total, ponderado por dias úteis.
+   Projeto   = mesma conta somando as tarefas de todas as suas atividades.
+   Ninguém digita percentual em lugar nenhum. */
+const concluida = t => !!t.rFim;
+const pesoDe    = t => Math.max(1, du(d(t.ini), d(t.fim)));
+function medida(n){
+  const T = n.tipo==='tarefa' ? [n] : tarefasDe(n.id);
+  const tot  = T.reduce((a,t)=>a+pesoDe(t),0);
+  const feito= T.filter(concluida).reduce((a,t)=>a+pesoDe(t),0);
+  return {qtd:T.length, qtdOk:T.filter(concluida).length, du:tot, duOk:feito,
+          pct: tot?Math.round(feito/tot*100):0};
+}
+function pct(n){ return n.tipo==='tarefa' ? null : (tarefasDe(n.id).length ? medida(n).pct : 0); }
+/* avanço previsto em dias úteis */
+function prevPct(n){
+  const p=per(n); if(!p.pi) return 0;
+  if(HOJE<p.pi) return 0; if(HOJE>p.pf) return 100;
+  return Math.round(du(p.pi,HOJE)/Math.max(1,du(p.pi,p.pf))*100);
+}
+
+/* ===== VALIDAÇÃO DAS 4 DEPENDÊNCIAS ===== */
+function checaDep(suc,dp){
+  const pre=D.find(z=>z.id===dp.de); if(!pre) return null;
+  const a=per(pre), b=per(suc), lag=dp.lag||0;
+  let exig, real, campo;
+  if(dp.tipo==='FS'){ exig=addDU(a.pf,1+lag); real=b.pi; campo='início'; }
+  if(dp.tipo==='SS'){ exig=addDU(a.pi,lag);   real=b.pi; campo='início'; }
+  if(dp.tipo==='FF'){ exig=addDU(a.pf,lag);   real=b.pf; campo='fim'; }
+  if(dp.tipo==='SF'){ exig=addDU(a.pi,lag);   real=b.pf; campo='fim'; }
+  const folga=du(exig,real)-1;
+  return {pre,exig,real,campo,violada:real<exig,folga};
+}
+
+/* janela */
+const tds=D.map(per).filter(x=>x.pi);
+const T0=addD(new Date(Math.min(...tds.map(x=>x.pi),...tds.map(x=>x.bi))),-10);
+const T1=addD(new Date(Math.max(...tds.map(x=>x.pf),...tds.map(x=>x.ef))),20);
+const TOTD=dias(T0,T1);
+const px=()=>PX[zoom];
+const x=dt=>dias(T0,dt)*px();
+/* a largura do painel esquerdo é SOMADA das colunas — nunca pode divergir e invadir o gráfico */
+const COLS=()=>mostraDatas
+  ? [['Linha',40,'r'],['Estrutura',232],['Categoria',86],['Responsável',98],['Base',104],['Real',104],['Dur.',46,'r'],['Avanço',74]]
+  : [['Linha',44,'r'],['Estrutura',300],['Avanço',80]];
+const LEFT=()=>COLS().reduce((a,c)=>a+c[1],0);
+
+function visiveis(){
+  const out=[];
+  const add=(n,niv)=>{out.push({n,niv}); if(!fechado.has(n.id)) filhos(n.id).forEach(f=>add(f,niv+1));};
+  D.filter(n=>n.tipo==='projeto').forEach(p=>{if(!fProj||p.id===fProj) add(p,0)});
+  return out;
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  const L=LEFT(), W=TOTD*px(), rows=visiveis(), ch=document.getElementById('chart');
+  const sl=ch.scrollLeft;
+
+  let h1='',h2='';
+  if(zoom==='mes'){
+    for(let a=T0.getFullYear();a<=T1.getFullYear();a++){
+      const i=new Date(Math.max(T0,new Date(a,0,1))), f=new Date(Math.min(T1,new Date(a+1,0,1)));
+      const w=dias(i,f)*px(); if(w>0) h1+=`<div style="width:${w}px">${a}</div>`;
+    }
+    let m=new Date(T0.getFullYear(),T0.getMonth(),1);
+    while(m<T1){ const p2=new Date(m.getFullYear(),m.getMonth()+1,1);
+      const i=new Date(Math.max(T0,m)), f=new Date(Math.min(T1,p2)), w=dias(i,f)*px();
+      if(w>0) h2+=`<div class="${HOJE>=i&&HOJE<f?'hj':''}" style="width:${w}px">${MES[m.getMonth()]}</div>`;
+      m=p2; }
+  } else {
+    let m=new Date(T0.getFullYear(),T0.getMonth(),1);
+    while(m<T1){ const p2=new Date(m.getFullYear(),m.getMonth()+1,1);
+      const i=new Date(Math.max(T0,m)), f=new Date(Math.min(T1,p2)), w=dias(i,f)*px();
+      if(w>0) h1+=`<div style="width:${w}px">${MES[m.getMonth()]} ${String(m.getFullYear()).slice(2)}</div>`;
+      m=p2; }
+    if(zoom==='dia'){
+      for(let i=0;i<TOTD;i++){const dt=addD(T0,i);
+        h2+=`<div class="${dias(dt,HOJE)===0?'hj':(util(dt)?'':'fds')}" style="width:${px()}px">${dt.getDate()}</div>`;}
+    } else {
+      let s=addD(T0,(8-T0.getDay())%7);
+      if(dias(T0,s)>0) h2+=`<div style="width:${dias(T0,s)*px()}px"></div>`;
+      while(s<T1){ const f=addD(s,7), w=Math.min(7,dias(s,T1))*px();
+        h2+=`<div class="${HOJE>=s&&HOJE<f?'hj':''}" style="width:${w}px">${String(s.getDate()).padStart(2,'0')}/${String(s.getMonth()+1).padStart(2,'0')}</div>`;
+        s=f; }
+    }
+  }
+
+  const cad = perfil==='user'?' <span class="cad" title="Somente administrador altera">🔒</span>':'';
+  const cols = COLS().map(([r,w,al])=>
+    `<span style="width:${w}px${al==='r'?';justify-content:flex-end':''}">${r}${r==='Base'?cad:''}</span>`).join('');
+
+  let grid='';
+  let m2=new Date(T0.getFullYear(),T0.getMonth(),1);
+  while(m2<T1){ grid+=`<div class="m" style="left:${x(m2)}px"></div>`; m2=new Date(m2.getFullYear(),m2.getMonth()+1,1); }
+  if(zoom!=='mes'){
+    for(let i=0;i<TOTD;i++){const dt=addD(T0,i);
+      if(!util(dt)) grid+=`<div class="fds" style="left:${i*px()}px;width:${px()}px"></div>`;}
+  }
+  if(zoom==='sem'){ let s=addD(T0,(8-T0.getDay())%7);
+    while(s<T1){ grid+=`<div class="v" style="left:${x(s)}px"></div>`; s=addD(s,7);} }
+
+  let body='';
+  rows.forEach(({n,niv})=>{
+    const p=per(n), st=stDe(n)||'planejado', cor=ST[st].c, pc=pct(n), pv=prevPct(n);
+    const temF=filhos(n.id).length, ab=!fechado.has(n.id);
+    const tag = n.tipo==='projeto'?'<span class="tp p">PROJETO</span>'
+              : n.tipo==='atividade'?'<span class="tp a">ATIVIDADE</span>':'<span class="tp t">TAREFA</span>';
+    const C=COLS(), wOf=r=>(C.find(c=>c[0]===r)||[0,0])[1];
+    const estW = wOf('Estrutura');
+    const nrev = (n.hist||[]).length;
+    let lef=`<span class="lin" style="width:${wOf('Linha')}px">${n.num||''}</span>
+      <span style="width:${estW}px;padding-left:${8+niv*15}px"><span class="est">
+        <span class="cv ${temF?(ab?'op':''):'vazio'}" onclick="event.stopPropagation();alterna('${n.id}')">▶</span>
+        ${tag}<span class="nm" title="${n.nome}">${n.nome}</span>
+        ${nrev?`<span class="rev" title="${nrev} replanejamento(s)">R${nrev}</span>`:''}
+        ${perfil==='adm'&&n.tipo!=='tarefa'
+          ? `<button class="add" title="Nova ${n.tipo==='projeto'?'atividade':'tarefa'} em ${n.nome}"
+               onclick="event.stopPropagation();novoItem('${n.id}','${n.tipo==='projeto'?'atividade':'tarefa'}')">+</button>` : ''}
+        </span></span>`;
+    if(mostraDatas){
+      const durU = p.pi?du(p.pi,p.pf):0;
+      lef+=`<span style="width:${wOf('Categoria')}px">${n.cat?`<span class="cat">${n.cat}</span>`:''}</span>
+        <span style="width:${wOf('Responsável')}px;font-size:11.5px;color:var(--ink2)">${n.resp||''}</span>
+        <span class="dt ${p.bi?'':'vazio'}" style="width:${wOf('Base')}px">${p.bi?fmt(p.bi)+' → '+fmt(p.bf):'sem tarefas'}</span>
+        <span class="dt ${n.tipo!=='tarefa'||n.rIni?'':'vazio'}" style="width:${wOf('Real')}px">${
+          n.tipo==='tarefa'?(n.rIni?fmt(d(n.rIni))+' → '+(n.rFim?fmt(d(n.rFim)):'em curso'):'não iniciado')
+                           :(p.ei?fmt(p.ei)+' → '+fmt(p.ef):'—')}</span>
+        <span class="dt" style="width:${wOf('Dur.')}px;text-align:right">${durU?durU+'du':''}</span>`;
+    }
+    lef+= pc===null
+      ? `<span style="width:${wOf('Avanço')}px"><span class="tagst" style="background:${cor}1a;color:${cor}">${ST[st].rot}</span></span>`
+      : (()=>{const m=medida(n);return `<span style="width:${wOf('Avanço')}px" title="${m.qtdOk} de ${m.qtd} tarefas concluídas (${m.duOk}/${m.du} dias úteis)">
+         <span class="pcell"><span class="pmini"><i style="width:${pc}%;background:${cor}"></i></span>
+         <span class="ppc" style="color:${pc?cor:'var(--mut2)'}">${pc}%</span></span></span>`})();
+
+    let bars='';
+    if(p.pi){
+      if(n.tipo==='tarefa'){
+        if(n.marco){
+          bars+=`<div class="marco" style="left:${x(p.pf)-6}px;background:${cor}" data-id="${n.id}"></div>
+                 <div class="blab" style="left:${x(p.pf)+11}px">${n.nome}</div>`;
+        } else {
+          const ini=p.ei, fim=p.ef, atraso=fim>p.pf;
+          const bx=x(ini);
+          const moveu = +p.bi!==+p.pi || +p.bf!==+p.pf;
+          if(mostraBase)
+            bars+=`<div class="base ${moveu?'mov':''}" style="left:${x(p.bi)}px;width:${Math.max(4,(dias(p.bi,p.bf)+1)*px())}px"
+                    title="Linha de base: ${fmt(p.bi)} → ${fmt(p.bf)}"></div>`;
+          const wv=Math.max(5,(dias(ini,atraso?p.pf:fim)+1)*px());
+          bars+=`<div class="bar tar" style="left:${bx}px;width:${wv}px;background:${cor}" data-id="${n.id}"></div>`;
+          if(atraso) bars+=`<div class="excesso" style="left:${bx+wv-2}px;width:${Math.max(4,dias(p.pf,fim)*px())}px" data-id="${n.id}"></div>`;
+        }
+      } else {
+        bars+=`<div class="bar res" style="left:${x(p.ei)}px;width:${Math.max(8,(dias(p.ei,p.ef)+1)*px())}px;
+          background:var(--navy);color:var(--navy)" data-id="${n.id}">
+          ${pc>0?`<div class="resfill" style="width:${pc}%"></div>`:''}</div>`;
+      }
+    } else {
+      bars+=`<div class="blab" style="left:${Math.max(0,x(HOJE)-70)}px;color:var(--mut2);font-style:italic">sem tarefas</div>`;
+    }
+    body+=`<div class="row r-${n.tipo}" onclick="abrirModal('${n.id}')">
+      <div class="lef" style="width:${L}px">${lef}</div>
+      <div class="tim" style="width:${W}px">${bars}</div></div>`;
+  });
+
+  /* setas de dependência — 4 tipos */
+  const idx={}; rows.forEach((r,i)=>idx[r.n.id]=i);
+  const G=9; let sv='';
+  rows.forEach(({n},i)=>{
+    (n.dep||[]).forEach(dp=>{
+      if(!(dp.de in idx)) return;
+      const c=checaDep(n,dp); if(!c) return;
+      const a=per(c.pre), b=per(n);
+      const y1=idx[dp.de]*34+17, y2=i*34+17;
+      const saiFim = dp.tipo==='FS'||dp.tipo==='FF';
+      const entraIni = dp.tipo==='FS'||dp.tipo==='SS';
+      const x1 = saiFim ? x(a.ef)+px() : x(a.ei);
+      const x2 = entraIni ? x(b.ei) : x(b.ef)+px();
+      const cor = c.violada?'#c2410c':'#94a3b8';
+      let path;
+      if(entraIni){
+        path = (x2>=x1+2*G) ? `M${x1},${y1} H${x2-G} V${y2} H${x2}`
+             : `M${x1},${y1} h${G} V${(y1+y2)/2} H${x2-G} V${y2} H${x2}`;
+        sv+=`<path d="${path}" fill="none" stroke="${cor}" stroke-width="1.3" ${c.violada?'stroke-dasharray="4 3"':''}/>
+             <path d="M${x2},${y2} l-5,-3.4 v6.8 z" fill="${cor}"/>`;
+      } else {
+        path = `M${x1},${y1} H${Math.max(x1,x2)+G} V${y2} H${x2}`;
+        sv+=`<path d="${path}" fill="none" stroke="${cor}" stroke-width="1.3" ${c.violada?'stroke-dasharray="4 3"':''}/>
+             <path d="M${x2},${y2} l5,-3.4 v6.8 z" fill="${cor}"/>`;
+      }
+      if(dp.tipo!=='FS'||dp.lag)
+        sv+=`<text class="${c.violada?'bad':''}" x="${(x1+x2)/2}" y="${(y1+y2)/2-3}" text-anchor="middle">${dp.tipo}${dp.lag?'+'+dp.lag+'du':''}</text>`;
+    });
+  });
+
+  ch.innerHTML=`
+    <div class="hrow">
+      <div class="hlef" style="width:${L}px;height:56px"><div class="hcols">${cols}</div></div>
+      <div class="htim" style="width:${W}px"><div class="h1r">${h1}</div><div class="h2r">${h2}</div></div>
+    </div>
+    <div class="rows" style="width:${L+W}px">
+      <div class="grid" style="left:${L}px;width:${W}px">${grid}</div>
+      <div class="hoje" style="left:${L+x(HOJE)}px"></div>
+      <svg class="deps" style="left:${L}px;width:${W}px;height:${rows.length*34}px">${sv}</svg>
+      ${body}
+    </div>`;
+  ch.scrollLeft=sl;
+
+  const viol=D.filter(z=>z.dep).flatMap(z=>(z.dep||[]).map(dp=>checaDep(z,dp))).filter(c=>c&&c.violada).length;
+  document.getElementById('resumo').innerHTML=
+    `${rows.length} linhas · ${D.filter(z=>z.tipo==='tarefa').length} tarefas`+
+    (viol?` · <b style="color:var(--atras)">${viol} dependência(s) violada(s)</b>`:'');
+  ligaTips();
+}
+function alterna(id){fechado.has(id)?fechado.delete(id):fechado.add(id);render()}
+
+/* tooltip */
+function ligaTips(){
+  const tip=document.getElementById('tip');
+  document.querySelectorAll('.bar,.excesso,.marco').forEach(el=>{
+    if(!el.dataset.id) return;
+    el.onmousemove=e=>{
+      const n=D.find(z=>z.id===el.dataset.id), p=per(n), st=stDe(n)||'planejado';
+      const atr=p.ef>p.pf?du(addD(p.pf,1),p.ef):0;
+      const desvBase = n.tipo==='tarefa' && +p.bf!==+p.pf ? du(addD(p.bf,1),p.pf) : 0;
+      let deps='';
+      (n.dep||[]).forEach(dp=>{const c=checaDep(n,dp); if(!c) return;
+        deps+=`<br><span class="l">${TDEP[dp.tipo]}${dp.lag?' +'+dp.lag+'du':''}</span> ${c.pre.nome}`+
+          (c.violada?`<span class="w">viola a dependência: ${c.campo} deveria ser a partir de ${fmt(c.exig)}</span>`
+                    :` <span class="g">(folga ${c.folga}du)</span>`);
+      });
+      tip.innerHTML=`<b>${n.nome}</b>
+        <span class="l">Base</span> ${fmt(p.bi)} → ${fmt(p.bf)} · ${du(p.bi,p.bf)}du<br>
+        <span class="l">Previsto</span> ${fmt(p.pi)} → ${fmt(p.pf)}${desvBase?` <span style="color:#fdba74">(+${desvBase}du vs. base)</span>`:''}<br>
+        <span class="l">Real</span> ${n.tipo==='tarefa'?(n.rIni?fmt(d(n.rIni))+' → '+(n.rFim?fmt(d(n.rFim)):'em curso'):'não iniciado'):fmt(p.ei)+' → '+fmt(p.ef)}<br>
+        ${n.tipo==='tarefa'
+          ? `<span class="l">Situação</span> ${ST[st].rot}${n.rFim?' · conta como trabalho entregue':' · só conta quando receber fim real'}`
+          : (()=>{const m=medida(n);return `<span class="l">Avanço</span> ${m.pct}% · ${m.qtdOk}/${m.qtd} tarefas · ${m.duOk}/${m.du}du<br>
+             <span class="l">Previsto hoje</span> ${prevPct(n)}%`})()}
+        ${n.resp?`<br><span class="l">Responsável</span> ${n.resp}`:''}
+        ${deps}
+        ${atr?`<span class="w">${atr} dias úteis além do previsto</span>`:''}`;
+      tip.style.left=Math.min(e.clientX+14,innerWidth-320)+'px';
+      tip.style.top=Math.min(e.clientY+16,innerHeight-190)+'px';
+      tip.classList.add('on');
+    };
+    el.onmouseleave=()=>tip.classList.remove('on');
+  });
+}
+
+/* ===== CRIAR / EDITAR / REPLANEJAR ===== */
+let alvo=null, ed=null, criando=false, erro='';
+const adm=()=>perfil==='adm';
+
+function projetoDe(id){ let n=D.find(z=>z.id===id);
+  while(n && n.tipo!=='projeto') n=D.find(z=>z.id===n.pai);
+  return n?n.id:null; }
+
+/* impede ciclo: candidata não pode depender (direta ou indiretamente) da tarefa atual */
+function dependeDe(id,alvoId,vis=new Set()){
+  if(id===alvoId) return true;
+  if(vis.has(id)) return false; vis.add(id);
+  const n=D.find(z=>z.id===id); if(!n) return false;
+  return (n.dep||[]).some(dp=>dependeDe(dp.de,alvoId,vis));
+}
+function candidatas(item){
+  const raiz=projetoDe(item.pai);
+  return D.filter(z=>z.tipo==='tarefa' && z.id!==item.id && projetoDe(z.pai)===raiz && !dependeDe(z.id,item.id));
+}
+/* data sugerida pela regra da dependência */
+function sugestao(dp){
+  const pre=D.find(z=>z.id===dp.de); if(!pre) return null;
+  const a=per(pre), lag=+dp.lag||0;
+  if(dp.tipo==='FS') return {campo:'ini',data:addDU(a.pf,1+lag)};
+  if(dp.tipo==='SS') return {campo:'ini',data:addDU(a.pi,lag)};
+  if(dp.tipo==='FF') return {campo:'fim',data:addDU(a.pf,lag)};
+  if(dp.tipo==='SF') return {campo:'fim',data:addDU(a.pi,lag)};
+}
+function inserirApos(paiId,item){
+  const ip=D.findIndex(z=>z.id===paiId); let i=ip+1; const fam=new Set([paiId]);
+  while(i<D.length && fam.has(D[i].pai)){ fam.add(D[i].id); i++; }
+  D.splice(i,0,item);
+}
+function proxNum(paiId){
+  const raiz=projetoDe(paiId);
+  const ns=D.filter(z=>z.tipo==='tarefa'&&projetoDe(z.pai)===raiz).map(z=>z.num||0);
+  return Math.max(0,...ns)+1;
+}
+
+function novoItem(paiId,tipo){
+  if(!adm()) return tst('Somente administrador pode criar atividades e tarefas.');
+  criando=true; alvo=null; erro='';
+  const dur=4;
+  ed={id:'n'+Date.now(), pai:paiId||D.find(z=>z.tipo==='projeto').id, tipo:tipo||'tarefa',
+      nome:'', cat:'', resp:'', dep:[],
+      bIni:iso(HOJE), bFim:iso(addDU(HOJE,dur)), ini:iso(HOJE), fim:iso(addDU(HOJE,dur))};
+  desenhaModal(); abre();
+}
+function abrirModal(id){
+  const n=D.find(z=>z.id===id); if(!n) return;
+  criando=false; erro=''; alvo=n; ed=JSON.parse(JSON.stringify(n));
+  desenhaModal(); abre();
+}
+function abre(){document.getElementById('modal').classList.add('on');
+  document.getElementById('scrim').classList.add('on')}
+function fecharModal(){document.getElementById('modal').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on'); criando=false; ed=null}
+
+/* lê os inputs para a cópia de trabalho antes de redesenhar */
+function ler(){
+  if(!ed) return;
+  const v=i=>{const e=document.getElementById(i);return e?e.value:undefined};
+  ['nome','cat','resp'].forEach(k=>{const x=v('e_'+k); if(x!==undefined) ed[k]=x});
+  const map={bIni:'e_bi',bFim:'e_bf',ini:'e_pi',fim:'e_pf',rIni:'e_ri',rFim:'e_rf'};
+  Object.entries(map).forEach(([k,i])=>{const x=v(i); if(x!==undefined) ed[k]=x||null});
+  const r=v('e_real'); if(r!==undefined) ed.real=Math.max(0,Math.min(100,parseInt(r)||0));
+  const pai=v('e_pai'); if(pai!==undefined) ed.pai=pai;
+  const tp=v('e_tipo'); if(tp!==undefined) ed.tipo=tp;
+  (ed.dep||[]).forEach((dp,i)=>{
+    const de=v('d_de'+i), t=v('d_tp'+i), lg=v('d_lag'+i);
+    if(de!==undefined) dp.de=de; if(t!==undefined) dp.tipo=t;
+    if(lg!==undefined) dp.lag=parseInt(lg)||0;
+  });
+}
+function addDep(){ ler(); (ed.dep=ed.dep||[]).push({de:'',tipo:'FS',lag:0}); desenhaModal(); }
+function remDep(i){ ler(); ed.dep.splice(i,1); desenhaModal(); }
+function aplicaSug(i){
+  ler();
+  const sg=sugestao(ed.dep[i]); if(!sg) return;
+  const dur=Math.max(1,du(d(ed.ini),d(ed.fim)));
+  if(sg.campo==='ini'){ ed.ini=iso(sg.data); ed.fim=iso(addDU(sg.data,dur-1)); }
+  else { ed.fim=iso(sg.data); ed.ini=iso(addDU(sg.data,-(dur-1))); }
+  if(criando){ ed.bIni=ed.ini; ed.bFim=ed.fim; }
+  desenhaModal();
+}
+
+function desenhaModal(){
+  const n=ed, t=n.tipo==='tarefa', a=adm(), p=criando?null:per(alvo);
+  const hist=(n.hist||[]).slice().reverse();
+  const paisPossiveis = n.tipo==='atividade'
+    ? D.filter(z=>z.tipo==='projeto')
+    : D.filter(z=>z.tipo==='atividade');
+
+  /* editor de predecessoras */
+  let depsHtml='';
+  if(t){
+    const opts=candidatas(n);
+    if(!(n.dep||[]).length){
+      depsHtml=`<div class="vazio2">Nenhuma predecessora. Esta tarefa pode começar a qualquer momento.</div>`;
+    } else {
+      depsHtml=(n.dep||[]).map((dp,i)=>{
+        const sg=sugestao(dp);
+        const c=dp.de?checaDep({...n,dep:[dp]},dp):null;
+        let linha=`<div class="deprow">
+          <select id="d_de${i}" onchange="ler();desenhaModal()" ${a?'':'disabled'}>
+            <option value="">— escolher tarefa —</option>
+            ${opts.map(o=>`<option value="${o.id}" ${o.id===dp.de?'selected':''}>#${o.num} ${o.nome}</option>`).join('')}
+            ${dp.de&&!opts.find(o=>o.id===dp.de)?`<option value="${dp.de}" selected>${(D.find(z=>z.id===dp.de)||{}).nome||'?'}</option>`:''}
+          </select>
+          <select id="d_tp${i}" onchange="ler();desenhaModal()" ${a?'':'disabled'}>
+            ${Object.entries(TDEP).map(([k,r])=>`<option value="${k}" ${k===dp.tipo?'selected':''}>${k} · ${r}</option>`).join('')}
+          </select>
+          <input id="d_lag${i}" type="number" value="${dp.lag||0}" onchange="ler();desenhaModal()" title="Folga em dias úteis" ${a?'':'disabled'}>
+          ${a?`<button class="rm" onclick="remDep(${i})" title="Remover">✕</button>`:'<span></span>'}`;
+        if(sg){
+          const bad=c&&c.violada;
+          linha+=`<div class="sug ${bad?'bad':''}">
+            ${bad?'Conflito: ':''}pela regra, o <b>${sg.campo==='ini'?'início':'fim'}</b> deve ser a partir de <b>${fmt(sg.data)}</b>
+            ${a?`<button onclick="aplicaSug(${i})">Aplicar</button>`:''}</div>`;
+        }
+        return linha+`</div>`;
+      }).join('');
+    }
+  }
+
+  document.getElementById('modal').innerHTML=`
+    <div class="mhd"><div style="flex:1">
+      <h2>${criando?`Nova ${n.tipo}`:n.nome}</h2>
+      <div class="sub">${criando?`em ${(D.find(z=>z.id===n.pai)||{}).nome||''}`
+        :`${n.tipo.toUpperCase()}${n.num?' · linha '+n.num:''}${n.resp?' · '+n.resp:''}`}</div>
+    </div><button class="x" onclick="fecharModal()">✕</button></div>
+
+    <div class="mbd">
+      ${erro?`<div class="erro">${erro}</div>`:''}
+      ${!t&&!criando?`<div class="aviso">Datas de ${n.tipo} são <b>calculadas das tarefas</b>. Para replanejar, ajuste as tarefas.</div>`
+        : a ? `<div class="aviso adm"><b>Perfil administrador.</b> ${criando?'O item será criado na estrutura do projeto.':'Alterar a linha de base reescreve a referência de atraso — exige motivo e fica registrado.'}</div>`
+            : `<div class="aviso">🔒 <b>Linha de base somente leitura.</b> Você registra datas reais e avanço; replanejar é atribuição do administrador.</div>`}
+
+      <div class="fg">
+        ${criando?`
+          <div class="f"><label>Tipo</label>
+            <select id="e_tipo" onchange="ler();ajustaPai();">
+              <option value="atividade" ${n.tipo==='atividade'?'selected':''}>Atividade</option>
+              <option value="tarefa" ${n.tipo==='tarefa'?'selected':''}>Tarefa</option></select></div>
+          <div class="f"><label>Onde</label>
+            <select id="e_pai" onchange="ler();desenhaModal()">
+              ${paisPossiveis.map(o=>`<option value="${o.id}" ${o.id===n.pai?'selected':''}>${o.nome}</option>`).join('')}
+            </select></div>`:''}
+        <div class="f full"><label>Nome</label>
+          <input id="e_nome" value="${(n.nome||'').replace(/"/g,'&quot;')}" ${criando||a?'':'disabled'} placeholder="Ex.: Montagem do painel elétrico"></div>
+        ${t?`
+          <div class="f"><label>Categoria</label><input id="e_cat" value="${n.cat||''}" ${a?'':'disabled'} placeholder="Elétrica, Mecânica..."></div>
+          <div class="f"><label>Responsável</label><input id="e_resp" value="${n.resp||''}" ${a?'':'disabled'} placeholder="Quem executa"></div>
+          <div class="f"><label>Base — início ${a?'':'🔒'}</label><input type="date" id="e_bi" value="${n.bIni||''}" ${a?'':'disabled'}></div>
+          <div class="f"><label>Base — fim ${a?'':'🔒'}</label><input type="date" id="e_bf" value="${n.bFim||''}" ${a?'':'disabled'}></div>
+          <div class="f"><label>Previsto — início</label><input type="date" id="e_pi" value="${n.ini||''}" ${a?'':'disabled'}></div>
+          <div class="f"><label>Previsto — fim</label><input type="date" id="e_pf" value="${n.fim||''}" ${a?'':'disabled'}></div>
+          ${criando?'':`
+          <div class="f"><label>Real — início</label><input type="date" id="e_ri" value="${n.rIni||''}"></div>
+          <div class="f"><label>Real — fim</label><input type="date" id="e_rf" value="${n.rFim||''}"></div>
+`}
+          <div class="f"><label>Duração</label><div class="ro">${du(d(n.ini),d(n.fim))} dias úteis${criando?'':` · previsto hoje ${prevPct(alvo)}%`}</div></div>
+          ${a&&!criando?`<div class="f full"><label>Motivo do replanejamento (se mudar o previsto)</label>
+            <input id="e_mot" placeholder="Ex.: atraso do fornecedor, parada de linha, chuva..."></div>`:''}
+        `:`<div class="f"><label>Datas</label><div class="ro">${criando?'calculadas das tarefas':(p&&p.pi?fmt(p.pi)+' → '+fmt(p.pf):'sem tarefas')}</div></div>
+           ${n.tipo!=='tarefa'&&!criando?(()=>{const m=medida(alvo);return `
+             <div class="f"><label>Avanço (automático)</label>
+               <div class="ro" style="font-size:19px;color:${m.pct?ST[stDe(alvo)||'planejado'].c:'var(--mut2)'}">${m.pct}%</div></div>
+             <div class="f full"><div class="aviso" style="margin:0">
+               <b>${m.qtdOk} de ${m.qtd} tarefas concluídas</b> · ${m.duOk} de ${m.du} dias úteis de trabalho.
+               O percentual não é digitado: sobe sozinho quando uma tarefa recebe <b>data de fim real</b>.
+               Previsto para hoje: <b>${prevPct(alvo)}%</b>.</div></div>
+             <div class="f full"><div class="depbox">${tarefasDe(alvo.id).map(t=>{
+               const stt=stDe(t), ok=concluida(t);
+               return `<div class="deprow" style="grid-template-columns:22px 1fr 96px 76px;cursor:pointer"
+                    onclick="abrirModal('${t.id}')">
+                 <span style="color:${ok?'var(--concl)':'var(--line)'};font-weight:800">${ok?'✓':'○'}</span>
+                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#${t.num} ${t.nome}</span>
+                 <span class="tagst" style="background:${ST[stt].c}1a;color:${ST[stt].c};justify-self:start">${ST[stt].rot}</span>
+                 <span class="dt" style="text-align:right">${pesoDe(t)}du</span></div>`}).join('')
+               ||'<div class="vazio2">Sem tarefas — o avanço fica em 0%.</div>'}</div></div>`})():''}`}
+      </div>
+
+      ${t?`<div class="sechd">Predecessoras</div>
+        <div class="depbox">${depsHtml}</div>
+        ${a?`<button class="addlink" onclick="addDep()">＋ Adicionar predecessora</button>`:''}`:''}
+
+      ${criando?'':`<div class="sechd">Histórico de replanejamento</div>
+        ${hist.length?hist.map(h=>`<div class="hist"><span class="qd">${fmt(d(h.qd))}</span>
+          <div class="ct"><b>${fmt(d(h.de))} → ${fmt(d(h.para))}</b><small>${h.motivo} · ${h.quem}</small></div></div>`).join('')
+          :`<div style="font-size:12.5px;color:var(--mut2);padding:4px 0">Sem replanejamentos. A data prevista é igual à linha de base.</div>`}`}
+    </div>
+
+    <div class="mft">
+      ${!criando&&a&&alvo.tipo!=='projeto'?`<button class="btn gh" style="margin-right:auto;color:#b91c1c;border-color:#fca5a5"
+        onclick="excluir()">Excluir</button>`:''}
+      <button class="btn gh" onclick="fecharModal()">Cancelar</button>
+      ${(t||criando||n.tipo==='atividade')?`<button class="btn" onclick="salvar()">${criando?'Criar':'Salvar'}</button>`:''}
+    </div>`;
+}
+function ajustaPai(){
+  const paisPossiveis = ed.tipo==='atividade' ? D.filter(z=>z.tipo==='projeto') : D.filter(z=>z.tipo==='atividade');
+  if(!paisPossiveis.find(z=>z.id===ed.pai)) ed.pai=paisPossiveis[0] ? paisPossiveis[0].id : ed.pai;
+  desenhaModal();
+}
+
+function salvar(){
+  ler(); erro='';
+  const n=ed, t=n.tipo==='tarefa';
+  if(!(n.nome||'').trim()) erro='Informe o nome.';
+  else if(t && d(n.fim)<d(n.ini)) erro='O fim previsto não pode ser anterior ao início.';
+  else if(t && (n.dep||[]).some(dp=>!dp.de)) erro='Há uma predecessora sem tarefa selecionada.';
+  else if(t && (n.dep||[]).some(dp=>dependeDe(dp.de,n.id,new Set([n.id]))&&!criando))
+    erro='Essa ligação criaria um ciclo de dependências.';
+  if(erro){ desenhaModal(); return; }
+
+  if(criando){
+    if(t){ n.num=proxNum(n.pai); n.bIni=n.bIni||n.ini; n.bFim=n.bFim||n.fim; delete n.real; }
+    else { delete n.bIni; delete n.bFim; delete n.ini; delete n.fim; delete n.dep; }
+    inserirApos(n.pai,n);
+    fechado.delete(n.pai);
+    tst(`${t?'Tarefa':'Atividade'} "${n.nome}" criada${t?' · linha '+n.num:''}.`);
+  } else {
+    const o=alvo, mudouPrev = adm() && (n.ini!==o.ini || n.fim!==o.fim);
+    const mot=(document.getElementById('e_mot')||{}).value||'';
+    if(mudouPrev && !mot.trim()){ erro='Informe o motivo do replanejamento.'; desenhaModal(); return; }
+    if(mudouPrev) (o.hist=o.hist||[]).push({qd:iso(HOJE),quem:'Administrador',de:o.fim,para:n.fim,motivo:mot.trim()});
+    if(adm()){ o.nome=n.nome; o.cat=n.cat; o.resp=n.resp;
+      if(t){ o.bIni=n.bIni; o.bFim=n.bFim; o.ini=n.ini; o.fim=n.fim; o.dep=n.dep; } }
+    if(t){ o.rIni=n.rIni||null; o.rFim=n.rFim||null; }        // status da tarefa sai daqui, derivado
+    // não há avanço para gravar: ele é derivado das tarefas concluídas
+    tst(mudouPrev?'Replanejamento registrado no histórico.':'Alterações salvas.');
+  }
+  fecharModal(); render();
+}
+function excluir(){
+  const filhosDir=D.filter(z=>z.pai===alvo.id);
+  if(filhosDir.length){ erro='Remova as tarefas desta atividade antes de excluí-la.'; desenhaModal(); return; }
+  const usada=D.filter(z=>(z.dep||[]).some(dp=>dp.de===alvo.id));
+  if(usada.length){ erro=`Não dá para excluir: ${usada.length} tarefa(s) dependem desta.`; desenhaModal(); return; }
+  D.splice(D.findIndex(z=>z.id===alvo.id),1);
+  tst('Item excluído.'); fecharModal(); render();
+}
+
+let tt; function tst(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),3200)}
+
+/* controles */
+document.getElementById('hojeTx').textContent=HOJE.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+const fp=document.getElementById('fProj');
+fp.innerHTML='<option value="">Projeto: todos</option>'+
+  D.filter(z=>z.tipo==='projeto').map(z=>`<option value="${z.id}">${z.nome}</option>`).join('');
+fp.onchange=e=>{fProj=e.target.value;render()};
+document.getElementById('perfil').onchange=e=>{
+  perfil=e.target.value;
+  document.getElementById('perfilBox').classList.toggle('adm',perfil==='adm');
+  tst(perfil==='adm'?'Perfil administrador — linha de base liberada para edição.':'Perfil usuário — linha de base bloqueada.');
+  render();
+};
+document.querySelectorAll('#zoom button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#zoom button').forEach(z=>z.classList.remove('on'));
+  b.classList.add('on'); zoom=b.dataset.z; render(); irHoje();});
+document.getElementById('cBase').onchange=e=>{mostraBase=e.target.checked;render()};
+document.getElementById('cDet').onchange=e=>{mostraDatas=e.target.checked;render()};
+document.getElementById('bExp').onclick=e=>{
+  if(fechado.size){fechado.clear();e.target.textContent='Recolher tudo'}
+  else{D.filter(z=>z.tipo!=='tarefa').forEach(z=>fechado.add(z.id));e.target.textContent='Expandir tudo'}
+  render();};
+function irHoje(){const ch=document.getElementById('chart');
+  ch.scrollLeft=Math.max(0,x(HOJE)-(ch.clientWidth-LEFT())/2)}
+document.getElementById('bHoje').onclick=irHoje;
+document.getElementById('bNovo').onclick=()=>novoItem(null,'tarefa');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharModal()});
+
+render(); irHoje();
+</script>
+</body>
+</html>
