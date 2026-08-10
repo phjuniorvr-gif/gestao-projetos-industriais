@@ -4,6 +4,7 @@ export interface DraftTask {
   key: string;
   name: string;
   category: Category;
+  responsavelId?: string;
   durationDays: number;
   predecessorRowNumbers: number[];
 }

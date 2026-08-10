@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { PageHeader } from '../components/layout';
 import { DeletedProjectCard } from '../components/projects';
 import { ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
-import { useDeletedProjects } from '../hooks';
+import { useDeletedProjects, usePeople } from '../hooks';
 import type { Project } from '../types';
 
 export function DeletedProjectsPage() {
   const { projects, loaded, restoreProject, permanentlyDeleteProject } = useDeletedProjects();
+  const { people } = usePeople();
   const [deleting, setDeleting] = useState<Project | null>(null);
 
   return (
@@ -26,6 +27,7 @@ export function DeletedProjectsPage() {
             <DeletedProjectCard
               key={project.id}
               project={project}
+              people={people}
               onRestore={(p) => restoreProject(p.id)}
               onDeletePermanently={setDeleting}
             />

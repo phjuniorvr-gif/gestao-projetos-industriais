@@ -1,23 +1,30 @@
 import { Fragment, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../ui';
+import { PersonSelect } from '../shared/PersonSelect';
 import { TaskDependencyInput } from '../gantt/TaskDependencyInput';
-import type { Task } from '../../types';
+import type { Person, Task } from '../../types';
 import type { DraftActivity } from './types';
 
 interface SelectedActivitiesListProps {
   activities: DraftActivity[];
+  people: Person[];
+  onCreatePerson: (name: string) => Promise<Person>;
   onToggleExpand: (activityKey: string) => void;
   onRemove: (activityKey: string) => void;
   onChangeDuration: (activityKey: string, taskKey: string, durationDays: number) => void;
+  onChangeResponsavel: (activityKey: string, taskKey: string, responsavelId: string | undefined) => void;
   onChangePredecessors: (activityKey: string, taskKey: string, predecessorRowNumbers: number[]) => void;
 }
 
 export function SelectedActivitiesList({
   activities,
+  people,
+  onCreatePerson,
   onToggleExpand,
   onRemove,
   onChangeDuration,
+  onChangeResponsavel,
   onChangePredecessors,
 }: SelectedActivitiesListProps) {
   const flatTasks = useMemo(() => activities.flatMap((a) => a.tasks), [activities]);
@@ -96,6 +103,7 @@ export function SelectedActivitiesList({
                     <tr>
                       <th className="w-16 px-3 py-2 text-center">Linha</th>
                       <th className="px-3 py-2">Tarefa</th>
+                      <th className="w-40 px-3 py-2">Responsável</th>
                       <th className="w-32 px-3 py-2">Duração</th>
                       <th className="w-44 px-3 py-2">Predecessora</th>
                     </tr>
@@ -108,6 +116,15 @@ export function SelectedActivitiesList({
                             <Badge color="#64748B">{String(lineByKey.get(task.key)).padStart(2, '0')}</Badge>
                           </td>
                           <td className="px-3 py-2 text-text">{task.name}</td>
+                          <td className="px-3 py-2">
+                            <PersonSelect
+                              value={task.responsavelId}
+                              onChange={(id) => onChangeResponsavel(activity.key, task.key, id)}
+                              people={people}
+                              onCreatePerson={onCreatePerson}
+                              placeholder="Sem responsável"
+                            />
+                          </td>
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-1.5">
                               <Input

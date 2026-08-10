@@ -4,7 +4,8 @@ import { PageHeader } from '../components/layout';
 import { Button, Card, FormField, Input, Select, Textarea, Badge } from '../components/ui';
 import { ActivitySourceForm, SelectedActivitiesList } from '../components/wizard';
 import type { DraftActivity } from '../components/wizard';
-import { useCatalog, useCategories, useHolidays, useProjects } from '../hooks';
+import { PersonSelect } from '../components/shared/PersonSelect';
+import { useCatalog, useCategories, useHolidays, usePeople, useProjects } from '../hooks';
 import { computeDatesFromDuration, nextProjectCode, todayISO } from '../utils';
 import type { NewActivityInput } from '../hooks';
 
@@ -16,11 +17,13 @@ export function NewProjectPage() {
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { holidays } = useHolidays();
+  const { people, createPerson } = usePeople();
   const [step, setStep] = useState<0 | 1>(0);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState(UNIT_OPTIONS[0]);
+  const [gerenteId, setGerenteId] = useState<string | undefined>(undefined);
   const [nameError, setNameError] = useState('');
 
   const [scheduleStart, setScheduleStart] = useState(todayISO());
@@ -58,6 +61,16 @@ export function NewProjectPage() {
       current.map((a) =>
         a.key === activityKey
           ? { ...a, tasks: a.tasks.map((t) => (t.key === taskKey ? { ...t, durationDays } : t)) }
+          : a,
+      ),
+    );
+  }
+
+  function handleChangeResponsavel(activityKey: string, taskKey: string, responsavelId: string | undefined) {
+    setDraftActivities((current) =>
+      current.map((a) =>
+        a.key === activityKey
+          ? { ...a, tasks: a.tasks.map((t) => (t.key === taskKey ? { ...t, responsavelId } : t)) }
           : a,
       ),
     );
@@ -129,6 +142,7 @@ export function NewProjectPage() {
         return {
           name: t.name,
           category: t.category,
+          responsavelId: t.responsavelId,
           plannedStart: dates.plannedStart,
           plannedEnd: dates.plannedEnd,
           predecessorRowNumbers: t.predecessorRowNumbers,
@@ -140,6 +154,7 @@ export function NewProjectPage() {
       name: name.trim(),
       description: description.trim() || undefined,
       unit,
+      gerenteId,
       activities,
     });
     navigate('/projetos');
@@ -176,6 +191,16 @@ export function NewProjectPage() {
                   </option>
                 ))}
               </Select>
+            </FormField>
+
+            <FormField label="Gerente do projeto">
+              <PersonSelect
+                value={gerenteId}
+                onChange={setGerenteId}
+                people={people}
+                onCreatePerson={createPerson}
+                placeholder="Sem gerente"
+              />
             </FormField>
 
             <div className="flex justify-between pt-2">
@@ -219,9 +244,12 @@ export function NewProjectPage() {
                 <p className="mb-3 text-xs font-medium text-text-muted">Atividades selecionadas para o projeto</p>
                 <SelectedActivitiesList
                   activities={draftActivities}
+                  people={people}
+                  onCreatePerson={createPerson}
                   onToggleExpand={handleToggleExpand}
                   onRemove={handleRemoveActivity}
                   onChangeDuration={handleChangeDuration}
+                  onChangeResponsavel={handleChangeResponsavel}
                   onChangePredecessors={handleChangePredecessors}
                 />
               </Card>

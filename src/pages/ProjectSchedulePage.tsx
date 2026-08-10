@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2, Pencil
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
 import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
-import { useCatalog, useCategories, useProjects } from '../hooks';
+import { useCatalog, useCategories, usePeople, useProjects } from '../hooks';
 import { STATUS_LABEL, type Activity, type Project, type Task } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
@@ -14,6 +14,7 @@ export function ProjectSchedulePage() {
     useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
+  const { people, createPerson } = usePeople();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [categoryFilter, setCategoryFilter] = useState('');
 
@@ -246,6 +247,8 @@ export function ProjectSchedulePage() {
         task={liveSelectedTask}
         allTasks={allTasks}
         categories={categories}
+        people={people}
+        onCreatePerson={createPerson}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, patch) => {
           const owningProjectId = activityIdToProjectId.get(

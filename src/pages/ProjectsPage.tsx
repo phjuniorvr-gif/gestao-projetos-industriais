@@ -12,12 +12,13 @@ import {
   type ProjectFiltersState,
 } from '../components/projects';
 import { Button, ConfirmDialog, EmptyState } from '../components/ui';
-import { useProjects } from '../hooks';
+import { usePeople, useProjects } from '../hooks';
 import { STATUS_COLOR, STATUS_LABEL, type Project } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
   const { projects, removeProject, updateProjectInfo } = useProjects();
+  const { people, createPerson } = usePeople();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
@@ -88,7 +89,7 @@ export function ProjectsPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map((project) => (
-            <ProjectCard key={project.id} project={project} onEdit={setEditing} onDelete={setDeleting} />
+            <ProjectCard key={project.id} project={project} people={people} onEdit={setEditing} onDelete={setDeleting} />
           ))}
         </div>
       )}
@@ -96,6 +97,8 @@ export function ProjectsPage() {
       <EditProjectDialog
         key={editing?.id ?? 'closed'}
         project={editing}
+        people={people}
+        onCreatePerson={createPerson}
         onCancel={() => setEditing(null)}
         onSave={(patch) => {
           if (editing) updateProjectInfo(editing.id, patch);

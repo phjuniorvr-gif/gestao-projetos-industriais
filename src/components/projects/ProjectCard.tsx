@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
-import type { Project } from '../../types';
+import type { Person, Project } from '../../types';
 import { STATUS_COLOR } from '../../types';
 import { formatPeriod } from '../../utils';
 import { Card } from '../ui';
@@ -8,12 +8,14 @@ import { StatusBadge } from '../shared/StatusBadge';
 
 interface ProjectCardProps {
   project: Project;
+  people: Person[];
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
 }
 
-export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
+export function ProjectCard({ project, people, onEdit, onDelete }: ProjectCardProps) {
   const navigate = useNavigate();
+  const gerente = people.find((p) => p.id === project.gerenteId);
   const taskCount = project.activities.reduce((sum, a) => sum + a.tasks.length, 0);
   const dependencyCount = project.activities.reduce(
     (sum, a) => sum + a.tasks.reduce((s, t) => s + t.predecessorRowNumbers.length, 0),
@@ -31,7 +33,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
             {project.code} — {project.name}
           </p>
           <p className="text-xs text-text-muted">
-            {project.unit || project.sector} · {project.responsible || 'Sem responsável'}
+            {project.unit || project.sector} · {gerente?.name || 'Sem gerente'}
           </p>
         </div>
 

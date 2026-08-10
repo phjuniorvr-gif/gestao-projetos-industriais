@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/layout';
-import { Button, Card, Checkbox, FormField, Select } from '../components/ui';
+import { Button, Card, Checkbox, FormField, Input, Select } from '../components/ui';
 import { getSettings as getStoredSettings, setSettings as persistSettings } from '../services/localSettings';
-import { useCategories } from '../hooks';
+import { useCategories, usePeople } from '../hooks';
 import { STATUS_LABEL, type Category, type ProjectStatus } from '../types';
 
 interface Settings {
@@ -29,6 +29,7 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const { categories } = useCategories();
+  const { people, updatePerson } = usePeople();
 
   useEffect(() => {
     setSettings(getStoredSettings(DEFAULT_SETTINGS));
@@ -149,6 +150,36 @@ export function SettingsPage() {
             Salvar preferências
           </Button>
           {saved && <span className="text-xs text-status-done">Salvo com sucesso.</span>}
+        </div>
+      </Card>
+
+      <Card className="max-w-2xl space-y-4 p-6">
+        <div>
+          <p className="text-sm font-semibold text-text">Pessoas</p>
+          <p className="mt-1 text-xs text-text-muted">
+            Gerentes de projeto e responsáveis de tarefa. Renomeie erros de digitação ou desative quem saiu — o
+            histórico continua vinculado.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {people.map((p) => (
+            <div key={p.id} className="flex items-center gap-3">
+              <Input
+                defaultValue={p.name}
+                onBlur={(e) => {
+                  const value = e.target.value.trim();
+                  if (value && value !== p.name) updatePerson(p.id, { name: value });
+                }}
+                className="flex-1"
+              />
+              <Checkbox
+                label="Ativo"
+                checked={p.active}
+                onChange={(e) => updatePerson(p.id, { active: e.target.checked })}
+              />
+            </div>
+          ))}
+          {people.length === 0 && <p className="text-sm text-text-muted">Nenhuma pessoa cadastrada ainda.</p>}
         </div>
       </Card>
     </div>

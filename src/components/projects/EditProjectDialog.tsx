@@ -1,23 +1,27 @@
 import { useState } from 'react';
 import { Button, Card, FormField, Input, Textarea } from '../ui';
-import type { Project } from '../../types';
+import { PersonSelect } from '../shared/PersonSelect';
+import type { Person, Project } from '../../types';
 
 interface EditProjectDialogProps {
   project: Project | null;
-  onSave: (patch: Pick<Project, 'name' | 'description' | 'unit'>) => void;
+  people: Person[];
+  onCreatePerson: (name: string) => Promise<Person>;
+  onSave: (patch: Pick<Project, 'name' | 'description' | 'unit' | 'gerenteId'>) => void;
   onCancel: () => void;
 }
 
-export function EditProjectDialog({ project, onSave, onCancel }: EditProjectDialogProps) {
+export function EditProjectDialog({ project, people, onCreatePerson, onSave, onCancel }: EditProjectDialogProps) {
   const [name, setName] = useState(project?.name ?? '');
   const [description, setDescription] = useState(project?.description ?? '');
   const [unit, setUnit] = useState(project?.unit ?? '');
+  const [gerenteId, setGerenteId] = useState(project?.gerenteId);
 
   if (!project) return null;
 
   function handleSave() {
     if (!name.trim()) return;
-    onSave({ name: name.trim(), description: description.trim() || undefined, unit: unit.trim() });
+    onSave({ name: name.trim(), description: description.trim() || undefined, unit: unit.trim(), gerenteId });
   }
 
   return (
@@ -35,6 +39,15 @@ export function EditProjectDialog({ project, onSave, onCancel }: EditProjectDial
           </FormField>
           <FormField label="Unidade">
             <Input value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full" />
+          </FormField>
+          <FormField label="Gerente do projeto">
+            <PersonSelect
+              value={gerenteId}
+              onChange={setGerenteId}
+              people={people}
+              onCreatePerson={onCreatePerson}
+              placeholder="Sem gerente"
+            />
           </FormField>
         </div>
         <div className="mt-4 flex justify-end gap-2">

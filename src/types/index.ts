@@ -56,12 +56,23 @@ export interface Holiday {
   description?: string;
 }
 
+// Gerente de projeto e responsável de tarefa (Fase 2.1) — dois papéis, uma tabela.
+// user_id opcional: pessoa não precisa ter login no sistema.
+export interface Person {
+  id: string;
+  name: string;
+  active: boolean;
+  userId?: string;
+}
+
 export interface Task {
   id: string;
   rowNumber: number;
   activityId: string;
   name: string;
   category: Category;
+  /** Quem executa a tarefa — Person.id, opcional (sem dado de origem migrado). */
+  responsavelId?: string;
   predecessorRowNumbers: number[];
   plannedStart: string;
   plannedEnd: string;
@@ -89,7 +100,8 @@ export interface Project {
   description?: string;
   unit: string;
   sector: string;
-  responsible: string;
+  /** Quem responde pelo prazo do projeto — Person.id. Nullable: trava "obrigatório" é Fase 7. */
+  gerenteId?: string;
   plannedStart?: string;
   plannedEnd?: string;
   actualStart?: string;

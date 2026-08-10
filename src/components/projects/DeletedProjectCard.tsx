@@ -1,15 +1,17 @@
 import { RotateCcw, Trash2 } from 'lucide-react';
-import type { Project } from '../../types';
+import type { Person, Project } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import { Card } from '../ui';
 
 interface DeletedProjectCardProps {
   project: Project;
+  people: Person[];
   onRestore: (project: Project) => void;
   onDeletePermanently: (project: Project) => void;
 }
 
-export function DeletedProjectCard({ project, onRestore, onDeletePermanently }: DeletedProjectCardProps) {
+export function DeletedProjectCard({ project, people, onRestore, onDeletePermanently }: DeletedProjectCardProps) {
+  const gerente = people.find((p) => p.id === project.gerenteId);
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -18,7 +20,7 @@ export function DeletedProjectCard({ project, onRestore, onDeletePermanently }: 
             {project.code} — {project.name}
           </p>
           <p className="text-xs text-text-muted">
-            {project.unit || project.sector} · {project.responsible || 'Sem responsável'}
+            {project.unit || project.sector} · {gerente?.name || 'Sem gerente'}
           </p>
         </div>
 

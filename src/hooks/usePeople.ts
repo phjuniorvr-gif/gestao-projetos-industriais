@@ -1,0 +1,39 @@
+import { useCallback, useEffect, useState } from 'react';
+import { createPerson as createPersonRemote, fetchPeople, updatePerson as updatePersonRemote } from '../services/peopleRepo';
+import type { Person } from '../types';
+
+function normalize(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function usePeople() {
+  const [people, setPeople] = useState<Person[]>([]);
+
+  useEffect(() => {
+    fetchPeople()
+      .then(setPeople)
+      .catch((err) => console.error('Falha ao carregar pessoas do Supabase', err));
+  }, []);
+
+  // Confere no estado já carregado antes de bater no banco — o repo faz a mesma checagem
+  // (mais o índice único como defesa final), então isto é só um atalho pro caso comum.
+  const createPerson = useCallback(
+    async (name: string): Promise<Person> => {
+      const target = normalize(name);
+      const existing = people.find((p) => normalize(p.name) === target);
+      if (existing) return existing;
+
+      const created = await createPersonRemote(name);
+      setPeople((current) => (current.some((p) => p.id === created.id) ? current : [...current, created]));
+      return created;
+    },
+    [people],
+  );
+
+  const updatePerson = useCallback(async (id: string, patch: { name?: string; active?: boolean }) => {
+    await updatePersonRemote(id, patch);
+    setPeople((current) => current.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }, []);
+
+  return { people, createPerson, updatePerson };
+}

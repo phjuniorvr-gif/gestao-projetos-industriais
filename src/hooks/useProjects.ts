@@ -14,6 +14,7 @@ export interface NewActivityInput {
   tasks: {
     name: string;
     category: Category;
+    responsavelId?: string;
     plannedStart: string;
     plannedEnd: string;
     predecessorRowNumbers: number[];
@@ -25,13 +26,14 @@ export interface NewProjectInput {
   description?: string;
   unit: string;
   sector?: string;
-  responsible?: string;
+  gerenteId?: string;
   activities: NewActivityInput[];
 }
 
 export interface NewTaskInput {
   name: string;
   category: Task['category'];
+  responsavelId?: string;
   plannedStart: string;
   plannedEnd: string;
   predecessorRowNumbers?: number[];
@@ -75,6 +77,7 @@ export function useProjects() {
             activityId,
             name: t.name,
             category: t.category,
+            responsavelId: t.responsavelId,
             predecessorRowNumbers: t.predecessorRowNumbers,
             plannedStart: t.plannedStart,
             plannedEnd: t.plannedEnd,
@@ -90,7 +93,7 @@ export function useProjects() {
         description: input.description,
         unit: input.unit,
         sector: input.sector ?? '',
-        responsible: input.responsible ?? '',
+        gerenteId: input.gerenteId,
         progress: 0,
         status: 'planned',
         activities,
@@ -110,7 +113,7 @@ export function useProjects() {
   }, []);
 
   const updateProjectInfo = useCallback(
-    (projectId: string, patch: Partial<Pick<Project, 'name' | 'description' | 'unit' | 'sector' | 'responsible'>>) => {
+    (projectId: string, patch: Partial<Pick<Project, 'name' | 'description' | 'unit' | 'sector' | 'gerenteId'>>) => {
       updateProject(projectId, (project) => ({ ...project, ...patch }));
     },
     [updateProject],
@@ -174,6 +177,7 @@ export function useProjects() {
           activityId,
           name: input.name,
           category: input.category,
+          responsavelId: input.responsavelId,
           predecessorRowNumbers: input.predecessorRowNumbers ?? [],
           plannedStart: input.plannedStart,
           plannedEnd: input.plannedEnd,

@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { Trash2, X } from 'lucide-react';
 import { Button, Card, FormField, Input, Select } from '../ui';
-import type { Category, CategoryEntry, Task } from '../../types';
+import { PersonSelect } from '../shared/PersonSelect';
+import type { Category, CategoryEntry, Person, Task } from '../../types';
 import { TaskDependencyInput } from './TaskDependencyInput';
 
 interface TaskPanelProps {
   task: Task | null;
   allTasks: Task[];
   categories: CategoryEntry[];
+  people: Person[];
+  onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
   onDelete: (taskId: string) => void;
 }
 
-export function TaskPanel({ task, allTasks, categories, onClose, onSave, onDelete }: TaskPanelProps) {
+export function TaskPanel({ task, allTasks, categories, people, onCreatePerson, onClose, onSave, onDelete }: TaskPanelProps) {
   const [dependencyError, setDependencyError] = useState(false);
 
   if (!task) return null;
@@ -48,6 +51,16 @@ export function TaskPanel({ task, allTasks, categories, onClose, onSave, onDelet
                 </option>
               ))}
             </Select>
+          </FormField>
+
+          <FormField label="Responsável">
+            <PersonSelect
+              value={task.responsavelId}
+              onChange={(id) => onSave(task.id, { responsavelId: id })}
+              people={people}
+              onCreatePerson={onCreatePerson}
+              placeholder="Sem responsável"
+            />
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">

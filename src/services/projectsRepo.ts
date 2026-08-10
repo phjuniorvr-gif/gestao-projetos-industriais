@@ -9,7 +9,7 @@ interface ProjectRow {
   description: string | null;
   unit: string;
   sector: string;
-  responsible: string;
+  gerente_id: string | null;
   progress: number;
   status: ProjectStatus;
   created_at: string;
@@ -32,6 +32,7 @@ interface TaskRow {
   position: number;
   name: string;
   category: Category;
+  responsavel_id: string | null;
   predecessor_row_numbers: number[];
   planned_start: string;
   planned_end: string;
@@ -68,6 +69,7 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       activityId: row.activity_id,
       name: row.name,
       category: row.category,
+      responsavelId: row.responsavel_id ?? undefined,
       predecessorRowNumbers: row.predecessor_row_numbers,
       plannedStart: row.planned_start,
       plannedEnd: row.planned_end,
@@ -102,7 +104,7 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       description: row.description ?? undefined,
       unit: row.unit,
       sector: row.sector,
-      responsible: row.responsible,
+      gerenteId: row.gerente_id ?? undefined,
       progress: row.progress,
       status: 'planned',
       activities: activitiesByProject.get(row.id) ?? [],
@@ -134,7 +136,7 @@ export async function saveProjectTree(project: Project): Promise<void> {
     description: project.description ?? null,
     unit: project.unit,
     sector: project.sector,
-    responsible: project.responsible,
+    gerente_id: orNull(project.gerenteId),
     planned_start: orNull(project.plannedStart),
     planned_end: orNull(project.plannedEnd),
     actual_start: orNull(project.actualStart),
@@ -182,6 +184,7 @@ export async function saveProjectTree(project: Project): Promise<void> {
           position: index,
           name: task.name,
           category: task.category,
+          responsavel_id: orNull(task.responsavelId),
           predecessor_row_numbers: task.predecessorRowNumbers,
           planned_start: task.plannedStart,
           planned_end: task.plannedEnd,
