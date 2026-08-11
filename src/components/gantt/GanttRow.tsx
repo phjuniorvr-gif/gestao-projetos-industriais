@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import type { CategoryEntry, TaskView } from '../../types';
 import { formatDatePtBr, formatPredecessors } from '../../utils';
 import { Badge } from '../ui';
@@ -62,6 +63,11 @@ export function GanttRow({
               className="inline-flex shrink-0 items-center rounded-full bg-action/10 px-2 py-0.5 text-[10px] font-semibold text-action"
             >
               R{task.replanCount}
+            </span>
+          )}
+          {task.hasDependencyViolation && (
+            <span title="Previsto em conflito com a regra de alguma dependência">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-status-delayed" aria-hidden="true" />
             </span>
           )}
         </div>

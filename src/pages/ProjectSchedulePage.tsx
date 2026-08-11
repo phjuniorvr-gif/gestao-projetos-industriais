@@ -268,12 +268,12 @@ export function ProjectSchedulePage() {
           if (!owningProjectId) return;
           updateTask(owningProjectId, taskId, patch);
         }}
-        onSetPredecessors={(taskId, predecessorRowNumbers) => {
+        onSetPredecessors={(taskId, entries) => {
           const owningProjectId = activityIdToProjectId.get(
             allTasks.find((t) => t.id === taskId)?.activityId ?? '',
           );
           if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
-          return setTaskPredecessors(owningProjectId, taskId, predecessorRowNumbers);
+          return setTaskPredecessors(owningProjectId, taskId, entries);
         }}
         onReplan={(taskId, patch, motivo) => {
           const owningProjectId = activityIdToProjectId.get(

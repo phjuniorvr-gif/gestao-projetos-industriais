@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Trash2, X } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
 import { Button, Card, FormField, Input, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
-import type { Category, CategoryEntry, Person, Replanejamento, Task, TaskView } from '../../types';
+import type { Category, CategoryEntry, DependencyType, Person, Replanejamento, Task, TaskView } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import type { DependencyValidation, ReplanValidation } from '../../utils';
-import { TaskDependencyInput } from './TaskDependencyInput';
 
 type ReplanPatch = Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>;
 
+interface DependencyEntry {
+  predecessorRowNumber: number;
+  tipo: DependencyType;
+  folgaDias: number;
+}
+
 const REPLAN_CAMPO_LABEL: Record<Replanejamento['campo'], string> = { previsto: 'Previsto', base: 'Linha de base' };
 const REPLAN_CAMPO_DATA_LABEL: Record<Replanejamento['campoData'], string> = { inicio: 'início', fim: 'fim' };
+const DEPENDENCY_TYPES: DependencyType[] = ['FS', 'SS', 'FF', 'SF'];
 
 interface TaskPanelProps {
   task: TaskView | null;
@@ -21,7 +27,7 @@ interface TaskPanelProps {
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
-  onSetPredecessors: (taskId: string, predecessorRowNumbers: number[]) => DependencyValidation;
+  onSetPredecessors: (taskId: string, entries: DependencyEntry[]) => DependencyValidation;
   onReplan: (taskId: string, patch: ReplanPatch, motivo: string) => ReplanValidation;
   onDelete: (taskId: string) => void;
 }
@@ -39,7 +45,10 @@ export function TaskPanel({
   onReplan,
   onDelete,
 }: TaskPanelProps) {
-  const [dependencyError, setDependencyError] = useState(false);
+  const [dependencyDrafts, setDependencyDrafts] = useState<
+    { predecessorRowNumber: number | ''; tipo: DependencyType; folgaDias: number }[]
+  >([]);
+  const [dependencyErrors, setDependencyErrors] = useState<string[]>([]);
   const [draftPlannedStart, setDraftPlannedStart] = useState('');
   const [draftPlannedEnd, setDraftPlannedEnd] = useState('');
   const [draftBaseStart, setDraftBaseStart] = useState('');
@@ -57,6 +66,19 @@ export function TaskPanel({
     setDraftBaseEnd(task.baseEnd);
     setMotivo('');
     setReplanErrors([]);
+    const idToRowNumber = new Map(allTasks.map((t) => [t.id, t.rowNumber]));
+    setDependencyDrafts(
+      task.dependencies.map((d) => ({
+        predecessorRowNumber: idToRowNumber.get(d.predecessorId) ?? '',
+        tipo: d.tipo,
+        folgaDias: d.folgaDias,
+      })),
+    );
+    setDependencyErrors([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só task?.id de propósito: allTasks
+    // muda de referência a cada edição de qualquer tarefa do projeto, e resetar o rascunho no
+    // meio de uma edição descartaria o que o usuário está digitando (mesmo raciocínio do reset
+    // de previsto/base acima).
   }, [task?.id]);
 
   if (!task) return null;
@@ -99,6 +121,29 @@ export function TaskPanel({
 
   function resolveQuemName(quemUserId: string): string {
     return people.find((p) => p.userId === quemUserId)?.name ?? 'Usuário';
+  }
+
+  /** Só linhas com número preenchido viram entrada de verdade — linha em branco (usuário ainda
+   * digitando) não é enviada nem valida como erro. */
+  function commitDependencyDrafts(
+    drafts: { predecessorRowNumber: number | ''; tipo: DependencyType; folgaDias: number }[],
+  ) {
+    if (!task) return;
+    const entries = drafts
+      .filter((d): d is { predecessorRowNumber: number; tipo: DependencyType; folgaDias: number } => d.predecessorRowNumber !== '')
+      .map((d) => ({ predecessorRowNumber: d.predecessorRowNumber, tipo: d.tipo, folgaDias: d.folgaDias }));
+    const validation = onSetPredecessors(task.id, entries);
+    setDependencyErrors(validation.errors);
+  }
+
+  function addDependencyDraft() {
+    setDependencyDrafts((rows) => [...rows, { predecessorRowNumber: '', tipo: 'FS', folgaDias: 0 }]);
+  }
+
+  function removeDependencyDraft(index: number) {
+    const next = dependencyDrafts.filter((_, i) => i !== index);
+    setDependencyDrafts(next);
+    commitDependencyDrafts(next);
   }
 
   return (
@@ -232,16 +277,78 @@ export function TaskPanel({
             </FormField>
           </div>
 
-          <FormField label="Predecessora(s)" error={dependencyError ? 'Verifique os números informados.' : undefined}>
-            <TaskDependencyInput
-              value={task.predecessorRowNumbers}
-              allTasks={allTasks}
-              taskRowNumber={task.rowNumber}
-              onChange={(numbers, validation) => {
-                setDependencyError(!validation.valid);
-                if (validation.valid) onSetPredecessors(task.id, numbers);
-              }}
-            />
+          <FormField label="Predecessora(s)">
+            <div className="space-y-2">
+              {task.hasDependencyViolation && (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-status-delayed">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                  Previsto em conflito com a regra de alguma dependência.
+                </p>
+              )}
+              {dependencyDrafts.map((row, index) => (
+                <div key={index} className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={row.predecessorRowNumber}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? '' : Number(e.target.value);
+                      setDependencyDrafts((rows) =>
+                        rows.map((r, i) => (i === index ? { ...r, predecessorRowNumber: value } : r)),
+                      );
+                    }}
+                    onBlur={() => commitDependencyDrafts(dependencyDrafts)}
+                    placeholder="Nº"
+                    className="w-16"
+                  />
+                  <Select
+                    value={row.tipo}
+                    onChange={(e) => {
+                      const tipo = e.target.value as DependencyType;
+                      const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, tipo } : r));
+                      setDependencyDrafts(next);
+                      commitDependencyDrafts(next);
+                    }}
+                    className="w-20"
+                  >
+                    {DEPENDENCY_TYPES.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    type="number"
+                    value={row.folgaDias}
+                    title="Folga (dias úteis)"
+                    onChange={(e) => {
+                      const folgaDias = Number(e.target.value) || 0;
+                      const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, folgaDias } : r));
+                      setDependencyDrafts(next);
+                      commitDependencyDrafts(next);
+                    }}
+                    className="w-16"
+                  />
+                  <span className="text-xs text-text-muted">du</span>
+                  <button
+                    type="button"
+                    onClick={() => removeDependencyDraft(index)}
+                    className="text-text-muted hover:text-status-delayed"
+                    aria-label="Remover predecessora"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              <Button variant="ghost" icon={<Plus className="h-3.5 w-3.5" />} onClick={addDependencyDraft}>
+                Adicionar predecessora
+              </Button>
+              {dependencyErrors.map((error) => (
+                <p key={error} className="text-xs text-status-delayed">
+                  {error}
+                </p>
+              ))}
+            </div>
           </FormField>
         </div>
 

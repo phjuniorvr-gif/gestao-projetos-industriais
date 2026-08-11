@@ -373,15 +373,19 @@ export function useProjects() {
   );
 
   /**
-   * Valida e aplica as predecessoras de uma tarefa (por número de linha, como o usuário
-   * escolhe/vê); não persiste se inválido. Desde a Fase 2.7, `Task.dependencies` é por id — a
-   * validação (autodependência/duplicata/ciclo) continua rodando sobre número de linha
+   * Valida e aplica as predecessoras de uma tarefa — cada entrada com número de linha (como o
+   * usuário escolhe/vê), tipo e folga (Fase 2.7, Commit 3: editor de linhas em TaskPanel.tsx);
+   * não persiste se inválido. `Task.dependencies` é por id — a validação
+   * (autodependência/duplicata/ciclo) continua rodando sobre número de linha
    * (`DependencyGraphNode`, `dependencies.ts`), traduzido de/para id só aqui, na borda entre UI
-   * e o dado persistido. Ainda cria só dependência FS+0 (decisão 7 do plano da Fase 2.7 — editor
-   * de tipo/folga por linha é o Commit 3).
+   * e o dado persistido.
    */
   const setTaskPredecessors = useCallback(
-    (projectId: string, taskId: string, predecessorRowNumbers: number[]): DependencyValidation => {
+    (
+      projectId: string,
+      taskId: string,
+      entries: { predecessorRowNumber: number; tipo: TaskDependency['tipo']; folgaDias: number }[],
+    ): DependencyValidation => {
       const project = rawProjects.find((p) => p.id === projectId);
       if (!project) return { valid: false, errors: ['Projeto não encontrado.'] };
 
@@ -389,6 +393,7 @@ export function useProjects() {
       const task = allTasks.find((t) => t.id === taskId);
       if (!task) return { valid: false, errors: ['Tarefa não encontrada.'] };
 
+      const predecessorRowNumbers = entries.map((e) => e.predecessorRowNumber);
       const rowNumberById = new Map(allTasks.map((t) => [t.id, t.rowNumber]));
       const graphNodes: DependencyGraphNode[] = allTasks.map((t) => ({
         rowNumber: t.rowNumber,
@@ -403,10 +408,12 @@ export function useProjects() {
       const validation = validateTaskDependencies(task.rowNumber, graphNodes);
       if (validation.valid) {
         const idByRowNumber = new Map(allTasks.map((t) => [t.rowNumber, t.id]));
-        const dependencies: TaskDependency[] = predecessorRowNumbers
-          .map((row) => idByRowNumber.get(row))
-          .filter((predecessorId): predecessorId is string => predecessorId !== undefined)
-          .map((predecessorId) => ({ predecessorId, tipo: 'FS', folgaDias: 0 }));
+        const dependencies: TaskDependency[] = entries
+          .map((e): TaskDependency | undefined => {
+            const predecessorId = idByRowNumber.get(e.predecessorRowNumber);
+            return predecessorId ? { predecessorId, tipo: e.tipo, folgaDias: e.folgaDias } : undefined;
+          })
+          .filter((d): d is TaskDependency => d !== undefined);
         updateTask(projectId, taskId, { dependencies });
       }
       return validation;
