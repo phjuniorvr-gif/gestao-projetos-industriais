@@ -65,6 +65,11 @@ export interface Person {
   userId?: string;
 }
 
+// Task/Activity/Project (abaixo) são a forma PERSISTIDA — sem status nem nenhum campo
+// derivado. É o que projectsRepo.ts lê/escreve. TaskView/ActivityView/ProjectView (mais
+// abaixo) são o que recomputeProject produz — status e condições derivadas anexadas —
+// e é o que useProjects() devolve e todo componente de UI consome. Ver CLAUDE.md (Fase 2.3):
+// nada calculável fica no tipo persistido, então não existe placeholder de status pra mentir.
 export interface Task {
   id: string;
   rowNumber: number;
@@ -78,7 +83,6 @@ export interface Task {
   plannedEnd: string;
   actualStart?: string;
   actualEnd?: string;
-  status: TaskStatus;
 }
 
 export interface Activity {
@@ -90,7 +94,6 @@ export interface Activity {
   plannedEnd?: string;
   actualStart?: string;
   actualEnd?: string;
-  status: TaskStatus;
 }
 
 export interface Project {
@@ -107,11 +110,24 @@ export interface Project {
   actualStart?: string;
   actualEnd?: string;
   progress: number;
-  status: ProjectStatus;
   activities: Activity[];
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
+}
+
+export interface TaskView extends Task {
+  status: TaskStatus;
+}
+
+export interface ActivityView extends Omit<Activity, 'tasks'> {
+  status: ProjectStatus;
+  tasks: TaskView[];
+}
+
+export interface ProjectView extends Omit<Project, 'activities'> {
+  status: ProjectStatus;
+  activities: ActivityView[];
 }
 
 export interface TaskTemplate {

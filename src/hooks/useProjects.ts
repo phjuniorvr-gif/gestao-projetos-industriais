@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchProjects, saveProjectTree, softDeleteProjectRemote } from '../services/projectsRepo';
-import type { Activity, Category, Project, Task } from '../types';
+import type { Activity, Category, Project, ProjectView, Task } from '../types';
 import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
 import type { DependencyValidation } from '../utils';
 
@@ -39,21 +39,32 @@ export interface NewTaskInput {
   predecessorRowNumbers?: number[];
 }
 
+/**
+ * `rawProjects` (estado) é a forma persistida — nunca tem status. `projects` (retornado) é
+ * derivado via `useMemo` + `recomputeProject`, uma vez só, num lugar só — nem o repo nem os
+ * updaters recalculam nada (ver CLAUDE.md, Fase 2.3: recompute só aqui, nunca no repo).
+ */
 export function useProjects() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [rawProjects, setRawProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetchProjects()
-      .then(setProjects)
+      .then(setRawProjects)
       .catch((err) => console.error('Falha ao carregar projetos do Supabase', err))
       .finally(() => setLoaded(true));
   }, []);
 
+  const today = todayISO();
+  const projects: ProjectView[] = useMemo(
+    () => rawProjects.map((p) => recomputeProject(p, today)),
+    [rawProjects, today],
+  );
+
   const updateProject = useCallback(
     (projectId: string, updater: (project: Project) => Project) => {
-      setProjects((current) => {
-        const next = current.map((p) => (p.id === projectId ? recomputeProject(updater(p)) : p));
+      setRawProjects((current) => {
+        const next = current.map((p) => (p.id === projectId ? updater(p) : p));
         const updated = next.find((p) => p.id === projectId);
         if (updated) saveProjectTree(updated).catch((err) => console.error('Falha ao salvar projeto no Supabase', err));
         return next;
@@ -81,34 +92,32 @@ export function useProjects() {
             predecessorRowNumbers: t.predecessorRowNumbers,
             plannedStart: t.plannedStart,
             plannedEnd: t.plannedEnd,
-            status: 'planned',
           };
         });
-        return { id: activityId, projectId: id, name: a.name, tasks, status: 'planned' };
+        return { id: activityId, projectId: id, name: a.name, tasks };
       });
-      const project = recomputeProject({
+      const project: Project = {
         id,
-        code: nextProjectCode(projects.map((p) => p.code)),
+        code: nextProjectCode(rawProjects.map((p) => p.code)),
         name: input.name,
         description: input.description,
         unit: input.unit,
         sector: input.sector ?? '',
         gerenteId: input.gerenteId,
         progress: 0,
-        status: 'planned',
         activities,
         createdAt: now,
         updatedAt: now,
-      });
-      setProjects((current) => [...current, project]);
+      };
+      setRawProjects((current) => [...current, project]);
       saveProjectTree(project).catch((err) => console.error('Falha ao criar projeto no Supabase', err));
       return project;
     },
-    [projects],
+    [rawProjects],
   );
 
   const removeProject = useCallback((projectId: string) => {
-    setProjects((current) => current.filter((p) => p.id !== projectId));
+    setRawProjects((current) => current.filter((p) => p.id !== projectId));
     softDeleteProjectRemote(projectId).catch((err) => console.error('Falha ao excluir projeto no Supabase', err));
   }, []);
 
@@ -123,10 +132,7 @@ export function useProjects() {
     (projectId: string, name: string) => {
       updateProject(projectId, (project) => ({
         ...project,
-        activities: [
-          ...project.activities,
-          { id: uid(), projectId, name, tasks: [], status: 'planned' },
-        ],
+        activities: [...project.activities, { id: uid(), projectId, name, tasks: [] }],
       }));
     },
     [updateProject],
@@ -181,7 +187,6 @@ export function useProjects() {
           predecessorRowNumbers: input.predecessorRowNumbers ?? [],
           plannedStart: input.plannedStart,
           plannedEnd: input.plannedEnd,
-          status: 'planned',
         };
         return {
           ...project,
@@ -195,7 +200,7 @@ export function useProjects() {
   );
 
   const updateTask = useCallback(
-    (projectId: string, taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => {
+    (projectId: string, taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId'>>) => {
       updateProject(projectId, (project) => ({
         ...project,
         activities: project.activities.map((a) => ({
@@ -238,7 +243,7 @@ export function useProjects() {
   /** Valida e aplica as predecessoras de uma tarefa; não persiste se inválido. */
   const setTaskPredecessors = useCallback(
     (projectId: string, taskId: string, predecessorRowNumbers: number[]): DependencyValidation => {
-      const project = projects.find((p) => p.id === projectId);
+      const project = rawProjects.find((p) => p.id === projectId);
       if (!project) return { valid: false, errors: ['Projeto não encontrado.'] };
 
       const allTasks = project.activities.flatMap((a) => a.tasks);
@@ -252,13 +257,13 @@ export function useProjects() {
       }
       return validation;
     },
-    [projects, updateTask],
+    [rawProjects, updateTask],
   );
 
   return {
     projects,
     loaded,
-    today: todayISO(),
+    today,
     createProject,
     removeProject,
     updateProjectInfo,

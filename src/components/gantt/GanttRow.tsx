@@ -1,4 +1,4 @@
-import type { CategoryEntry, Task } from '../../types';
+import type { CategoryEntry, TaskView } from '../../types';
 import { formatDatePtBr, formatPredecessors } from '../../utils';
 import { Badge } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -8,9 +8,9 @@ import { RowTypeBadge } from './RowTypeBadge';
 import { TodayLine } from './TodayLine';
 
 interface GanttRowProps {
-  task: Task;
+  task: TaskView;
   range: DateRange;
-  tasksByRowNumber: Map<number, Task>;
+  tasksByRowNumber: Map<number, TaskView>;
   categories: CategoryEntry[];
   frozenColWidth: number;
   statusColLeft: number;

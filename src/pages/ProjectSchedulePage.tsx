@@ -5,7 +5,7 @@ import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components
 import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, usePeople, useProjects } from '../hooks';
-import { STATUS_LABEL, type Activity, type Project, type Task } from '../types';
+import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
@@ -48,26 +48,26 @@ export function ProjectSchedulePage() {
   const [allExpanded, setAllExpanded] = useState(false);
   const [compact, setCompact] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [addingToActivity, setAddingToActivity] = useState<Activity | null>(null);
-  const [addingActivityToProject, setAddingActivityToProject] = useState<Project | null>(null);
-  const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskView | null>(null);
+  const [addingToActivity, setAddingToActivity] = useState<ActivityView | null>(null);
+  const [addingActivityToProject, setAddingActivityToProject] = useState<ProjectView | null>(null);
+  const [deletingActivity, setDeletingActivity] = useState<ActivityView | null>(null);
 
   const ganttProjects = useMemo(() => {
     if (!categoryFilter) return visibleProjects;
     return visibleProjects
-      .map((p): Project | null => {
+      .map((p): ProjectView | null => {
         const activities = p.activities
-          .map((a): Activity | null => {
+          .map((a): ActivityView | null => {
             const tasks = a.tasks.filter((t) => t.category === categoryFilter);
             if (tasks.length === 0) return null;
             return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
           })
-          .filter((a): a is Activity => a !== null);
+          .filter((a): a is ActivityView => a !== null);
         if (activities.length === 0) return null;
         return { ...p, activities, ...rollUpDates(activities), status: rollUpStatus(activities) };
       })
-      .filter((p): p is Project => p !== null);
+      .filter((p): p is ProjectView => p !== null);
   }, [visibleProjects, categoryFilter]);
 
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);

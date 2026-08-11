@@ -46,7 +46,6 @@ export function SelectedActivitiesList({
         predecessorRowNumbers: t.predecessorRowNumbers,
         plannedStart: '',
         plannedEnd: '',
-        status: 'planned',
       })),
     [flatTasks, lineByKey],
   );

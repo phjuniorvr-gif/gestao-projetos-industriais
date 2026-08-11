@@ -1,4 +1,4 @@
-import type { Activity, Project, ProjectStatus, Task } from '../types';
+import type { ActivityView, Project, ProjectStatus, ProjectView, Task, TaskView } from '../types';
 import { todayISO } from './dates';
 
 interface DatedItem {
@@ -16,14 +16,13 @@ interface StatusedItem {
  * Status de uma tarefa (seção "STATUS" + "DEPENDÊNCIAS" do spec). Assume que as predecessoras
  * (sempre de rowNumber menor, pela forma como as tarefas são numeradas) já tiveram seu status
  * recalculado nesta mesma passada — ver `recomputeProject`, que processa em ordem crescente de
- * rowNumber.
+ * rowNumber. `today` é injetado pelo chamador (nunca lido internamente) pra a função ficar
+ * determinística e testável sem mockar relógio.
  */
-export function computeTaskStatus(task: Task, tasksByRowNumber: Map<number, Task>): ProjectStatus {
+export function computeTaskStatus(task: Task, tasksByRowNumber: Map<number, TaskView>, today: string): ProjectStatus {
   if (task.actualEnd) {
     return task.actualEnd > task.plannedEnd ? 'completed_late' : 'completed';
   }
-
-  const today = todayISO();
 
   // Antes da data prevista de início, a predecessora pendente ainda não é um bloqueio real —
   // é simplesmente uma tarefa futura. "Bloqueado" só se aplica quando ela já deveria ter
@@ -78,30 +77,31 @@ export function rollUpDates(children: DatedItem[]): DatedItem {
  * Progresso simples (o spec não menciona pesos, ao contrário da versão anterior do app):
  * percentual de tarefas concluídas (com ou sem atraso) sobre o total.
  */
-export function computeProgress(tasks: Task[]): number {
+export function computeProgress(tasks: TaskView[]): number {
   if (tasks.length === 0) return 0;
   const done = tasks.filter((t) => t.status === 'completed' || t.status === 'completed_late').length;
   return Math.round((done / tasks.length) * 100);
 }
 
 /**
- * Recalcula status/datas/progresso de todas as tarefas, atividades e do projeto, nesta ordem.
- * Deve ser chamada após qualquer mutação (data, dependência, status manual) antes de persistir.
+ * Recalcula status/datas/progresso de todas as tarefas, atividades e do projeto, nesta ordem,
+ * produzindo a árvore hidratada (`ProjectView`) a partir da forma persistida (`Project`).
+ * `today` tem default (`todayISO()`) — só aqui; todo o resto do módulo recebe por parâmetro.
  */
-export function recomputeProject(project: Project): Project {
+export function recomputeProject(project: Project, today: string = todayISO()): ProjectView {
   const allTasks = project.activities.flatMap((a) => a.tasks).sort((a, b) => a.rowNumber - b.rowNumber);
-  const tasksByRowNumber = new Map<number, Task>();
+  const tasksByRowNumber = new Map<number, TaskView>();
 
-  const recomputedTasks = new Map<string, Task>();
+  const recomputedTasks = new Map<string, TaskView>();
   for (const task of allTasks) {
-    const status = computeTaskStatus(task, tasksByRowNumber);
-    const updated = { ...task, status };
-    tasksByRowNumber.set(task.rowNumber, updated);
-    recomputedTasks.set(task.id, updated);
+    const status = computeTaskStatus(task, tasksByRowNumber, today);
+    const view: TaskView = { ...task, status };
+    tasksByRowNumber.set(task.rowNumber, view);
+    recomputedTasks.set(task.id, view);
   }
 
-  const activities: Activity[] = project.activities.map((activity) => {
-    const tasks = activity.tasks.map((t) => recomputedTasks.get(t.id) ?? t);
+  const activities: ActivityView[] = project.activities.map((activity) => {
+    const tasks = activity.tasks.map((t) => recomputedTasks.get(t.id)!);
     const dates = rollUpDates(tasks);
     const status = rollUpStatus(tasks);
     return { ...activity, tasks, ...dates, status };

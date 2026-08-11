@@ -1,16 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
-import type { Person, Project } from '../../types';
+import type { Person, ProjectView } from '../../types';
 import { STATUS_COLOR } from '../../types';
 import { formatPeriod } from '../../utils';
 import { Card } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
 
 interface ProjectCardProps {
-  project: Project;
+  project: ProjectView;
   people: Person[];
-  onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
+  onEdit: (project: ProjectView) => void;
+  onDelete: (project: ProjectView) => void;
 }
 
 export function ProjectCard({ project, people, onEdit, onDelete }: ProjectCardProps) {

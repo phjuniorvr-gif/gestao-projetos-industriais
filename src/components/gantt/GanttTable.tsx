@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import type { Activity, CategoryEntry, Project, Task } from '../../types';
+import type { ActivityView, CategoryEntry, ProjectView, TaskView } from '../../types';
 import { formatDatePtBr } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
 import {
@@ -17,7 +17,7 @@ import { RowTypeBadge } from './RowTypeBadge';
 import { TodayLine } from './TodayLine';
 
 interface GanttTableProps {
-  projects: Project[];
+  projects: ProjectView[];
   collapsedProjectIds: Set<string>;
   collapsedActivityIds: Set<string>;
   categories: CategoryEntry[];
@@ -27,10 +27,10 @@ interface GanttTableProps {
   editMode: boolean;
   onToggleProject: (projectId: string) => void;
   onToggleActivity: (activityId: string) => void;
-  onOpenTask: (task: Task) => void;
-  onAddTask: (activity: Activity) => void;
-  onAddActivity: (project: Project) => void;
-  onRemoveActivity: (activity: Activity) => void;
+  onOpenTask: (task: TaskView) => void;
+  onAddTask: (activity: ActivityView) => void;
+  onAddActivity: (project: ProjectView) => void;
+  onRemoveActivity: (activity: ActivityView) => void;
 }
 
 export function GanttTable({

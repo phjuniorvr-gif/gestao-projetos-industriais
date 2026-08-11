@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { Activity, Category, Project, ProjectStatus, Task } from '../types';
-import { recomputeProject } from '../utils';
+import type { Activity, Category, Project, Task } from '../types';
 
 interface ProjectRow {
   id: string;
@@ -11,7 +10,6 @@ interface ProjectRow {
   sector: string;
   gerente_id: string | null;
   progress: number;
-  status: ProjectStatus;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -44,7 +42,11 @@ function orNull(value: string | undefined): string | null {
   return value ?? null;
 }
 
-/** Busca projetos (ativos ou excluídos) e remonta a árvore Project → Activity → Task, já recalculando status/rollup. */
+/**
+ * Busca projetos (ativos ou excluídos) e remonta a árvore Project → Activity → Task, na forma
+ * persistida (raw) — sem status, sem recompute. Quem hidrata (status + condições derivadas) é
+ * o chamador (useProjects.ts via recomputeProject), nunca o repo.
+ */
 async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
   const projectsQuery = deleted
     ? supabase.from('projects').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false })
@@ -75,7 +77,6 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       plannedEnd: row.planned_end,
       actualStart: row.actual_start ?? undefined,
       actualEnd: row.actual_end ?? undefined,
-      status: 'planned',
     };
     const list = tasksByActivity.get(row.activity_id) ?? [];
     list.push(task);
@@ -89,30 +90,26 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       projectId: row.project_id,
       name: row.name,
       tasks: tasksByActivity.get(row.id) ?? [],
-      status: 'planned',
     };
     const list = activitiesByProject.get(row.project_id) ?? [];
     list.push(activity);
     activitiesByProject.set(row.project_id, list);
   }
 
-  return ((projectRows ?? []) as ProjectRow[]).map((row) =>
-    recomputeProject({
-      id: row.id,
-      code: row.code,
-      name: row.name,
-      description: row.description ?? undefined,
-      unit: row.unit,
-      sector: row.sector,
-      gerenteId: row.gerente_id ?? undefined,
-      progress: row.progress,
-      status: 'planned',
-      activities: activitiesByProject.get(row.id) ?? [],
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      deletedAt: row.deleted_at ?? undefined,
-    }),
-  );
+  return ((projectRows ?? []) as ProjectRow[]).map((row) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description ?? undefined,
+    unit: row.unit,
+    sector: row.sector,
+    gerenteId: row.gerente_id ?? undefined,
+    progress: row.progress,
+    activities: activitiesByProject.get(row.id) ?? [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at ?? undefined,
+  }));
 }
 
 export function fetchProjects(): Promise<Project[]> {
@@ -142,7 +139,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
     actual_start: orNull(project.actualStart),
     actual_end: orNull(project.actualEnd),
     progress: project.progress,
-    status: project.status,
     created_at: project.createdAt,
     updated_at: project.updatedAt,
   });
@@ -160,7 +156,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
         planned_end: orNull(activity.plannedEnd),
         actual_start: orNull(activity.actualStart),
         actual_end: orNull(activity.actualEnd),
-        status: activity.status,
       })),
     );
     if (error) throw error;
@@ -190,7 +185,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
           planned_end: task.plannedEnd,
           actual_start: orNull(task.actualStart),
           actual_end: orNull(task.actualEnd),
-          status: task.status,
         })),
       ),
     );
