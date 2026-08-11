@@ -1,4 +1,4 @@
-import type { Holiday, Person, ProjectView } from '../../types';
+import type { Holiday, Person, ProjectView, Task } from '../../types';
 import { EmptyState } from '../ui';
 import { ProjectRow } from './ProjectRow';
 
@@ -12,9 +12,20 @@ interface ProjectsTableProps {
   holidays: Holiday[];
   onEdit: (project: ProjectView) => void;
   onDelete: (project: ProjectView) => void;
+  onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
+  onDuplicate: (project: ProjectView) => void;
 }
 
-export function ProjectsTable({ projects, people, today, holidays, onEdit, onDelete }: ProjectsTableProps) {
+export function ProjectsTable({
+  projects,
+  people,
+  today,
+  holidays,
+  onEdit,
+  onDelete,
+  onUpdateTask,
+  onDuplicate,
+}: ProjectsTableProps) {
   if (projects.length === 0) {
     return <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />;
   }
@@ -42,6 +53,8 @@ export function ProjectsTable({ projects, people, today, holidays, onEdit, onDel
             holidays={holidays}
             onEdit={onEdit}
             onDelete={onDelete}
+            onUpdateTask={onUpdateTask}
+            onDuplicate={onDuplicate}
           />
         ))}
       </div>

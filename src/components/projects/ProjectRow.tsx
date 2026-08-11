@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash2 } from 'lucide-react';
-import type { Holiday, Person, ProjectView } from '../../types';
+import type { Holiday, Person, ProjectView, Task } from '../../types';
 import { STATUS_COLOR } from '../../types';
 import { computeExpectedProgress, computeProjectTeam, computeScheduleDeviationDays } from '../../utils/portfolio';
 import { StatusBadge } from '../shared/StatusBadge';
+import { InlineTaskProgressEdit } from './InlineTaskProgressEdit';
 import { MiniGantt } from './MiniGantt';
+import { ProjectActionsMenu } from './ProjectActionsMenu';
 import { PROJECTS_GRID_COLS } from './ProjectsTable';
 
 interface ProjectRowProps {
@@ -14,6 +16,8 @@ interface ProjectRowProps {
   holidays: Holiday[];
   onEdit: (project: ProjectView) => void;
   onDelete: (project: ProjectView) => void;
+  onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
+  onDuplicate: (project: ProjectView) => void;
 }
 
 function initials(name: string): string {
@@ -21,12 +25,8 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
 }
 
-/**
- * Linha da tabela de Projetos (Fase 3) — 6 colunas fixas via `PROJECTS_GRID_COLS`. Coluna Ações
- * ainda usa os botões editar/mover-pra-excluídos herdados do card antigo — o menu `⋯` completo
- * (Ver atividades/Duplicar/Atualizar avanço) é o Commit 5.
- */
-export function ProjectRow({ project, people, today, holidays, onEdit, onDelete }: ProjectRowProps) {
+/** Linha da tabela de Projetos (Fase 3) — 6 colunas fixas via `PROJECTS_GRID_COLS`. */
+export function ProjectRow({ project, people, today, holidays, onEdit, onDelete, onUpdateTask, onDuplicate }: ProjectRowProps) {
   const navigate = useNavigate();
   const gerente = people.find((p) => p.id === project.gerenteId);
   const team = computeProjectTeam(project, people);
@@ -35,6 +35,7 @@ export function ProjectRow({ project, people, today, holidays, onEdit, onDelete 
   const expected = computeExpectedProgress(allTasks, today, holidays, project.unit);
   const gap = expected - project.progress;
   const isCritical = project.status === 'delayed';
+  const [progressPopoverOpen, setProgressPopoverOpen] = useState(false);
 
   const goToSchedule = () => navigate(`/projetos/${project.id}/cronograma`);
 
@@ -106,7 +107,7 @@ export function ProjectRow({ project, people, today, holidays, onEdit, onDelete 
         today={today}
       />
 
-      <div>
+      <div className="relative">
         <div className="flex items-baseline gap-1.5">
           <span className="font-mono text-sm font-semibold text-text">{project.progress}%</span>
           <span className="text-[11px] text-text-muted2">prev. {expected}%</span>
@@ -127,6 +128,24 @@ export function ProjectRow({ project, people, today, holidays, onEdit, onDelete 
                 ? `${-gap} p.p. acima do previsto`
                 : 'em dia com o previsto'}
         </p>
+        {allTasks.some((t) => t.status !== 'completed') && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setProgressPopoverOpen((o) => !o);
+            }}
+            className="mt-0.5 text-[10px] font-medium text-action hover:underline"
+          >
+            Atualizar avanço
+          </button>
+        )}
+        <InlineTaskProgressEdit
+          project={project}
+          open={progressPopoverOpen}
+          onClose={() => setProgressPopoverOpen(false)}
+          onConfirm={(taskId, patch) => onUpdateTask(project.id, taskId, patch)}
+        />
       </div>
 
       <div className="text-right">
@@ -145,23 +164,15 @@ export function ProjectRow({ project, people, today, holidays, onEdit, onDelete 
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={() => onEdit(project)}
-          className="rounded-md p-1.5 text-text-muted hover:bg-page hover:text-text"
-          aria-label="Editar projeto"
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(project)}
-          className="rounded-md p-1.5 text-text-muted hover:bg-status-delayed-bg hover:text-status-delayed"
-          aria-label="Mover para Excluídos"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+        <ProjectActionsMenu
+          activityCount={project.activities.length}
+          onEdit={() => onEdit(project)}
+          onViewActivities={goToSchedule}
+          onUpdateProgress={() => setProgressPopoverOpen(true)}
+          onDuplicate={() => onDuplicate(project)}
+          onDelete={() => onDelete(project)}
+        />
       </div>
     </div>
   );

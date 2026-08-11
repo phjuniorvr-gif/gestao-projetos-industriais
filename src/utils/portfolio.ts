@@ -1,4 +1,4 @@
-import type { Holiday, Person, ProjectStatus, ProjectView } from '../types';
+import type { Holiday, Person, ProjectStatus, ProjectView, TaskView } from '../types';
 import type { ProjectFiltersState } from '../components/projects/ProjectFilters';
 import { addBusinessDays, businessDaysBetween } from './dates';
 import { taskWeight } from './status';
@@ -194,4 +194,19 @@ export function computeProjectTeam(project: ProjectView, people: Person[]): Team
 /** Mesma derivação, escopada a uma única atividade (painel de detalhe, seção "Atividades e equipe"). */
 export function computeActivityTeam(activity: { tasks: TeamTaskInput[] }, people: Person[]): TeamAvatarEntry[] {
   return teamFromTasks(activity.tasks, people);
+}
+
+/**
+ * "Tarefa-foco" da edição inline (Fase 3, caminho 1): a tarefa não concluída com `plannedEnd`
+ * mais próximo/mais vencido — proxy de "o que muda essa semana". É só a SUGESTÃO inicial do
+ * popover, que sempre deixa o usuário trocar antes de confirmar (nunca grava às cegas na
+ * escolhida pelo sistema). `null` se não houver nenhuma tarefa pendente.
+ */
+export function computeFocusTask(tasks: TaskView[]): TaskView | null {
+  const incomplete = tasks.filter((t) => t.status !== 'completed');
+  if (incomplete.length === 0) return null;
+  return [...incomplete].sort((a, b) => {
+    if (a.plannedEnd !== b.plannedEnd) return a.plannedEnd < b.plannedEnd ? -1 : 1;
+    return a.rowNumber - b.rowNumber;
+  })[0];
 }

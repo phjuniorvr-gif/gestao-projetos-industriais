@@ -3,6 +3,7 @@ import {
   computeActiveFilterCount,
   computeCriticality,
   computeExpectedProgress,
+  computeFocusTask,
   computeProjectTeam,
   computeScheduleDeviationDays,
   computeStatusDistribution,
@@ -10,7 +11,25 @@ import {
   sortProjectsByCriticality,
 } from './portfolio';
 import { EMPTY_FILTERS } from '../components/projects/ProjectFilters';
-import type { Person, ProjectView } from '../types';
+import type { Person, ProjectView, TaskView } from '../types';
+
+function taskView(overrides: Partial<TaskView> = {}): TaskView {
+  return {
+    id: 't1',
+    rowNumber: 1,
+    activityId: 'a1',
+    name: 'Tarefa',
+    category: 'eletrica',
+    predecessorRowNumbers: [],
+    plannedStart: '2026-01-01',
+    plannedEnd: '2026-01-10',
+    status: 'planned',
+    isBlocked: false,
+    isStartDelayed: false,
+    isLateCompletion: false,
+    ...overrides,
+  };
+}
 
 function baseProject(overrides: Partial<ProjectView> = {}): ProjectView {
   return {
@@ -252,5 +271,41 @@ describe('computeProjectTeam', () => {
       ],
     });
     expect(computeProjectTeam(project, people)).toEqual([]);
+  });
+});
+
+describe('computeFocusTask', () => {
+  it('sem tarefas: null', () => {
+    expect(computeFocusTask([])).toBeNull();
+  });
+
+  it('todas concluídas: null', () => {
+    const tasks = [taskView({ id: 't1', status: 'completed' }), taskView({ id: 't2', status: 'completed' })];
+    expect(computeFocusTask(tasks)).toBeNull();
+  });
+
+  it('pega a não concluída com plannedEnd mais próximo/vencido', () => {
+    const tasks = [
+      taskView({ id: 't1', rowNumber: 1, plannedEnd: '2026-03-01', status: 'planned' }),
+      taskView({ id: 't2', rowNumber: 2, plannedEnd: '2026-01-15', status: 'delayed' }), // mais vencida
+      taskView({ id: 't3', rowNumber: 3, plannedEnd: '2026-02-01', status: 'in_progress' }),
+    ];
+    expect(computeFocusTask(tasks)?.id).toBe('t2');
+  });
+
+  it('ignora tarefas já concluídas mesmo com plannedEnd mais cedo', () => {
+    const tasks = [
+      taskView({ id: 't1', rowNumber: 1, plannedEnd: '2026-01-01', status: 'completed' }),
+      taskView({ id: 't2', rowNumber: 2, plannedEnd: '2026-02-01', status: 'planned' }),
+    ];
+    expect(computeFocusTask(tasks)?.id).toBe('t2');
+  });
+
+  it('empate de plannedEnd: desempata por rowNumber', () => {
+    const tasks = [
+      taskView({ id: 't2', rowNumber: 2, plannedEnd: '2026-01-01', status: 'planned' }),
+      taskView({ id: 't1', rowNumber: 1, plannedEnd: '2026-01-01', status: 'planned' }),
+    ];
+    expect(computeFocusTask(tasks)?.id).toBe('t1');
   });
 });

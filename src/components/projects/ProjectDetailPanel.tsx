@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
-import type { Holiday, Person, Project, ProjectView } from '../../types';
+import type { Holiday, Person, Project, ProjectView, Task } from '../../types';
 import { STATUS_COLOR } from '../../types';
 import { businessDaysBetween, formatDatePtBr, formatPeriod } from '../../utils';
 import { computeActivityTeam, computeExpectedProgress, computeScheduleDeviationDays } from '../../utils/portfolio';
 import { Button, FormField, Input, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
+import { InlineTaskProgressEdit } from './InlineTaskProgressEdit';
 import { MiniGantt } from './MiniGantt';
 
 interface ProjectDetailPanelProps {
@@ -17,6 +18,7 @@ interface ProjectDetailPanelProps {
   onCreatePerson: (name: string) => Promise<Person>;
   onSave: (patch: Pick<Project, 'name' | 'description' | 'unit' | 'gerenteId'>) => void;
   onAddActivity: () => void;
+  onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
   onClose: () => void;
 }
 
@@ -43,10 +45,12 @@ export function ProjectDetailPanel({
   onCreatePerson,
   onSave,
   onAddActivity,
+  onUpdateTask,
   onClose,
 }: ProjectDetailPanelProps) {
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState(false);
+  const [progressPopoverOpen, setProgressPopoverOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
@@ -176,7 +180,7 @@ export function ProjectDetailPanel({
             </div>
           </section>
 
-          <section>
+          <section className="relative">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted2">Avanço</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-mono text-lg font-semibold text-text">{project.progress}%</span>
@@ -189,6 +193,21 @@ export function ProjectDetailPanel({
               />
               <div className="absolute top-0 h-1.5 w-px bg-text-ink2" style={{ left: `${expected}%` }} />
             </div>
+            {allTasks.some((t) => t.status !== 'completed') && (
+              <button
+                type="button"
+                onClick={() => setProgressPopoverOpen((o) => !o)}
+                className="mt-2 text-xs font-medium text-action hover:underline"
+              >
+                Atualizar avanço
+              </button>
+            )}
+            <InlineTaskProgressEdit
+              project={project}
+              open={progressPopoverOpen}
+              onClose={() => setProgressPopoverOpen(false)}
+              onConfirm={(taskId, patch) => onUpdateTask(project.id, taskId, patch)}
+            />
           </section>
 
           <section>

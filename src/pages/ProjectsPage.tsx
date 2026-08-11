@@ -18,7 +18,8 @@ import { STATUS_LABEL, type ProjectStatus, type ProjectView } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
-  const { projects, today, addActivity, removeProject, restoreProject, updateProjectInfo } = useProjects();
+  const { projects, today, addActivity, createProject, removeProject, restoreProject, updateProjectInfo, updateTask } =
+    useProjects();
   const { people, createPerson } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
@@ -34,6 +35,29 @@ export function ProjectsPage() {
   const handleDelete = (project: ProjectView) => {
     removeProject(project.id);
     show(`${project.code} movido para Excluídos`, () => restoreProject(project));
+  };
+
+  /** Clona nome/categoria/datas/predecessoras de cada tarefa — mesmo formato que createProject já
+   * aceita do wizard, sem precisar de nenhuma lógica nova de "duplicar" no backend/hook. */
+  const handleDuplicate = (project: ProjectView) => {
+    createProject({
+      name: `${project.name} (cópia)`,
+      description: project.description,
+      unit: project.unit,
+      sector: project.sector,
+      gerenteId: project.gerenteId,
+      activities: project.activities.map((activity) => ({
+        name: activity.name,
+        tasks: activity.tasks.map((task) => ({
+          name: task.name,
+          category: task.category,
+          responsavelId: task.responsavelId,
+          plannedStart: task.plannedStart,
+          plannedEnd: task.plannedEnd,
+          predecessorRowNumbers: task.predecessorRowNumbers,
+        })),
+      })),
+    });
   };
 
   const safeHolidays = holidaysLoaded ? holidays : [];
@@ -110,6 +134,8 @@ export function ProjectsPage() {
         holidays={safeHolidays}
         onEdit={(project) => setEditingId(project.id)}
         onDelete={handleDelete}
+        onUpdateTask={updateTask}
+        onDuplicate={handleDuplicate}
       />
 
       <ProjectDetailPanel
@@ -122,6 +148,7 @@ export function ProjectsPage() {
           if (editing) updateProjectInfo(editing.id, patch);
         }}
         onAddActivity={() => setAddingActivityToId(editingId)}
+        onUpdateTask={updateTask}
         onClose={() => setEditingId(null)}
       />
 
