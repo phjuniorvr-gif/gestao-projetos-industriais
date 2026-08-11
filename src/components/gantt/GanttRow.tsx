@@ -56,6 +56,14 @@ export function GanttRow({
           >
             <span className={compact ? 'truncate' : ''}>{task.name}</span>
           </button>
+          {!!task.replanCount && (
+            <span
+              title={`Previsto replanejado ${task.replanCount} ${task.replanCount === 1 ? 'vez' : 'vezes'}`}
+              className="inline-flex shrink-0 items-center rounded-full bg-action/10 px-2 py-0.5 text-[10px] font-semibold text-action"
+            >
+              R{task.replanCount}
+            </span>
+          )}
         </div>
       </td>
       {!compact && (

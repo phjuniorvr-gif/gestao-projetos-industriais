@@ -362,6 +362,7 @@ export function useProjects() {
     projects,
     loaded,
     today,
+    replanejamentos,
     createProject,
     removeProject,
     restoreProject,

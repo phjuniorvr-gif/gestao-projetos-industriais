@@ -10,8 +10,18 @@ import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
-  const { projects, loaded, addTask, updateTask, removeTask, setTaskPredecessors, addActivity, removeActivity } =
-    useProjects();
+  const {
+    projects,
+    loaded,
+    replanejamentos,
+    addTask,
+    updateTask,
+    replanTask,
+    removeTask,
+    setTaskPredecessors,
+    addActivity,
+    removeActivity,
+  } = useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { people, createPerson } = usePeople();
@@ -248,6 +258,7 @@ export function ProjectSchedulePage() {
         allTasks={allTasks}
         categories={categories}
         people={people}
+        replanejamentos={replanejamentos}
         onCreatePerson={createPerson}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, patch) => {
@@ -260,6 +271,13 @@ export function ProjectSchedulePage() {
           } else {
             updateTask(owningProjectId, taskId, patch);
           }
+        }}
+        onReplan={(taskId, patch, motivo) => {
+          const owningProjectId = activityIdToProjectId.get(
+            allTasks.find((t) => t.id === taskId)?.activityId ?? '',
+          );
+          if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
+          return replanTask(owningProjectId, taskId, patch, motivo);
         }}
         onDelete={(taskId) => {
           const owningProjectId = activityIdToProjectId.get(
