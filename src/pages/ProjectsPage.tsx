@@ -5,13 +5,14 @@ import { PageHeader } from '../components/layout';
 import {
   EMPTY_FILTERS,
   EditProjectDialog,
-  ProjectCard,
   ProjectFilters,
   ProjectsHealthStrip,
+  ProjectsTable,
   type ProjectFiltersState,
 } from '../components/projects';
-import { Button, ConfirmDialog, EmptyState } from '../components/ui';
+import { Button, ConfirmDialog } from '../components/ui';
 import { useHolidays, usePeople, useProjects } from '../hooks';
+import { sortProjectsByCriticality } from '../utils';
 import { STATUS_LABEL, type Project, type ProjectStatus } from '../types';
 
 export function ProjectsPage() {
@@ -60,6 +61,11 @@ export function ProjectsPage() {
     [projects, filters, people],
   );
 
+  const sorted = useMemo(
+    () => sortProjectsByCriticality(filtered, today, safeHolidays),
+    [filtered, today, safeHolidays],
+  );
+
   return (
     <div className="space-y-6">
       <div className="sticky top-0 z-10 -mx-8 -mt-6 space-y-5 border-b border-border bg-page px-8 pt-6 pb-5">
@@ -85,15 +91,14 @@ export function ProjectsPage() {
         />
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((project) => (
-            <ProjectCard key={project.id} project={project} people={people} onEdit={setEditing} onDelete={setDeleting} />
-          ))}
-        </div>
-      )}
+      <ProjectsTable
+        projects={sorted}
+        people={people}
+        today={today}
+        holidays={safeHolidays}
+        onEdit={setEditing}
+        onDelete={setDeleting}
+      />
 
       <EditProjectDialog
         key={editing?.id ?? 'closed'}
