@@ -33,6 +33,10 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 
 **Fase 3 — Tela de Projetos.** 7 commits. Faixa de saúde (hero + barra empilhada clicável) no lugar dos 5 cards de KPI; tabela com mini-gantt por linha no lugar da lista de cards, ordenada por criticidade (regra numérica explícita com desempate determinístico); toast de desfazer genérico + exclusão sem confirmação prévia; painel lateral no lugar do modal; edição inline da tarefa-foco (sem `%` bruto — só marca tarefa concluída, sempre trocável no seletor) + menu `⋯`; painéis "Atenção nos próximos 30 dias" e "Carga por pessoa" (só tarefas em aberto). `computeExpectedProgress` é curva S do plano (peso das tarefas vencidas ÷ peso total), **não** reta por tempo decorrido. `ProjectCard.tsx` mantido sem uso — o protótipo mobile usa card, a Fase 6 reusa.
 
+**Fase 2.5 — Linha de base congelada.** 5 commits. `Task.baseStart/baseEnd` — seed = previsto no instante de criação da tarefa, nunca mais tocado sozinho (não existe "aprovação de cronograma" em lugar nenhum do app; resolvido copiando o comportamento do protótipo). Editar previsto/base virou rascunho comparado contra o valor salvo: mudança real revela textarea de motivo obrigatório + "Confirmar alteração", **inline no painel lateral, sem modal novo**. Log de replanejamento (tabela `replanejamentos`) cobre previsto **e** base (não só previsto, como o protótipo faz literalmente) — a âncora que dá sentido ao indicador de atraso não pode mudar em silêncio; colunas `campo`/`campo_data` discriminam o quê mudou; selo `R{n}` conta só previsto. Sem gating de admin ainda — não existe primitiva de papel em lugar nenhum do código, motivo obrigatório vale pra qualquer usuário logado; a Fase 5 restringe de verdade. Migração em duas partes (tabela+colunas nullable primeiro, `NOT NULL` só depois do deploy confirmado). **Gap pego via `get_advisors` depois da migração**: `replanejamentos` nasceu sem RLS habilitado; corrigido pra append-only de verdade (policy só de INSERT+SELECT, sem UPDATE/DELETE — nem um futuro admin vai poder reescrever histórico).
+
+**Fase 2.7 — Dependências FS/SS/FF/SF.** 5 commits. `Task.predecessorRowNumbers` (FK por número de linha, coluna array) virou `Task.dependencies` (FK por `id`, tabela `dependencias` própria, tipo+folga por linha) — número de linha continua sendo só como o usuário escolhe/vê a predecessora, traduzido na borda UI↔dado persistido (`useProjects.ts`). `isBlocked` ficou **ciente do tipo**: pela própria tabela de regras da spec, só FS e SS restringem o *início* da sucessora, então só eles bloqueiam — usando a data REAL da predecessora (`actualEnd`/`actualStart`) + folga contada a partir dela; FF/SF nunca bloqueiam (bloqueio ali seria falso positivo), só entram em `hasDependencyViolation` (campo novo, checagem sobre PREVISTO, pros 4 tipos, sinaliza sem bloquear salvar — exatamente a regra "violação não bloqueia" da spec). Trocar a chave de `recomputeProject` de `tasksByRowNumber` (incremental, dependia de predecessora ter número menor) pra `tasksById` (direto, sem ordem) corrigiu um bug latente, não foi só refactor. Editor de linhas (tarefa · tipo · folga · remover) construído já nesta fase, dentro do `TaskPanel.tsx` — não esperado pra Fase 4 (sem ele não dava pra escolher tipo/folga nenhum). RLS da tabela nova (`dependencias`) já saiu certo desta vez — lição da 2.5 aplicada de propósito, checado via `get_advisors` antes de fechar o commit.
+
 ## Decisões de modelagem (estão no CLAUDE.md)
 
 1. **Dois papéis:** `gerente_id` no projeto (1), `responsavel_id` na tarefa (1). Equipe é consulta, não campo. Atividade não tem responsável.
@@ -41,16 +45,14 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 4. **Coluna com dado real não se apaga:** rename para `_legacy` + `COMMENT ON COLUMN`. Drop fica para a Fase 7.
 5. **Ordem de migração:** código para de escrever → commit → **push confirmado** → deploy → dump completo e autônomo → migration. Vercel+Supabase sem staging.
 6. **Avanço 100% automático.** Tarefa binária; atividade/projeto = peso concluído ÷ peso total, ponderado por dias úteis.
-7. **Linha de base congelada:** só administrador altera previsto/base, com motivo obrigatório, gravando em `replanejamentos`. **(ainda não implementado — é a 2.5)**
-8. **Dependências:** 4 tipos (FS, SS, FF, SF) com folga em dias úteis. Violação sinaliza, não bloqueia. Anti-ciclo no servidor. **(ainda não implementado — é a 2.7)**
+7. **Linha de base congelada (implementado na Fase 2.5):** seed = previsto na criação da tarefa, motivo obrigatório pra alterar previsto OU base, gravando em `replanejamentos` (cobre os dois campos, não só previsto). Sem gating de admin ainda — vale pra qualquer usuário logado; a Fase 5 restringe.
+8. **Dependências (implementado na Fase 2.7):** 4 tipos (FS, SS, FF, SF) com folga em dias úteis, por `id` da tarefa (não número de linha). Violação de previsto sinaliza, não bloqueia. Bloqueio de início (`isBlocked`) só por FS/SS, usando data real. Anti-ciclo + duplicata validados no cliente (`useProjects.ts`), antes de gravar.
 9. **Exclusão de atividade com tarefas:** bloqueada por padrão, com ação explícita de administrador + Desfazer de 6s.
 10. **"Hoje" em America/Sao_Paulo**, injetável nas funções puras, recalculado em `visibilitychange`/foco. Comparação de atraso estrita (`today > plannedEnd`).
 
 ## O que falta
 
-**Ordem combinada:** 2.5 (linha de base) → 2.7 (dependências) → Fase 4 (Cronograma).
-
-Motivo da ordem: o Gantt da Fase 4 desenha barra de linha de base e seta de dependência — construí-lo antes garantiria refazer a tela mais pesada do projeto.
+**2.5 e 2.7 concluídas.** Próxima: **Fase 4 (Tela de Cronograma)** — a mais pesada do roteiro, trata como sub-fases. Desenha o que 2.5/2.7 já modelaram mas não desenharam: barra tracejada de linha de base, setas de dependência (com rótulo tipo+folga, tracejada laranja quando violada, contador no rodapé), tooltip completo na barra, data sugerida pela regra com botão "Aplicar" no editor de predecessoras, zoom Dia/Semana/Mês, criação direto no cronograma (`+` no hover da linha).
 
 **Depois:** Fase 5 (permissões com RLS por perfil), Fase 6 (mobile), Fase 7 (validações, QA e drop das colunas `_legacy`).
 
@@ -60,9 +62,10 @@ Motivo da ordem: o Gantt da Fase 4 desenha barra de linha de base e seta de depe
 - Feriados municipais de Matriz, MEC e Feira ainda não cadastrados.
 - Teste de `dias_uteis`/`soma_dias_uteis` depende de usuário de teste autenticado — hoje só `pascoa`/`feriados_nacionais` cobertas.
 - Na Fase 7, `responsavel_id` vira obrigatório — precisa de preenchimento em massa nas 55 tarefas.
-- Colunas `_legacy` a dropar na Fase 7: `status_legacy` (3 tabelas), 8 colunas de data em `activities`/`projects`, `progress_legacy`.
+- Colunas `_legacy` a dropar na Fase 7: `status_legacy` (3 tabelas), 8 colunas de data em `activities`/`projects`, `progress_legacy`, `predecessor_row_numbers_legacy` (tasks).
 - Rótulo "sem tarefas" quando atividade não tem tarefa — decisão de exibição adiada.
 - Tooltip "2/5 tarefas · 22/114du" no Gantt — Fase 4, usando `taskWeight` exportada.
+- Setas de dependência + data sugerida com botão "Aplicar" no editor de predecessoras — ficaram pra Fase 4 de propósito (2.7 entregou só o editor de linhas tipo/folga).
 
 ## Como trabalhamos
 
@@ -86,3 +89,4 @@ Vale pedir isso explicitamente em todo plano novo:
 - **Ordem migration x deploy** — quem para de escrever primeiro quebra produção se a coluna for `NOT NULL` sem default.
 - **Convenção de intervalo** (inclusivo x meio-aberto) em qualquer cálculo de dias — origem de off-by-one silencioso.
 - **Atributos de coluna** (`is_nullable`, `column_default`) não aparecem numa checagem de índices/constraints/triggers. Conferir à parte.
+- **`apply_migration` não liga RLS sozinho em tabela nova** — `get_advisors(type: security)` depois de toda migração que cria tabela é o que pega isso (pegou na 2.5; aplicado de propósito já na criação da 2.7). Tabela de auditoria (`replanejamentos`) precisa de policy só INSERT+SELECT, sem UPDATE/DELETE — diferente de tabela de config editável (`dependencias`), que usa a policy `ALL` igual às demais.
