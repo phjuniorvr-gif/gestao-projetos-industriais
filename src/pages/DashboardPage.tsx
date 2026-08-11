@@ -12,13 +12,13 @@ export function DashboardPage() {
     const today = todayISO();
     const currentMonth = today.slice(0, 7);
 
-    const activeProjects = projects.filter((p) => p.status !== 'completed' && p.status !== 'completed_late');
+    const activeProjects = projects.filter((p) => p.status !== 'completed');
     const delayedProjects = projects.filter((p) => p.status === 'delayed');
     const delayedTasks = projects
       .flatMap((p) => p.activities.flatMap((a) => a.tasks))
       .filter((t) => t.status === 'delayed').length;
     const completedThisMonth = projects.filter(
-      (p) => (p.status === 'completed' || p.status === 'completed_late') && p.actualEnd?.slice(0, 7) === currentMonth,
+      (p) => p.status === 'completed' && p.actualEnd?.slice(0, 7) === currentMonth,
     ).length;
 
     const durations = projects

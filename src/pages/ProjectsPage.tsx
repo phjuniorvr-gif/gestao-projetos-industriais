@@ -47,10 +47,9 @@ export function ProjectsPage() {
   const counts = useMemo(
     () => ({
       total: filtered.length,
-      completed: filtered.filter((p) => p.status === 'completed' || p.status === 'completed_late').length,
+      completed: filtered.filter((p) => p.status === 'completed').length,
       inProgress: filtered.filter((p) => p.status === 'in_progress').length,
       delayed: filtered.filter((p) => p.status === 'delayed').length,
-      toStart: filtered.filter((p) => p.status === 'to_start').length,
       planned: filtered.filter((p) => p.status === 'planned').length,
     }),
     [filtered],
@@ -77,7 +76,6 @@ export function ProjectsPage() {
           <StatusCard label="Concluído" value={counts.completed} color={STATUS_COLOR.completed} />
           <StatusCard label="Em Andamento" value={counts.inProgress} color={STATUS_COLOR.in_progress} />
           <StatusCard label="Atrasado" value={counts.delayed} color={STATUS_COLOR.delayed} />
-          <StatusCard label="À Iniciar" value={counts.toStart} color={STATUS_COLOR.to_start} />
           <StatusCard label="Planejado" value={counts.planned} color={STATUS_COLOR.planned} />
         </div>
 

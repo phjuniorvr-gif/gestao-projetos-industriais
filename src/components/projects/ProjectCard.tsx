@@ -38,7 +38,12 @@ export function ProjectCard({ project, people, onEdit, onDelete }: ProjectCardPr
         </div>
 
         <div className="w-40">
-          <StatusBadge status={project.status} />
+          <StatusBadge
+            status={project.status}
+            blockedCount={project.blockedCount}
+            startDelayedCount={project.startDelayedCount}
+            lateCompletion={project.isLateCompletion}
+          />
           <div className="mt-1.5 h-1.5 w-full rounded-full bg-page">
             <div
               className="h-1.5 rounded-full"

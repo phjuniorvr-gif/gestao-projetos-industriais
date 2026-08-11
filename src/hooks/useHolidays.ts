@@ -6,12 +6,14 @@ import type { Holiday } from '../types';
 // Feriado nacional não está aqui — ver nationalHolidays() em src/utils/dates.ts.
 export function useHolidays() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetchHolidays()
       .then(setHolidays)
-      .catch((err) => console.error('Falha ao carregar feriados do Supabase', err));
+      .catch((err) => console.error('Falha ao carregar feriados do Supabase', err))
+      .finally(() => setLoaded(true));
   }, []);
 
-  return { holidays };
+  return { holidays, loaded };
 }

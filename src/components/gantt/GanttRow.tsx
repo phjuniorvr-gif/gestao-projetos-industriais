@@ -78,7 +78,13 @@ export function GanttRow({
         }`}
         style={compact ? { left: statusColLeft } : undefined}
       >
-        <StatusBadge status={task.status} />
+        <StatusBadge
+          status={task.status}
+          blocked={task.isBlocked}
+          startDelayed={task.isStartDelayed}
+          lateCompletion={task.isLateCompletion}
+          lateCompletionDays={task.lateCompletionDays}
+        />
       </td>
       <td className="relative px-4 py-3.5" style={{ width }}>
         <TodayLine range={range} />

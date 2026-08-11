@@ -1,35 +1,21 @@
-export type ProjectStatus =
-  | 'planned'
-  | 'to_start'
-  | 'in_progress'
-  | 'completed'
-  | 'completed_late'
-  | 'delayed'
-  | 'blocked';
+// 4 valores (Fase 2.3). blocked/completed_late/to_start não são mais valor de status — viram
+// condição derivada exibida ao lado (TaskView.isBlocked, .isLateCompletion, .isStartDelayed).
+export type ProjectStatus = 'planned' | 'in_progress' | 'delayed' | 'completed';
 
 export type TaskStatus = ProjectStatus;
 
 export const STATUS_LABEL: Record<ProjectStatus, string> = {
   planned: 'Planejado',
-  to_start: 'À iniciar',
   in_progress: 'Em andamento',
-  completed: 'Concluído',
-  completed_late: 'Concluído com atraso',
   delayed: 'Atrasado',
-  blocked: 'Bloqueado',
+  completed: 'Concluído',
 };
 
-// Cores dos 4 status que sobrevivem ao modelo da Fase 2 (planejado/andamento/atrasado/concluído),
-// já na paleta do design.md. to_start/completed_late/blocked ficam com a cor antiga por ora —
-// viram selo/ícone derivado na Fase 2, não fazem mais parte do valor de status em si.
 export const STATUS_COLOR: Record<ProjectStatus, string> = {
   planned: '#7C3AED',
-  to_start: '#A3A3A3',
   in_progress: '#2563EB',
-  completed: '#15803D',
-  completed_late: '#F97316',
   delayed: '#C2410C',
-  blocked: '#7C3AED',
+  completed: '#15803D',
 };
 
 // Categorias agora são dados dinâmicos (tabela `categories` no Supabase, geridas via useCategories()),
@@ -116,17 +102,33 @@ export interface Project {
   deletedAt?: string;
 }
 
+// Condições derivadas (Fase 2.3, decisão no CLAUDE.md): blocked/completed_late/to_start não
+// desaparecem — viram selo ao lado do status. No nível de tarefa são booleanos simples; no
+// nível de atividade/projeto, isBlocked/isStartDelayed viram CONTAGEM (não booleano — some()
+// sobre 50+ tarefas satura e sempre fica "ligado", sem informar nada). isLateCompletion continua
+// booleano em todo nível (mais raro, some() ainda é informativo).
 export interface TaskView extends Task {
   status: TaskStatus;
+  isBlocked: boolean;
+  isStartDelayed: boolean;
+  isLateCompletion: boolean;
+  /** Dias úteis de atraso na conclusão — só definido quando os feriados já carregaram. */
+  lateCompletionDays?: number;
 }
 
 export interface ActivityView extends Omit<Activity, 'tasks'> {
   status: ProjectStatus;
+  blockedCount: number;
+  startDelayedCount: number;
+  isLateCompletion: boolean;
   tasks: TaskView[];
 }
 
 export interface ProjectView extends Omit<Project, 'activities'> {
   status: ProjectStatus;
+  blockedCount: number;
+  startDelayedCount: number;
+  isLateCompletion: boolean;
   activities: ActivityView[];
 }
 

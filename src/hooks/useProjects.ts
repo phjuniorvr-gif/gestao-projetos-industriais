@@ -3,6 +3,7 @@ import { fetchProjects, saveProjectTree, softDeleteProjectRemote } from '../serv
 import type { Activity, Category, Project, ProjectView, Task } from '../types';
 import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
 import type { DependencyValidation } from '../utils';
+import { useHolidays } from './useHolidays';
 
 // IDs precisam ser UUIDs válidos: são gravados direto nas colunas `uuid` do Supabase.
 function uid(): string {
@@ -47,6 +48,7 @@ export interface NewTaskInput {
 export function useProjects() {
   const [rawProjects, setRawProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const { holidays, loaded: holidaysLoaded } = useHolidays();
 
   useEffect(() => {
     fetchProjects()
@@ -56,9 +58,11 @@ export function useProjects() {
   }, []);
 
   const today = todayISO();
+  // holidays undefined (não []) enquanto não carregou — ver computeLateCompletionDays em
+  // status.ts: undefined é "não sei ainda", não "não há feriado".
   const projects: ProjectView[] = useMemo(
-    () => rawProjects.map((p) => recomputeProject(p, today)),
-    [rawProjects, today],
+    () => rawProjects.map((p) => recomputeProject(p, today, holidaysLoaded ? holidays : undefined)),
+    [rawProjects, today, holidays, holidaysLoaded],
   );
 
   const updateProject = useCallback(

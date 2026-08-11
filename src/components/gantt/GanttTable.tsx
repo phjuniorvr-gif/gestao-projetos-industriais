@@ -220,7 +220,12 @@ export function GanttTable({
                     }`}
                     style={compact ? { left: STATUS_COL_LEFT } : undefined}
                   >
-                    <StatusBadge status={project.status} />
+                    <StatusBadge
+                      status={project.status}
+                      blockedCount={project.blockedCount}
+                      startDelayedCount={project.startDelayedCount}
+                      lateCompletion={project.isLateCompletion}
+                    />
                   </td>
                   <td className="relative px-4 py-3.5" style={{ width }}>
                     <TodayLine range={range} />
@@ -298,7 +303,12 @@ export function GanttTable({
                             }`}
                             style={compact ? { left: STATUS_COL_LEFT } : undefined}
                           >
-                            <StatusBadge status={activity.status} />
+                            <StatusBadge
+                              status={activity.status}
+                              blockedCount={activity.blockedCount}
+                              startDelayedCount={activity.startDelayedCount}
+                              lateCompletion={activity.isLateCompletion}
+                            />
                           </td>
                           <td className="relative px-4 py-3.5" style={{ width }}>
                             <TodayLine range={range} />
