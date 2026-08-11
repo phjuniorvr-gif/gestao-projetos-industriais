@@ -1,5 +1,6 @@
 import type { ActivityView, Holiday, Project, ProjectStatus, ProjectView, Replanejamento, Task, TaskView } from '../types';
 import { addBusinessDays, businessDaysBetween, todayISO } from './dates';
+import { computeTaskBlockedByDependencies, computeTaskDependencyViolated } from './dependencies';
 import { computeReplanCount } from './replan';
 
 interface DatedItem {
@@ -70,21 +71,6 @@ export function rollUpDates(children: DatedItem[]): DatedItem {
     actualStart: actualStarts.length ? actualStarts.sort()[0] : undefined,
     actualEnd: allHaveActualEnd ? actualEnds.sort().at(-1) : undefined,
   };
-}
-
-/**
- * Bloqueada: já deveria ter começado (ou já começou — mas aí não conta mais como bloqueada) e
- * não pode por causa de uma predecessora não concluída. Antes de `plannedStart`, predecessora
- * pendente ainda não é bloqueio real, é só uma tarefa futura.
- */
-export function computeTaskBlocked(task: Task, tasksByRowNumber: Map<number, TaskView>, today: string): boolean {
-  if (!task.plannedStart) return false;
-  if (task.actualStart || task.actualEnd) return false;
-  if (today < task.plannedStart) return false;
-  return task.predecessorRowNumbers.some((rowNumber) => {
-    const predecessor = tasksByRowNumber.get(rowNumber);
-    return predecessor ? predecessor.status !== 'completed' : false;
-  });
 }
 
 /**
@@ -203,14 +189,29 @@ export function recomputeProject(
   replanejamentos?: Replanejamento[],
 ): ProjectView {
   const allTasks = project.activities.flatMap((a) => a.tasks).sort((a, b) => a.rowNumber - b.rowNumber);
-  const tasksByRowNumber = new Map<number, TaskView>();
+
+  // undefined (feriados ainda não carregaram) vira [] aqui: computeTaskBlockedByDependencies e
+  // computeTaskDependencyViolated (Fase 2.7) toleram lista incompleta do mesmo jeito que
+  // computeProgress/taskWeight já toleravam — aproxima sem feriado descontado e se corrige
+  // sozinho quando `holidays` carregar, sem precisar de um estado "ainda não sei" à parte.
+  const safeHolidays = holidays ?? [];
+
+  // tasksById (não tasksByRowNumber): dependencies (Fase 2.7) referencia id, e id não depende de
+  // nenhuma ordem de processamento — diferente do isBlocked antigo (por predecessorRowNumbers),
+  // que só funcionava porque toda predecessora tinha rowNumber menor que a sucessora. Uma
+  // dependência "pra frente" (criada via editor, não só pelo wizard) agora calcula certo também.
+  const tasksById = new Map(allTasks.map((t) => [t.id, t]));
 
   const recomputedTasks = new Map<string, TaskView>();
   for (const task of allTasks) {
     const status = computeTaskStatus(task, today);
-    const isBlocked = computeTaskBlocked(task, tasksByRowNumber, today);
+    const isBlocked = computeTaskBlockedByDependencies(task, tasksById, today, safeHolidays, project.unit);
     const isStartDelayed = computeTaskStartDelayed(task, today);
     const lateCompletion = isLateCompletion(task);
+    const predecessorRowNumbers = task.dependencies
+      .map((d) => tasksById.get(d.predecessorId)?.rowNumber)
+      .filter((n): n is number => n !== undefined)
+      .sort((a, b) => a - b);
     const view: TaskView = {
       ...task,
       status,
@@ -219,15 +220,11 @@ export function recomputeProject(
       isLateCompletion: lateCompletion,
       lateCompletionDays: lateCompletion ? computeLateCompletionDays(task, holidays, project.unit) : undefined,
       replanCount: replanejamentos ? computeReplanCount(task.id, replanejamentos) : undefined,
+      hasDependencyViolation: computeTaskDependencyViolated(task, tasksById, safeHolidays, project.unit),
+      predecessorRowNumbers,
     };
-    tasksByRowNumber.set(task.rowNumber, view);
     recomputedTasks.set(task.id, view);
   }
-
-  // undefined (feriados ainda não carregaram) vira [] só aqui: diferente de lateCompletionDays
-  // (selo com modo só-ícone), progresso é elemento sempre visível — aproxima sem feriado
-  // descontado e se corrige sozinho quando `holidays` carregar, em vez de não mostrar nada.
-  const safeHolidays = holidays ?? [];
 
   const activities: ActivityView[] = project.activities.map((activity) => {
     const tasks = activity.tasks.map((t) => recomputedTasks.get(t.id)!);

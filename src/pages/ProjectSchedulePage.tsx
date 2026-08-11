@@ -266,11 +266,14 @@ export function ProjectSchedulePage() {
             allTasks.find((t) => t.id === taskId)?.activityId ?? '',
           );
           if (!owningProjectId) return;
-          if (patch.predecessorRowNumbers !== undefined) {
-            setTaskPredecessors(owningProjectId, taskId, patch.predecessorRowNumbers);
-          } else {
-            updateTask(owningProjectId, taskId, patch);
-          }
+          updateTask(owningProjectId, taskId, patch);
+        }}
+        onSetPredecessors={(taskId, predecessorRowNumbers) => {
+          const owningProjectId = activityIdToProjectId.get(
+            allTasks.find((t) => t.id === taskId)?.activityId ?? '',
+          );
+          if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
+          return setTaskPredecessors(owningProjectId, taskId, predecessorRowNumbers);
         }}
         onReplan={(taskId, patch, motivo) => {
           const owningProjectId = activityIdToProjectId.get(

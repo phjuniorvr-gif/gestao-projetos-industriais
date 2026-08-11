@@ -6,7 +6,7 @@ import {
   saveProjectTree,
   softDeleteProjectRemote,
 } from '../services/projectsRepo';
-import type { Activity, Category, Project, ProjectView, Task } from '../types';
+import type { Activity, Category, Project, ProjectView, Task, TaskDependency } from '../types';
 import {
   buildReplanEntries,
   computeDateChanges,
@@ -16,7 +16,7 @@ import {
   validateReplanMotivo,
   validateTaskDependencies,
 } from '../utils';
-import type { DependencyValidation, ReplanValidation } from '../utils';
+import type { DependencyGraphNode, DependencyValidation, ReplanValidation } from '../utils';
 import { useAuth } from './useAuth';
 import { useHolidays } from './useHolidays';
 import { useReplanejamentos } from './useReplanejamentos';
@@ -121,29 +121,49 @@ export function useProjects() {
     (input: NewProjectInput): Project => {
       const id = uid();
       const now = new Date().toISOString();
+
+      // 1ª passada: numera e minta os ids de tarefa antes de montar a árvore — dependencies
+      // (Fase 2.7) referencia id de outra tarefa, e uma tarefa da atividade 2 pode depender de
+      // uma tarefa da atividade 1 (numeração é do projeto inteiro, não por atividade), então
+      // todos os ids precisam existir antes de resolver qualquer dependency.
       let rowNumber = 0;
-      const activities: Activity[] = input.activities.map((a) => {
-        const activityId = uid();
-        const tasks: Task[] = a.tasks.map((t) => {
+      const taskIdByRowNumber = new Map<number, string>();
+      const planned = input.activities.map((a) => ({
+        activityId: uid(),
+        name: a.name,
+        tasks: a.tasks.map((t) => {
           rowNumber += 1;
-          return {
-            id: uid(),
-            rowNumber,
-            activityId,
-            name: t.name,
-            category: t.category,
-            responsavelId: t.responsavelId,
-            predecessorRowNumbers: t.predecessorRowNumbers,
-            plannedStart: t.plannedStart,
-            plannedEnd: t.plannedEnd,
-            // Linha de base (Fase 2.5): seed = previsto no instante de criação, nunca mais
-            // tocado automaticamente depois — só via replanTask().
-            baseStart: t.plannedStart,
-            baseEnd: t.plannedEnd,
-          };
-        });
-        return { id: activityId, projectId: id, name: a.name, tasks };
-      });
+          const taskId = uid();
+          taskIdByRowNumber.set(rowNumber, taskId);
+          return { taskId, rowNumber, input: t };
+        }),
+      }));
+
+      const activities: Activity[] = planned.map((a) => ({
+        id: a.activityId,
+        projectId: id,
+        name: a.name,
+        tasks: a.tasks.map(({ taskId, rowNumber: r, input: t }): Task => ({
+          id: taskId,
+          rowNumber: r,
+          activityId: a.activityId,
+          name: t.name,
+          category: t.category,
+          responsavelId: t.responsavelId,
+          // Wizard só cria FS+0 (decisão 7, Fase 2.7) — ajustar tipo/folga é o editor do painel
+          // da tarefa, depois de criada.
+          dependencies: t.predecessorRowNumbers
+            .map((row) => taskIdByRowNumber.get(row))
+            .filter((predecessorId): predecessorId is string => predecessorId !== undefined)
+            .map((predecessorId): TaskDependency => ({ predecessorId, tipo: 'FS', folgaDias: 0 })),
+          plannedStart: t.plannedStart,
+          plannedEnd: t.plannedEnd,
+          // Linha de base (Fase 2.5): seed = previsto no instante de criação, nunca mais
+          // tocado automaticamente depois — só via replanTask().
+          baseStart: t.plannedStart,
+          baseEnd: t.plannedEnd,
+        })),
+      }));
       const project: Project = {
         id,
         code: nextProjectCode(rawProjects.map((p) => p.code)),
@@ -192,14 +212,17 @@ export function useProjects() {
     [updateProject],
   );
 
-  /** Remove a atividade e todas as suas tarefas, renumerando o restante do projeto e ajustando predecessoras. */
+  /** Remove a atividade e todas as suas tarefas, renumerando o restante do projeto e removendo
+   * dependências que apontavam pra alguma tarefa removida. Desde a Fase 2.7, `dependencies` é
+   * por id (não por número de linha) — só precisa filtrar quem sumiu, não remapear quem ficou
+   * (id não muda quando o número de linha muda). */
   const removeActivity = useCallback(
     (projectId: string, activityId: string) => {
       updateProject(projectId, (project) => {
         const activityToRemove = project.activities.find((a) => a.id === activityId);
         if (!activityToRemove) return project;
 
-        const removedRowNumbers = new Set(activityToRemove.tasks.map((t) => t.rowNumber));
+        const removedTaskIds = new Set(activityToRemove.tasks.map((t) => t.id));
         const remainingActivities = project.activities.filter((a) => a.id !== activityId);
         const remainingTasksSorted = remainingActivities
           .flatMap((a) => a.tasks)
@@ -215,9 +238,7 @@ export function useProjects() {
             tasks: a.tasks.map((task) => ({
               ...task,
               rowNumber: rowNumberMap.get(task.rowNumber)!,
-              predecessorRowNumbers: task.predecessorRowNumbers
-                .filter((row) => !removedRowNumbers.has(row))
-                .map((row) => rowNumberMap.get(row)!),
+              dependencies: task.dependencies.filter((d) => !removedTaskIds.has(d.predecessorId)),
             })),
           })),
         };
@@ -229,8 +250,10 @@ export function useProjects() {
   const addTask = useCallback(
     (projectId: string, activityId: string, input: NewTaskInput) => {
       updateProject(projectId, (project) => {
-        const allRowNumbers = project.activities.flatMap((a) => a.tasks.map((t) => t.rowNumber));
+        const allTasks = project.activities.flatMap((a) => a.tasks);
+        const allRowNumbers = allTasks.map((t) => t.rowNumber);
         const nextRowNumber = allRowNumbers.length > 0 ? Math.max(...allRowNumbers) + 1 : 1;
+        const taskIdByRowNumber = new Map(allTasks.map((t) => [t.rowNumber, t.id]));
         const task: Task = {
           id: uid(),
           rowNumber: nextRowNumber,
@@ -238,7 +261,10 @@ export function useProjects() {
           name: input.name,
           category: input.category,
           responsavelId: input.responsavelId,
-          predecessorRowNumbers: input.predecessorRowNumbers ?? [],
+          dependencies: (input.predecessorRowNumbers ?? [])
+            .map((row) => taskIdByRowNumber.get(row))
+            .filter((predecessorId): predecessorId is string => predecessorId !== undefined)
+            .map((predecessorId): TaskDependency => ({ predecessorId, tipo: 'FS', folgaDias: 0 })),
           plannedStart: input.plannedStart,
           plannedEnd: input.plannedEnd,
           // Linha de base (Fase 2.5): seed = previsto no instante de criação — este é o
@@ -310,11 +336,19 @@ export function useProjects() {
     [rawProjects, updateTask, session, refetchReplanejamentos],
   );
 
+  /** Remove a tarefa e limpa dependências de quem apontava pra ela (Fase 2.7) — antes disso
+   * (predecessora por número de linha) esse dangling ficava até uma renumeração por acaso
+   * resolver; por id, precisa filtrar explicitamente. */
   const removeTask = useCallback(
     (projectId: string, taskId: string) => {
       updateProject(projectId, (project) => ({
         ...project,
-        activities: project.activities.map((a) => ({ ...a, tasks: a.tasks.filter((t) => t.id !== taskId) })),
+        activities: project.activities.map((a) => ({
+          ...a,
+          tasks: a.tasks
+            .filter((t) => t.id !== taskId)
+            .map((t) => ({ ...t, dependencies: t.dependencies.filter((d) => d.predecessorId !== taskId) })),
+        })),
       }));
     },
     [updateProject],
@@ -338,7 +372,14 @@ export function useProjects() {
     [updateProject],
   );
 
-  /** Valida e aplica as predecessoras de uma tarefa; não persiste se inválido. */
+  /**
+   * Valida e aplica as predecessoras de uma tarefa (por número de linha, como o usuário
+   * escolhe/vê); não persiste se inválido. Desde a Fase 2.7, `Task.dependencies` é por id — a
+   * validação (autodependência/duplicata/ciclo) continua rodando sobre número de linha
+   * (`DependencyGraphNode`, `dependencies.ts`), traduzido de/para id só aqui, na borda entre UI
+   * e o dado persistido. Ainda cria só dependência FS+0 (decisão 7 do plano da Fase 2.7 — editor
+   * de tipo/folga por linha é o Commit 3).
+   */
   const setTaskPredecessors = useCallback(
     (projectId: string, taskId: string, predecessorRowNumbers: number[]): DependencyValidation => {
       const project = rawProjects.find((p) => p.id === projectId);
@@ -348,10 +389,25 @@ export function useProjects() {
       const task = allTasks.find((t) => t.id === taskId);
       if (!task) return { valid: false, errors: ['Tarefa não encontrada.'] };
 
-      const candidateTasks = allTasks.map((t) => (t.id === taskId ? { ...t, predecessorRowNumbers } : t));
-      const validation = validateTaskDependencies(task.rowNumber, candidateTasks);
+      const rowNumberById = new Map(allTasks.map((t) => [t.id, t.rowNumber]));
+      const graphNodes: DependencyGraphNode[] = allTasks.map((t) => ({
+        rowNumber: t.rowNumber,
+        predecessorRowNumbers:
+          t.id === taskId
+            ? predecessorRowNumbers
+            : t.dependencies
+                .map((d) => rowNumberById.get(d.predecessorId))
+                .filter((n): n is number => n !== undefined),
+      }));
+
+      const validation = validateTaskDependencies(task.rowNumber, graphNodes);
       if (validation.valid) {
-        updateTask(projectId, taskId, { predecessorRowNumbers });
+        const idByRowNumber = new Map(allTasks.map((t) => [t.rowNumber, t.id]));
+        const dependencies: TaskDependency[] = predecessorRowNumbers
+          .map((row) => idByRowNumber.get(row))
+          .filter((predecessorId): predecessorId is string => predecessorId !== undefined)
+          .map((predecessorId) => ({ predecessorId, tipo: 'FS', folgaDias: 0 }));
+        updateTask(projectId, taskId, { dependencies });
       }
       return validation;
     },

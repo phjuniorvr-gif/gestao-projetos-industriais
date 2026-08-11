@@ -20,11 +20,22 @@ export interface DependencyValidation {
 }
 
 /**
- * Valida as predecessoras de uma tarefa: autodependência, número inexistente e ciclo.
+ * Forma mínima que a validação de grafo precisa — não `Task` inteiro (que desde a Fase 2.7 só
+ * tem `dependencies`, por id; número de linha é sempre traduzido por quem chama). Deixa o editor
+ * (e a validação sintética do wizard, `SelectedActivitiesList.tsx`) montar só isto, sem fabricar
+ * um `Task` falso com campos que não fazem sentido fora de uma tarefa de verdade.
+ */
+export interface DependencyGraphNode {
+  rowNumber: number;
+  predecessorRowNumbers: number[];
+}
+
+/**
+ * Valida as predecessoras de uma tarefa: autodependência, duplicata, número inexistente e ciclo.
  * `allTasks` deve conter a tarefa já com o novo valor de predecessorRowNumbers aplicado
  * (numeração contínua no projeto inteiro, não por atividade).
  */
-export function validateTaskDependencies(taskRowNumber: number, allTasks: Task[]): DependencyValidation {
+export function validateTaskDependencies(taskRowNumber: number, allTasks: DependencyGraphNode[]): DependencyValidation {
   const errors: string[] = [];
   const rowNumbers = new Set(allTasks.map((t) => t.rowNumber));
   const task = allTasks.find((t) => t.rowNumber === taskRowNumber);
@@ -54,7 +65,7 @@ export function validateTaskDependencies(taskRowNumber: number, allTasks: Task[]
   return { valid: errors.length === 0, errors };
 }
 
-function hasCycle(tasks: Task[]): boolean {
+function hasCycle(tasks: DependencyGraphNode[]): boolean {
   const graph = new Map<number, number[]>();
   for (const task of tasks) {
     graph.set(task.rowNumber, task.predecessorRowNumbers);

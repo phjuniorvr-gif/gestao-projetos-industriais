@@ -1,5 +1,15 @@
 import { supabase } from './supabaseClient';
-import type { Activity, Category, Project, ReplanCampo, ReplanCampoData, Replanejamento, Task } from '../types';
+import type {
+  Activity,
+  Category,
+  DependencyType,
+  Project,
+  ReplanCampo,
+  ReplanCampoData,
+  Replanejamento,
+  Task,
+  TaskDependency,
+} from '../types';
 import type { ReplanEntryInput } from '../utils/replan';
 
 interface ProjectRow {
@@ -31,13 +41,22 @@ interface TaskRow {
   name: string;
   category: Category;
   responsavel_id: string | null;
-  predecessor_row_numbers: number[];
   planned_start: string;
   planned_end: string;
   base_start: string;
   base_end: string;
   actual_start: string | null;
   actual_end: string | null;
+}
+
+/** Dependências (Fase 2.7) — tabela própria, não coluna de `tasks` (substitui
+ * predecessor_row_numbers, renomeada pra _legacy no Commit 4). */
+interface DependenciaRow {
+  id: string;
+  tarefa_id: string;
+  predecessora_id: string;
+  tipo: DependencyType;
+  folga_du: number;
 }
 
 interface ReplanejamentoRow {
@@ -66,16 +85,29 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
     ? supabase.from('projects').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false })
     : supabase.from('projects').select('*').is('deleted_at', null).order('code');
 
-  const [{ data: projectRows, error: projectsError }, { data: activityRows, error: activitiesError }, { data: taskRows, error: tasksError }] =
-    await Promise.all([
-      projectsQuery,
-      supabase.from('activities').select('*').order('position'),
-      supabase.from('tasks').select('*').order('position'),
-    ]);
+  const [
+    { data: projectRows, error: projectsError },
+    { data: activityRows, error: activitiesError },
+    { data: taskRows, error: tasksError },
+    { data: dependenciaRows, error: dependenciasError },
+  ] = await Promise.all([
+    projectsQuery,
+    supabase.from('activities').select('*').order('position'),
+    supabase.from('tasks').select('*').order('position'),
+    supabase.from('dependencias').select('*'),
+  ]);
 
   if (projectsError) throw projectsError;
   if (activitiesError) throw activitiesError;
   if (tasksError) throw tasksError;
+  if (dependenciasError) throw dependenciasError;
+
+  const dependenciesByTask = new Map<string, TaskDependency[]>();
+  for (const row of (dependenciaRows ?? []) as DependenciaRow[]) {
+    const list = dependenciesByTask.get(row.tarefa_id) ?? [];
+    list.push({ predecessorId: row.predecessora_id, tipo: row.tipo, folgaDias: row.folga_du });
+    dependenciesByTask.set(row.tarefa_id, list);
+  }
 
   const tasksByActivity = new Map<string, Task[]>();
   for (const row of (taskRows ?? []) as TaskRow[]) {
@@ -86,7 +118,7 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       name: row.name,
       category: row.category,
       responsavelId: row.responsavel_id ?? undefined,
-      predecessorRowNumbers: row.predecessor_row_numbers,
+      dependencies: dependenciesByTask.get(row.id) ?? [],
       plannedStart: row.planned_start,
       plannedEnd: row.planned_end,
       baseStart: row.base_start,
@@ -186,7 +218,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
           name: task.name,
           category: task.category,
           responsavel_id: orNull(task.responsavelId),
-          predecessor_row_numbers: task.predecessorRowNumbers,
           planned_start: task.plannedStart,
           planned_end: task.plannedEnd,
           base_start: task.baseStart,
@@ -203,6 +234,29 @@ export async function saveProjectTree(project: Project): Promise<void> {
   const { error: deleteTasksError } =
     taskIds.length > 0 ? await deleteTasks.not('id', 'in', formatIdList(taskIds)) : await deleteTasks;
   if (deleteTasksError) throw deleteTasksError;
+
+  // Dependências (Fase 2.7): apaga e reinsere em vez de upsert — uma linha de dependência não
+  // tem identidade própria pra preservar (nada referencia o id dela), então delete+insert é mais
+  // simples que diffar. Tarefas removidas na etapa acima já levam suas dependências junto (FK
+  // com on delete cascade nos dois lados); isto aqui cobre o caso de uma tarefa que continua
+  // existindo mas teve a LISTA de dependências alterada.
+  if (taskIds.length > 0) {
+    const { error: deleteDependenciasError } = await supabase.from('dependencias').delete().in('tarefa_id', taskIds);
+    if (deleteDependenciasError) throw deleteDependenciasError;
+
+    const allDependencias = allTasks.flatMap((task) =>
+      task.dependencies.map((dep) => ({
+        tarefa_id: task.id,
+        predecessora_id: dep.predecessorId,
+        tipo: dep.tipo,
+        folga_du: dep.folgaDias,
+      })),
+    );
+    if (allDependencias.length > 0) {
+      const { error: insertDependenciasError } = await supabase.from('dependencias').insert(allDependencias);
+      if (insertDependenciasError) throw insertDependenciasError;
+    }
+  }
 }
 
 /** Auditoria de replanejamento (Fase 2.5) — busca o log inteiro, mais simples que paginar por

@@ -4,7 +4,7 @@ import { Button, Card, FormField, Input, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import type { Category, CategoryEntry, Person, Replanejamento, Task, TaskView } from '../../types';
 import { formatDatePtBr } from '../../utils';
-import type { ReplanValidation } from '../../utils';
+import type { DependencyValidation, ReplanValidation } from '../../utils';
 import { TaskDependencyInput } from './TaskDependencyInput';
 
 type ReplanPatch = Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>;
@@ -14,13 +14,14 @@ const REPLAN_CAMPO_DATA_LABEL: Record<Replanejamento['campoData'], string> = { i
 
 interface TaskPanelProps {
   task: TaskView | null;
-  allTasks: Task[];
+  allTasks: TaskView[];
   categories: CategoryEntry[];
   people: Person[];
   replanejamentos: Replanejamento[];
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
+  onSetPredecessors: (taskId: string, predecessorRowNumbers: number[]) => DependencyValidation;
   onReplan: (taskId: string, patch: ReplanPatch, motivo: string) => ReplanValidation;
   onDelete: (taskId: string) => void;
 }
@@ -34,6 +35,7 @@ export function TaskPanel({
   onCreatePerson,
   onClose,
   onSave,
+  onSetPredecessors,
   onReplan,
   onDelete,
 }: TaskPanelProps) {
@@ -237,7 +239,7 @@ export function TaskPanel({
               taskRowNumber={task.rowNumber}
               onChange={(numbers, validation) => {
                 setDependencyError(!validation.valid);
-                if (validation.valid) onSave(task.id, { predecessorRowNumbers: numbers });
+                if (validation.valid) onSetPredecessors(task.id, numbers);
               }}
             />
           </FormField>

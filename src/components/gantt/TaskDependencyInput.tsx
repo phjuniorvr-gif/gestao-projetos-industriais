@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Input } from '../ui';
-import type { Task } from '../../types';
 import { formatPredecessors, parsePredecessors, validateTaskDependencies } from '../../utils';
-import type { DependencyValidation } from '../../utils';
+import type { DependencyGraphNode, DependencyValidation } from '../../utils';
 
 interface TaskDependencyInputProps {
   value: number[];
-  allTasks: Task[];
+  allTasks: DependencyGraphNode[];
   taskRowNumber: number;
   onChange: (numbers: number[], validation: DependencyValidation) => void;
 }

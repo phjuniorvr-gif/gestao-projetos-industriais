@@ -6,6 +6,7 @@ import {
   validateTaskDependencies,
 } from './dependencies';
 import type { DependencyType, Task, TaskDependency } from '../types';
+import type { DependencyGraphNode } from './dependencies';
 
 // Funções puras (Fase 2.7) — sem Supabase. Datas de teste caem numa semana cheia sem feriado
 // (seg 2026-08-03 a sex 2026-08-14, fim de semana em 08-08/09) pra manter a aritmética de dias
@@ -17,7 +18,7 @@ const baseTask: Task = {
   activityId: 'a1',
   name: 'Tarefa',
   category: 'eletrica',
-  predecessorRowNumbers: [],
+  dependencies: [],
   plannedStart: '2026-08-03',
   plannedEnd: '2026-08-10',
   baseStart: '2026-08-03',
@@ -25,8 +26,8 @@ const baseTask: Task = {
 };
 
 describe('validateTaskDependencies', () => {
-  function withPredecessors(rowNumber: number, predecessorRowNumbers: number[]): Task {
-    return { ...baseTask, id: `t${rowNumber}`, rowNumber, predecessorRowNumbers };
+  function withPredecessors(rowNumber: number, predecessorRowNumbers: number[]): DependencyGraphNode {
+    return { rowNumber, predecessorRowNumbers };
   }
 
   it('inválida quando a tarefa depende dela mesma', () => {

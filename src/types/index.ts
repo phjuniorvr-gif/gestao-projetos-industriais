@@ -67,11 +67,12 @@ export interface Task {
   category: Category;
   /** Quem executa a tarefa — Person.id, opcional (sem dado de origem migrado). */
   responsavelId?: string;
-  predecessorRowNumbers: number[];
-  /** Dependências tipadas (Fase 2.7) — substitui predecessorRowNumbers como fonte de verdade
-   * persistida; ainda opcional no Commit 1 (tipo/repo mudam juntos no Commit 2, mesmo padrão de
-   * baseStart/baseEnd na Fase 2.5). predecessorRowNumbers continua a FK real até lá. */
-  dependencies?: TaskDependency[];
+  /** Dependências tipadas (Fase 2.7) — substitui o antigo predecessorRowNumbers (renomeado pra
+   * predecessor_row_numbers_legacy no banco, Commit 4) como fonte de verdade persistida.
+   * projectsRepo.ts (fetchProjectsWhere/saveProjectTree) garante sempre preenchido, mesmo padrão
+   * de baseStart/baseEnd na Fase 2.5. Número de linha continua sendo como o usuário escolhe/vê a
+   * predecessora — só TaskView.predecessorRowNumbers (derivado) traduz de volta pra exibição. */
+  dependencies: TaskDependency[];
   plannedStart: string;
   plannedEnd: string;
   actualStart?: string;
@@ -136,9 +137,13 @@ export interface TaskView extends Task {
    * adivinha 0 antes de saber de verdade). */
   replanCount?: number;
   /** Alguma dependência (dos 4 tipos) tem a data PREVISTA da tarefa violando a regra da tabela
-   * FS/SS/FF/SF (Fase 2.7) — sinaliza, nunca bloqueia salvar (spec 2.7). undefined até o Commit 2
-   * ligar isto em recomputeProject (mesmo padrão de replanCount/lateCompletionDays). */
-  hasDependencyViolation?: boolean;
+   * FS/SS/FF/SF (Fase 2.7) — sinaliza, nunca bloqueia salvar (spec 2.7). Sempre calculado (não
+   * depende de fetch assíncrono próprio — feriados incompletos usam fallback [], mesmo padrão
+   * tolerante de computeProgress/taskWeight), por isso não é opcional como replanCount. */
+  hasDependencyViolation: boolean;
+  /** Número de linha de cada dependência, derivado de `dependencies` só pra exibição (GanttRow,
+   * "Predecessora(s)", editor) — `dependencies` (id) continua a fonte de verdade persistida. */
+  predecessorRowNumbers: number[];
 }
 
 export interface ActivityView extends Omit<Activity, 'tasks'> {

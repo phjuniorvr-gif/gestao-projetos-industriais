@@ -3,7 +3,8 @@ import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import { TaskDependencyInput } from '../gantt/TaskDependencyInput';
-import type { Person, Task } from '../../types';
+import type { Person } from '../../types';
+import type { DependencyGraphNode } from '../../utils';
 import type { DraftActivity } from './types';
 
 interface SelectedActivitiesListProps {
@@ -35,21 +36,14 @@ export function SelectedActivitiesList({
     return map;
   }, [flatTasks]);
 
-  const syntheticTasks: Task[] = useMemo(
+  // Só pra validação de dependência no wizard (autodependência/duplicata/ciclo) — não precisa
+  // fabricar um Task falso (Fase 2.7 simplificou isso: a validação só olha rowNumber +
+  // predecessorRowNumbers, não a tarefa inteira).
+  const syntheticTasks: DependencyGraphNode[] = useMemo(
     () =>
       flatTasks.map((t) => ({
-        id: t.key,
         rowNumber: lineByKey.get(t.key)!,
-        activityId: '',
-        name: t.name,
-        category: t.category,
         predecessorRowNumbers: t.predecessorRowNumbers,
-        plannedStart: '',
-        plannedEnd: '',
-        // Sintéticas só pra validação de dependência no wizard — nunca persistidas, então
-        // linha de base não tem sentido nenhum aqui, mas o tipo Task exige os campos.
-        baseStart: '',
-        baseEnd: '',
       })),
     [flatTasks, lineByKey],
   );

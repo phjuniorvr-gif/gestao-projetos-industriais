@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   computeLateCompletionDays,
   computeProgress,
-  computeTaskBlocked,
   computeTaskStartDelayed,
   computeTaskStatus,
   isLateCompletion,
@@ -16,7 +15,9 @@ import {
 import type { Task, TaskView } from '../types';
 
 // Funções puras (Fase 2.3) — sem Supabase, sem autenticação, `today`/`holidays` sempre
-// injetados pelo teste, nunca lidos do relógio real.
+// injetados pelo teste, nunca lidos do relógio real. computeTaskBlockedByDependencies (bloqueio
+// por FS/SS) e computeTaskDependencyViolated moraram pra dependencies.test.ts na Fase 2.7 —
+// dependency é assunto daquele arquivo, não deste.
 
 const baseTask: Task = {
   id: 't1',
@@ -24,7 +25,7 @@ const baseTask: Task = {
   activityId: 'a1',
   name: 'Tarefa',
   category: 'eletrica',
-  predecessorRowNumbers: [],
+  dependencies: [],
   plannedStart: '2026-08-01',
   plannedEnd: '2026-08-10',
   baseStart: '2026-08-01',
@@ -38,6 +39,8 @@ function taskView(overrides: Partial<TaskView> = {}): TaskView {
     isBlocked: false,
     isStartDelayed: false,
     isLateCompletion: false,
+    hasDependencyViolation: false,
+    predecessorRowNumbers: [],
     ...overrides,
   };
 }
@@ -96,26 +99,6 @@ describe('rollUpStatus', () => {
 
   it('planned quando nenhuma começou', () => {
     expect(rollUpStatus([{ status: 'planned' }, { status: 'planned' }])).toBe('planned');
-  });
-});
-
-describe('computeTaskBlocked', () => {
-  const predecessor = (status: 'completed' | 'planned'): Map<number, TaskView> =>
-    new Map([[1, taskView({ rowNumber: 1, status })]]);
-
-  it('não bloqueada antes de plannedStart, mesmo com predecessora pendente', () => {
-    const task: Task = { ...baseTask, rowNumber: 2, predecessorRowNumbers: [1], plannedStart: '2026-08-15' };
-    expect(computeTaskBlocked(task, predecessor('planned'), '2026-08-01')).toBe(false);
-  });
-
-  it('bloqueada depois de plannedStart, sem actualStart, com predecessora pendente', () => {
-    const task: Task = { ...baseTask, rowNumber: 2, predecessorRowNumbers: [1] };
-    expect(computeTaskBlocked(task, predecessor('planned'), '2026-08-05')).toBe(true);
-  });
-
-  it('não bloqueada quando a predecessora já concluiu', () => {
-    const task: Task = { ...baseTask, rowNumber: 2, predecessorRowNumbers: [1] };
-    expect(computeTaskBlocked(task, predecessor('completed'), '2026-08-05')).toBe(false);
   });
 });
 
