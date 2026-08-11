@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
+import { AddActivityDialog } from '../components/gantt';
 import {
   EMPTY_FILTERS,
-  EditProjectDialog,
+  ProjectDetailPanel,
   ProjectFilters,
   ProjectsHealthStrip,
   ProjectsTable,
@@ -13,16 +14,22 @@ import {
 import { Button, UndoToast } from '../components/ui';
 import { useHolidays, usePeople, useProjects, useUndoToast } from '../hooks';
 import { sortProjectsByCriticality } from '../utils';
-import { STATUS_LABEL, type Project, type ProjectStatus, type ProjectView } from '../types';
+import { STATUS_LABEL, type ProjectStatus, type ProjectView } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
-  const { projects, today, removeProject, restoreProject, updateProjectInfo } = useProjects();
+  const { projects, today, addActivity, removeProject, restoreProject, updateProjectInfo } = useProjects();
   const { people, createPerson } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
-  const [editing, setEditing] = useState<Project | null>(null);
+  // Guarda só o id, não o ProjectView capturado no clique — o painel precisa refletir o projeto
+  // sempre atualizado (ex.: depois de salvar Identificação ou adicionar atividade, sem fechar),
+  // não uma foto congelada de quando a linha foi clicada.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingActivityToId, setAddingActivityToId] = useState<string | null>(null);
+  const editing = projects.find((p) => p.id === editingId) ?? null;
+  const addingActivityTo = projects.find((p) => p.id === addingActivityToId) ?? null;
 
   const handleDelete = (project: ProjectView) => {
     removeProject(project.id);
@@ -101,20 +108,30 @@ export function ProjectsPage() {
         people={people}
         today={today}
         holidays={safeHolidays}
-        onEdit={setEditing}
+        onEdit={(project) => setEditingId(project.id)}
         onDelete={handleDelete}
       />
 
-      <EditProjectDialog
-        key={editing?.id ?? 'closed'}
+      <ProjectDetailPanel
         project={editing}
         people={people}
+        today={today}
+        holidays={safeHolidays}
         onCreatePerson={createPerson}
-        onCancel={() => setEditing(null)}
         onSave={(patch) => {
           if (editing) updateProjectInfo(editing.id, patch);
-          setEditing(null);
         }}
+        onAddActivity={() => setAddingActivityToId(editingId)}
+        onClose={() => setEditingId(null)}
+      />
+
+      <AddActivityDialog
+        project={addingActivityTo}
+        onAdd={(name) => {
+          if (addingActivityTo) addActivity(addingActivityTo.id, name);
+          setAddingActivityToId(null);
+        }}
+        onCancel={() => setAddingActivityToId(null)}
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />

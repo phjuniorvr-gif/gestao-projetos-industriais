@@ -161,25 +161,37 @@ export interface TeamAvatarEntry {
   hasDelayedTask: boolean;
 }
 
+interface TeamTaskInput {
+  responsavelId?: string;
+  status: ProjectStatus;
+}
+
+function teamFromTasks(tasks: TeamTaskInput[], people: Person[]): TeamAvatarEntry[] {
+  const byId = new Map<string, TeamAvatarEntry>();
+  for (const task of tasks) {
+    if (!task.responsavelId) continue;
+    const existing = byId.get(task.responsavelId);
+    const hasDelayedTask = (existing?.hasDelayedTask ?? false) || task.status === 'delayed';
+    if (existing) {
+      existing.hasDelayedTask = hasDelayedTask;
+      continue;
+    }
+    const person = people.find((p) => p.id === task.responsavelId);
+    if (person) byId.set(task.responsavelId, { person, hasDelayedTask });
+  }
+  return Array.from(byId.values());
+}
+
 /**
  * Equipe do projeto, derivada de `Task.responsavelId` (não de atividade — Fase 2.1 não criou
  * responsável por atividade). `hasDelayedTask` destaca quem tem ao menos 1 tarefa com
  * status 'delayed' nesse projeto, pra realce visual (avatar em laranja).
  */
 export function computeProjectTeam(project: ProjectView, people: Person[]): TeamAvatarEntry[] {
-  const byId = new Map<string, TeamAvatarEntry>();
-  for (const activity of project.activities) {
-    for (const task of activity.tasks) {
-      if (!task.responsavelId) continue;
-      const existing = byId.get(task.responsavelId);
-      const hasDelayedTask = (existing?.hasDelayedTask ?? false) || task.status === 'delayed';
-      if (existing) {
-        existing.hasDelayedTask = hasDelayedTask;
-        continue;
-      }
-      const person = people.find((p) => p.id === task.responsavelId);
-      if (person) byId.set(task.responsavelId, { person, hasDelayedTask });
-    }
-  }
-  return Array.from(byId.values());
+  return teamFromTasks(project.activities.flatMap((a) => a.tasks), people);
+}
+
+/** Mesma derivação, escopada a uma única atividade (painel de detalhe, seção "Atividades e equipe"). */
+export function computeActivityTeam(activity: { tasks: TeamTaskInput[] }, people: Person[]): TeamAvatarEntry[] {
+  return teamFromTasks(activity.tasks, people);
 }
