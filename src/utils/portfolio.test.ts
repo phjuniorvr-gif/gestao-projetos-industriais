@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeActiveFilterCount,
+  computeAttentionItems,
   computeCriticality,
   computeExpectedProgress,
   computeFocusTask,
   computeProjectTeam,
   computeScheduleDeviationDays,
   computeStatusDistribution,
+  computeWorkload,
   computeWorstDeviation,
   sortProjectsByCriticality,
 } from './portfolio';
@@ -307,5 +309,124 @@ describe('computeFocusTask', () => {
       taskView({ id: 't1', rowNumber: 1, plannedEnd: '2026-01-01', status: 'planned' }),
     ];
     expect(computeFocusTask(tasks)?.id).toBe('t1');
+  });
+});
+
+describe('computeAttentionItems', () => {
+  const today = '2026-08-11';
+
+  it('projeto concluído nunca aparece', () => {
+    const project = baseProject({ status: 'completed', plannedEnd: '2026-08-12' });
+    expect(computeAttentionItems([project], today, [])).toEqual([]);
+  });
+
+  it('atrasado entra como overdue, com os dias de desvio', () => {
+    const project = baseProject({ id: 'a', status: 'delayed', plannedEnd: '2026-08-01' });
+    const items = computeAttentionItems([project], today, []);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ kind: 'overdue' });
+    expect(items[0].days).toBeGreaterThan(0);
+  });
+
+  it('entrega dentro de 30 dias entra como dueSoon; fora da janela não entra', () => {
+    const dentro = baseProject({ id: 'a', status: 'in_progress', plannedEnd: '2026-08-20' }); // 9 dias
+    const fora = baseProject({ id: 'b', status: 'in_progress', plannedEnd: '2026-12-01' });
+    const items = computeAttentionItems([dentro, fora], today, []);
+    expect(items.map((i) => i.project.id)).toEqual(['a']);
+    expect(items[0].kind).toBe('dueSoon');
+    expect(items[0].days).toBe(9);
+  });
+
+  it('início previsto dentro de 30 dias, projeto ainda planned: upcomingStart', () => {
+    const project = baseProject({ id: 'a', status: 'planned', plannedStart: '2026-08-25', plannedEnd: '2026-12-01' });
+    const items = computeAttentionItems([project], today, []);
+    expect(items[0].kind).toBe('upcomingStart');
+    expect(items[0].days).toBe(14);
+  });
+
+  it('ordena atrasados primeiro (pior desvio primeiro), depois por dias restantes crescente; corta em 5', () => {
+    const projects = [
+      baseProject({ id: 'p1', status: 'in_progress', plannedEnd: '2026-08-25' }), // dueSoon, 14d
+      baseProject({ id: 'p2', status: 'delayed', plannedEnd: '2026-08-01' }), // overdue, desvio menor
+      baseProject({ id: 'p3', status: 'delayed', plannedEnd: '2026-01-01' }), // overdue, desvio maior
+      baseProject({ id: 'p4', status: 'in_progress', plannedEnd: '2026-08-15' }), // dueSoon, 4d
+    ];
+    const items = computeAttentionItems(projects, today, []);
+    expect(items.map((i) => i.project.id)).toEqual(['p3', 'p2', 'p4', 'p1']);
+  });
+});
+
+describe('computeWorkload', () => {
+  const people: Person[] = [
+    { id: 'joao', name: 'João', active: true },
+    { id: 'maria', name: 'Maria', active: true },
+  ];
+
+  function projectWithTasks(id: string, gerenteId: string | undefined, tasks: Partial<TaskView>[]): ProjectView {
+    return baseProject({
+      id,
+      gerenteId,
+      activities: [
+        {
+          id: `${id}-a1`,
+          projectId: id,
+          name: 'Atividade',
+          tasks: tasks.map((t, i) => ({
+            id: `${id}-t${i}`,
+            rowNumber: i + 1,
+            activityId: `${id}-a1`,
+            name: `Tarefa ${i}`,
+            category: 'eletrica',
+            predecessorRowNumbers: [],
+            plannedStart: '2026-01-01',
+            plannedEnd: '2026-01-10',
+            status: 'planned',
+            isBlocked: false,
+            isStartDelayed: false,
+            isLateCompletion: false,
+            ...t,
+          })),
+          status: 'planned',
+          blockedCount: 0,
+          startDelayedCount: 0,
+          isLateCompletion: false,
+          progress: 0,
+        },
+      ],
+    });
+  }
+
+  it('conta só tarefas não concluídas, não o histórico todo', () => {
+    const project = projectWithTasks('p1', undefined, [
+      { responsavelId: 'joao', status: 'planned' },
+      { responsavelId: 'joao', status: 'completed' }, // não conta
+      { responsavelId: 'joao', status: 'delayed' },
+    ]);
+    const workload = computeWorkload([project], people);
+    expect(workload).toHaveLength(1);
+    expect(workload[0].taskCount).toBe(2);
+    expect(workload[0].lateTaskCount).toBe(1);
+  });
+
+  it('soma projetos gerenciados só pra quem já aparece por ter tarefa em aberto', () => {
+    const project = projectWithTasks('p1', 'joao', [{ responsavelId: 'joao', status: 'planned' }]);
+    const workload = computeWorkload([project], people);
+    expect(workload[0].managedProjectCount).toBe(1);
+  });
+
+  it('gerente sem nenhuma tarefa atribuída não entra na lista', () => {
+    const project = projectWithTasks('p1', 'maria', [{ responsavelId: 'joao', status: 'planned' }]);
+    const workload = computeWorkload([project], people);
+    expect(workload.map((w) => w.person.id)).toEqual(['joao']);
+  });
+
+  it('ordena por taskCount desc', () => {
+    const project = projectWithTasks('p1', undefined, [
+      { responsavelId: 'joao', status: 'planned' },
+      { responsavelId: 'maria', status: 'planned' },
+      { responsavelId: 'maria', status: 'delayed' },
+    ]);
+    const workload = computeWorkload([project], people);
+    expect(workload.map((w) => w.person.id)).toEqual(['maria', 'joao']);
   });
 });

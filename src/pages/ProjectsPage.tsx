@@ -4,11 +4,13 @@ import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { AddActivityDialog } from '../components/gantt';
 import {
+  AttentionPanel,
   EMPTY_FILTERS,
   ProjectDetailPanel,
   ProjectFilters,
   ProjectsHealthStrip,
   ProjectsTable,
+  WorkloadPanel,
   type ProjectFiltersState,
 } from '../components/projects';
 import { Button, UndoToast } from '../components/ui';
@@ -127,16 +129,23 @@ export function ProjectsPage() {
         />
       </div>
 
-      <ProjectsTable
-        projects={sorted}
-        people={people}
-        today={today}
-        holidays={safeHolidays}
-        onEdit={(project) => setEditingId(project.id)}
-        onDelete={handleDelete}
-        onUpdateTask={updateTask}
-        onDuplicate={handleDuplicate}
-      />
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <ProjectsTable
+          projects={sorted}
+          people={people}
+          today={today}
+          holidays={safeHolidays}
+          onEdit={(project) => setEditingId(project.id)}
+          onDelete={handleDelete}
+          onUpdateTask={updateTask}
+          onDuplicate={handleDuplicate}
+        />
+
+        <div className="space-y-4">
+          <AttentionPanel projects={projects} today={today} holidays={safeHolidays} />
+          <WorkloadPanel projects={projects} people={people} />
+        </div>
+      </div>
 
       <ProjectDetailPanel
         project={editing}

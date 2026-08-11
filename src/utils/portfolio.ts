@@ -1,6 +1,6 @@
 import type { Holiday, Person, ProjectStatus, ProjectView, TaskView } from '../types';
 import type { ProjectFiltersState } from '../components/projects/ProjectFilters';
-import { addBusinessDays, businessDaysBetween } from './dates';
+import { addBusinessDays, businessDaysBetween, diffDays } from './dates';
 import { taskWeight } from './status';
 
 /**
@@ -209,4 +209,94 @@ export function computeFocusTask(tasks: TaskView[]): TaskView | null {
     if (a.plannedEnd !== b.plannedEnd) return a.plannedEnd < b.plannedEnd ? -1 : 1;
     return a.rowNumber - b.rowNumber;
   })[0];
+}
+
+const ATTENTION_WINDOW_DAYS = 30;
+
+export interface AttentionItem {
+  project: ProjectView;
+  /** `overdue` = já passou do previsto; `dueSoon` = entrega dentro da janela; `upcomingStart`
+   * = início previsto dentro da janela, ainda não começou. */
+  kind: 'overdue' | 'dueSoon' | 'upcomingStart';
+  /** Dias de atraso (`overdue`) ou dias restantes (`dueSoon`/`upcomingStart`). */
+  days: number;
+}
+
+/**
+ * "Atenção nos próximos 30 dias" — um item por projeto (o mais urgente entre atrasado/entrega
+ * próxima/início próximo), ordenado por urgência e limitado a 5. Projeto concluído nunca aparece
+ * — não tem mais nada a "atender".
+ */
+export function computeAttentionItems(projects: ProjectView[], today: string, holidays: Holiday[]): AttentionItem[] {
+  const items: AttentionItem[] = [];
+
+  for (const project of projects) {
+    if (project.status === 'completed') continue;
+
+    if (project.status === 'delayed') {
+      items.push({ project, kind: 'overdue', days: computeScheduleDeviationDays(project, today, holidays) });
+      continue;
+    }
+
+    if (project.plannedEnd) {
+      const daysToEnd = diffDays(today, project.plannedEnd);
+      if (daysToEnd >= 0 && daysToEnd <= ATTENTION_WINDOW_DAYS) {
+        items.push({ project, kind: 'dueSoon', days: daysToEnd });
+        continue;
+      }
+    }
+
+    if (project.status === 'planned' && project.plannedStart) {
+      const daysToStart = diffDays(today, project.plannedStart);
+      if (daysToStart >= 0 && daysToStart <= ATTENTION_WINDOW_DAYS) {
+        items.push({ project, kind: 'upcomingStart', days: daysToStart });
+      }
+    }
+  }
+
+  return items
+    .sort((a, b) => {
+      if (a.kind === 'overdue' && b.kind !== 'overdue') return -1;
+      if (b.kind === 'overdue' && a.kind !== 'overdue') return 1;
+      if (a.kind === 'overdue' && b.kind === 'overdue') return b.days - a.days; // pior desvio primeiro
+      return a.days - b.days; // menos dias restantes primeiro
+    })
+    .slice(0, 5);
+}
+
+export interface WorkloadEntry {
+  person: Person;
+  taskCount: number;
+  lateTaskCount: number;
+  managedProjectCount: number;
+}
+
+/**
+ * Carga por pessoa — conta TAREFAS não concluídas (não todas, como um histórico acumulado
+ * cresceria pra sempre) — é a medida de quem está afogado AGORA, não de quem já trabalhou muito
+ * algum dia. `managedProjectCount` só soma pra quem já aparece por ter tarefa em aberto (gerente
+ * sem nenhuma tarefa atribuída não entra na lista — painel é sobre carga de execução).
+ */
+export function computeWorkload(projects: ProjectView[], people: Person[]): WorkloadEntry[] {
+  const byId = new Map<string, WorkloadEntry>();
+
+  for (const project of projects) {
+    for (const task of project.activities.flatMap((a) => a.tasks)) {
+      if (!task.responsavelId || task.status === 'completed') continue;
+      const person = people.find((p) => p.id === task.responsavelId);
+      if (!person) continue;
+      const entry = byId.get(person.id) ?? { person, taskCount: 0, lateTaskCount: 0, managedProjectCount: 0 };
+      entry.taskCount += 1;
+      if (task.status === 'delayed') entry.lateTaskCount += 1;
+      byId.set(person.id, entry);
+    }
+  }
+
+  for (const project of projects) {
+    if (!project.gerenteId) continue;
+    const entry = byId.get(project.gerenteId);
+    if (entry) entry.managedProjectCount += 1;
+  }
+
+  return Array.from(byId.values()).sort((a, b) => b.taskCount - a.taskCount);
 }
