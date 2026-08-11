@@ -5,23 +5,25 @@ import { PageHeader } from '../components/layout';
 import {
   EMPTY_FILTERS,
   EditProjectDialog,
-  Legend,
   ProjectCard,
   ProjectFilters,
-  StatusCard,
+  ProjectsHealthStrip,
   type ProjectFiltersState,
 } from '../components/projects';
 import { Button, ConfirmDialog, EmptyState } from '../components/ui';
-import { usePeople, useProjects } from '../hooks';
-import { STATUS_COLOR, STATUS_LABEL, type Project } from '../types';
+import { useHolidays, usePeople, useProjects } from '../hooks';
+import { STATUS_LABEL, type Project, type ProjectStatus } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
-  const { projects, removeProject, updateProjectInfo } = useProjects();
+  const { projects, today, removeProject, updateProjectInfo } = useProjects();
   const { people, createPerson } = usePeople();
+  const { holidays, loaded: holidaysLoaded } = useHolidays();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
+
+  const safeHolidays = holidaysLoaded ? holidays : [];
 
   const units = useMemo(
     () => Array.from(new Set(projects.map((p) => p.unit).filter(Boolean))).sort(),
@@ -33,26 +35,29 @@ export function ProjectsPage() {
     [projects],
   );
 
+  const activeStatus = useMemo(
+    () => (Object.keys(STATUS_LABEL) as ProjectStatus[]).find((s) => STATUS_LABEL[s] === filters.status) ?? null,
+    [filters.status],
+  );
+  const toggleStatus = (status: ProjectStatus) => {
+    setFilters((f) => ({ ...f, status: f.status === STATUS_LABEL[status] ? '' : STATUS_LABEL[status] }));
+  };
+
   const filtered = useMemo(
     () =>
       projects.filter((p) => {
         if (filters.unit && p.unit !== filters.unit) return false;
         if (filters.status && STATUS_LABEL[p.status] !== filters.status) return false;
         if (filters.year && p.plannedStart?.slice(0, 4) !== filters.year) return false;
+        if (filters.search.trim()) {
+          const term = filters.search.trim().toLowerCase();
+          const gerente = people.find((person) => person.id === p.gerenteId)?.name ?? '';
+          const haystack = `${p.code} ${p.name} ${gerente}`.toLowerCase();
+          if (!haystack.includes(term)) return false;
+        }
         return true;
       }),
-    [projects, filters],
-  );
-
-  const counts = useMemo(
-    () => ({
-      total: filtered.length,
-      completed: filtered.filter((p) => p.status === 'completed').length,
-      inProgress: filtered.filter((p) => p.status === 'in_progress').length,
-      delayed: filtered.filter((p) => p.status === 'delayed').length,
-      planned: filtered.filter((p) => p.status === 'planned').length,
-    }),
-    [filtered],
+    [projects, filters, people],
   );
 
   return (
@@ -71,15 +76,13 @@ export function ProjectsPage() {
           }
         />
 
-        <div className="flex flex-wrap gap-3">
-          <StatusCard label="Total de Projetos" value={counts.total} color="#0F1720" />
-          <StatusCard label="Concluído" value={counts.completed} color={STATUS_COLOR.completed} />
-          <StatusCard label="Em Andamento" value={counts.inProgress} color={STATUS_COLOR.in_progress} />
-          <StatusCard label="Atrasado" value={counts.delayed} color={STATUS_COLOR.delayed} />
-          <StatusCard label="Planejado" value={counts.planned} color={STATUS_COLOR.planned} />
-        </div>
-
-        <Legend />
+        <ProjectsHealthStrip
+          projects={projects}
+          today={today}
+          holidays={safeHolidays}
+          activeStatus={activeStatus}
+          onToggleStatus={toggleStatus}
+        />
       </div>
 
       {filtered.length === 0 ? (
