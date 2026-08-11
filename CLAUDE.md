@@ -41,6 +41,17 @@ Vite + React + TypeScript, Supabase (Postgres + Auth + RLS), deploy na Vercel. C
 - **Exclusão de atividade com tarefas**: bloqueada por padrão (resolve a divergência apontada na auditoria — `useProjects.removeActivity()` hoje cascateia). Administrador tem ação explícita "excluir atividade e suas N tarefas", com **Desfazer de 6s** depois de executar (mesmo padrão de exclusão sem confirmação prévia da Fase 3).
 - **Toda migração de schema é precedida de um dump do banco**; o caminho onde o dump foi salvo é sempre informado ao usuário antes de aplicar a migração.
 
+## Decisões da Fase 3 (Tela de Projetos)
+
+- **Criação de projeto continua no wizard de página cheia** (`NewProjectPage.tsx`) — o painel lateral novo (`ProjectDetailPanel.tsx`) é só pra visualizar/editar projeto já existente. O protótipo cria projeto dentro do próprio painel; a spec da Fase 3 só descreve os 3 caminhos de edição, não criação — não foi mudado.
+- **Equipe/avatares derivados de `Task.responsavelId`, não de atividade** (`computeProjectTeam`/`computeActivityTeam`, `src/utils/portfolio.ts`) — o protótipo mostra por atividade, mas é anterior à decisão da Fase 2.1 (responsável é por tarefa; atividade nunca teve esse campo).
+- **Sem `%` bruto editável em lugar nenhum da tela** (violaria a regra de ouro — avanço é sempre derivado, Fase 2.2). A edição inline ("caminho 1" da spec) marca uma tarefa como concluída: `computeFocusTask` sugere a tarefa não concluída com prazo mais vencido, mas o popover (`InlineTaskProgressEdit.tsx`) sempre deixa trocar antes de confirmar — nunca grava às cegas na tarefa escolhida pelo sistema.
+- **Altura de linha da tabela de Projetos: ~64px, exceção documentada em `design.md`** — a régua de 34px (Fase 1) não cabe o mini-gantt de 2 trilhas + avanço com barra/delta que essa linha embute; 34px continua valendo pra linha de dado simples (ex.: Gantt da Fase 4).
+- **Faixa de saúde (hero + barra empilhada) reflete o portfólio inteiro sempre**, imune a busca/unidade/ano — só o clique no chip filtra a tabela. Evita a faixa "esvaziar" quando alguém só busca um projeto específico.
+- **"Carga por pessoa" conta só tarefas não concluídas**, não o histórico todo — é a medida de quem está afogado agora, não um contador que só cresce.
+- **`ProjectCard.tsx` não foi apagado** mesmo sem uso em `ProjectsPage.tsx` (que virou tabela) — o protótipo mobile (`referencia/Gestao-Projetos-Mobile.html`) usa card, não tabela; fica reservado pra Fase 6 reusar em vez de reconstruir.
+- **`useUndoToast`/`UndoToast.tsx` são genéricos** (mensagem + callback opcional) — nasceram pra exclusão de projeto, reusados sem alteração quando a exclusão de atividade com Desfazer (linha 41 acima) for implementada. Sem teste automatizado: este projeto não tem infraestrutura de teste de hook/componente React (`@testing-library/react`/`jsdom`), só função pura (Vitest) — decisão confirmada com o usuário de não adicionar essa dependência só por causa de um hook de 14 linhas; verificado manualmente.
+
 ## Permissões
 
 Configuradas em `.claude/settings.local.json` (local, fora do git) para não precisar aprovar comando por comando. Regras:

@@ -58,19 +58,22 @@ Quase nenhuma. Separação por borda de 1px (`border-border`), não por sombra. 
 
 ## Densidade de tabela — regra para as Fases 3/4
 
-Linha de tabela: **34px de altura**. Esta régua **não foi aplicada retroativamente** nas tabelas atuais (`ProjectsPage`, `ActivitiesPage`, Gantt) porque essas telas são reescritas do zero nas Fases 3 e 4 do spec — aplicar agora seria refazer duas vezes o mesmo trabalho. Fica registrado aqui como requisito obrigatório para quando essas telas forem reconstruídas: densidade é requisito, não estética — cronograma com linha alta esconde o encadeamento.
+Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma informação por coluna, sem gráfico embutido (ex.: lista de atividades do painel lateral, tabela do Gantt na Fase 4: densidade ali é requisito, não estética — cronograma com linha alta esconde o encadeamento).
+
+**Correção feita na Fase 3, ao construir a tabela de Projetos de verdade**: a linha da tabela de Projetos embute mini-gantt de 2 trilhas (previsto/real) + bloco de avanço com barra e texto de delta — não cabe em 34px sem esvaziar a informação que a própria spec pede pra essa coluna. Régua real usada: **~64px** (altura do conteúdo, sem valor fixo forçado — cada linha cresce até caber Projeto/Cronograma/Avanço). 34px continua valendo como regra padrão pra qualquer linha sem visualização embutida; a tabela de Projetos é a exceção documentada, não a régua geral revogada.
 
 ## Componentes já padronizados nesta fase
 
 `Button`, `Card`, `Input`, `Select`, `Textarea`, `Checkbox`, `Badge`/`StatusBadge`, `EmptyState`, `Skeleton`, `ConfirmDialog`, `FormField` (`src/components/ui/`) — cores, raio e foco herdados dos tokens acima. `Sidebar` (azul institucional, sem mudança de código, só de token). `PageHeader` (escala tipográfica). `TodayLine` do Gantt recebeu o azul de ação no lugar do laranja de atraso (a linha de "hoje" é azul por regra explícita do spec; o rótulo fixo e o botão "Ir para hoje" são entrega da Fase 4).
 
-## Ainda não existem — entregas das Fases 3/4
+## Entregues na Fase 3
 
-Estes itens da lista "Componentes a padronizar" do spec são **comportamento novo**, não uma tela existente para restilizar — nascem já com os tokens acima quando forem construídos:
+- **Mini-gantt** (`MiniGantt.tsx`) na coluna "Cronograma" da tabela de Projetos — autoescalado no período do próprio projeto, reusado também no painel lateral.
+- **Menu de ações `⋯` sempre visível** (`ProjectActionsMenu.tsx`), substituindo os ícones que só apareciam no hover.
+- **Painel lateral** de detalhe/edição (`ProjectDetailPanel.tsx`) — painel, não modal; lista continua visível atrás, fecha com Esc.
+- **Toast com desfazer** de 6s (`useUndoToast`/`UndoToast.tsx`) — genérico, nasceu pra exclusão de projeto, pronto pra reusar sem alteração na exclusão de atividade (Fase 4/próxima, já prevista no CLAUDE.md).
 
-- **Mini-gantt** na coluna "Cronograma" da tabela de Projetos (Fase 3).
-- **Menu de ações `⋯` sempre visível** (Fase 3), substituindo os ícones que hoje só aparecem no hover.
-- **Painel lateral** de detalhe/edição (Fase 3) — painel, não modal; lista continua visível atrás, fecha com Esc.
+## Ainda não existem — entregas de fases futuras
+
 - **Modal de replanejamento** com motivo obrigatório (Fase 2.5/4).
-- **Toast com desfazer** de 6s (Fase 3, exclusão de projeto/atividade).
 - **Tooltip** de barra do Gantt (Fase 4).
