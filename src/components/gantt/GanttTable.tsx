@@ -1,8 +1,9 @@
 import { Fragment } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import type { ActivityView, CategoryEntry, ProjectView, TaskView } from '../../types';
-import { formatDatePtBr } from '../../utils';
-import { StatusBadge } from '../shared/StatusBadge';
+import type { ActivityView, CategoryEntry, Holiday, Person, ProjectView, TaskView } from '../../types';
+import { businessDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
+import { getColumnRect, getGanttColumns, getGanttLeftWidth, type GanttColumnKey } from './ganttColumns';
+import { GanttProgressCell } from './GanttProgressCell';
 import {
   calculatePortfolioRange,
   getMonthTicks,
@@ -21,7 +22,9 @@ interface GanttTableProps {
   collapsedProjectIds: Set<string>;
   collapsedActivityIds: Set<string>;
   categories: CategoryEntry[];
-  /** Quando verdadeiro, mostra só Linha / Estrutura / Status / Gantt. */
+  people: Person[];
+  holidays: Holiday[];
+  /** Quando verdadeiro, mostra só Linha / Estrutura / Avanço. */
   compact: boolean;
   /** Quando verdadeiro, mostra os botões de adicionar/excluir atividade e tarefa. */
   editMode: boolean;
@@ -38,6 +41,8 @@ export function GanttTable({
   collapsedProjectIds,
   collapsedActivityIds,
   categories,
+  people,
+  holidays,
   compact,
   editMode,
   onToggleProject,
@@ -56,60 +61,50 @@ export function GanttTable({
     projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)).map((t) => [t.rowNumber, t]),
   );
 
-  const thClass = 'whitespace-nowrap bg-page px-4 align-middle sticky z-20';
-  const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted';
+  // Fase 4: largura do painel esquerdo somada de uma lista única de colunas (ganttColumns.ts) —
+  // nunca mais escrita à mão (era o bug que a spec avisa: LINHA_COL_WIDTH/ESTRUTURA_COL_WIDTH/
+  // STATUS_COL_LEFT hardcoded, cada um separado, sem garantia de bater com o que é renderizado).
+  const columns = getGanttColumns(!compact);
+  const leftWidth = getGanttLeftWidth(columns);
+  const lastColumnKey = columns[columns.length - 1].key;
+
+  // px-2 (não px-4): colunas como Linha/Dur. têm só 40-46px — com px-4 (16px de cada lado) sobra
+  // pouco mais de 8px de área útil de texto, cortando "Linha" pra "LINH" mesmo cabendo de sobra
+  // em largura de coluna. px-2 (8px cada lado) é o mesmo respiro que o protótipo usa nas colunas
+  // do painel esquerdo.
+  const thClass = 'truncate bg-page px-2 align-middle sticky z-30';
   const HEADER_ROW_HEIGHT = 30;
-  // Larguras fixas das colunas congeladas (Linha/Estrutura/Status na visão compacta), usadas para alinhar o `left` do sticky.
-  const LINHA_COL_WIDTH = 64; // w-16
-  const ESTRUTURA_COL_WIDTH = 340;
-  const STATUS_COL_LEFT = LINHA_COL_WIDTH + ESTRUTURA_COL_WIDTH;
-  const frozenTdClass = 'sticky z-25';
-  const estruturaThClass = compact ? 'w-[340px] truncate' : 'min-w-[340px]';
+  // Painel inteiro (todas as colunas, não só Linha/Estrutura) é sticky — é o que "painel
+  // esquerdo" quer dizer: fica fixo enquanto o Gantt rola por baixo. `truncate` aqui (não só na
+  // Estrutura) — sem isso "26/08/2026 até 17/01/2027" quebra em 3 linhas dentro dos 104px da
+  // coluna Previsto/Real e a linha de Projeto/Atividade cresce bem além dos 34px (era exatamente
+  // esse o efeito visto no checkpoint).
+  const frozenTdClass = 'sticky z-25 h-[34px] truncate bg-card px-2 py-0 align-middle';
+
+  function columnStyle(key: GanttColumnKey) {
+    return getColumnRect(columns, key);
+  }
 
   return (
     <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
-      <table className="min-w-full border-collapse text-sm">
+      {/* table-layout: fixed + largura total explícita — sem isso, o layout automático deixa
+          conteúdo mais largo que a coluna declarada esticar a coluna de verdade, o `left` das
+          colunas sticky seguintes fica errado, e o Gantt (que não é sticky, só flui depois) passa
+          por cima do painel esquerdo. Largura vem inteira de getGanttLeftWidth/totalWidth — mesma
+          fonte única das colunas, nunca dois números que podem divergir. */}
+      <table className="table-fixed border-collapse text-sm" style={{ width: leftWidth + width }}>
         <thead className="border-b border-border">
           <tr className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
-            <th rowSpan={3} className={`${thClass} top-0 left-0 z-30 w-16 text-center`}>
-              Linha
-            </th>
-            <th
-              rowSpan={3}
-              className={`${thClass} top-0 z-30 ${estruturaThClass} ${!compact ? 'border-r border-border' : ''}`}
-              style={{ left: LINHA_COL_WIDTH }}
-            >
-              Estrutura
-            </th>
-            {!compact && (
-              <>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Categoria
-                </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Predecessora(s)
-                </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Início prev.
-                </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Fim prev.
-                </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Início real
-                </th>
-                <th rowSpan={3} className={`${thClass} top-0 min-w-[120px] text-center`}>
-                  Fim real
-                </th>
-              </>
-            )}
-            <th
-              rowSpan={3}
-              className={`${thClass} top-0 min-w-[120px] text-center ${compact ? 'z-30 border-r border-border' : ''}`}
-              style={compact ? { left: STATUS_COL_LEFT } : undefined}
-            >
-              Status
-            </th>
+            {columns.map((column) => (
+              <th
+                key={column.key}
+                rowSpan={3}
+                className={`${thClass} top-0 ${column.align === 'right' || column.key === 'linha' ? 'text-right' : column.key === 'estrutura' ? 'text-left' : 'text-center'} ${column.key === lastColumnKey ? 'border-r border-border' : ''}`}
+                style={columnStyle(column.key)}
+              >
+                {column.label}
+              </th>
+            ))}
             <th
               className={`relative ${thClass} top-0 border-b border-border/70`}
               style={{ width, height: HEADER_ROW_HEIGHT }}
@@ -168,15 +163,10 @@ export function GanttTable({
             return (
               <Fragment key={project.id}>
                 <tr className="border-b border-border bg-page/70">
-                  <td className={`${frozenTdClass} left-0 bg-card px-4 py-3.5 text-center text-xs text-text-muted`}>
+                  <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('linha')}>
                     —
                   </td>
-                  <td
-                    className={`${frozenTdClass} bg-card px-4 py-3.5 ${
-                      compact ? 'w-[340px] overflow-hidden' : 'border-r border-border'
-                    }`}
-                    style={{ left: LINHA_COL_WIDTH }}
-                  >
+                  <td className={`${frozenTdClass} overflow-hidden`} style={columnStyle('estrutura')}>
                     <div className="flex min-w-0 items-center gap-2">
                       <button
                         type="button"
@@ -189,7 +179,7 @@ export function GanttTable({
                           <ChevronDown className="h-4 w-4 shrink-0" />
                         )}
                         <RowTypeBadge type="project" />
-                        <span className={compact ? 'truncate' : 'whitespace-nowrap'}>
+                        <span className="truncate">
                           {project.code} — {project.name}
                         </span>
                       </button>
@@ -206,28 +196,45 @@ export function GanttTable({
                   </td>
                   {!compact && (
                     <>
-                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
-                      <td className="px-4 py-3.5 text-center text-xs text-text-muted">—</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.plannedStart)}</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.plannedEnd)}</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.actualStart)}</td>
-                      <td className={dateTdClass}>{formatDatePtBr(project.actualEnd)}</td>
+                      <td className={frozenTdClass} style={columnStyle('categoria')} />
+                      <td className={frozenTdClass} style={columnStyle('responsavel')} />
+                      <td
+                        className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                        style={columnStyle('inicioPrevisto')}
+                      >
+                        {formatDatePtBr(project.plannedStart)}
+                      </td>
+                      <td
+                        className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                        style={columnStyle('fimPrevisto')}
+                      >
+                        {formatDatePtBr(project.plannedEnd)}
+                      </td>
+                      <td
+                        className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                        style={columnStyle('inicioReal')}
+                      >
+                        {formatDatePtBr(project.actualStart)}
+                      </td>
+                      <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('fimReal')}>
+                        {formatDatePtBr(project.actualEnd)}
+                      </td>
+                      <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('duracao')}>
+                        {formatDuration(
+                          project.activities
+                            .flatMap((a) => a.tasks)
+                            .reduce((sum, t) => sum + businessDaysBetween(t.plannedStart, t.plannedEnd, holidays, project.unit), 0),
+                        )}
+                      </td>
                     </>
                   )}
                   <td
-                    className={`px-4 py-3.5 text-center ${
-                      compact ? `${frozenTdClass} border-r border-border bg-card` : ''
-                    }`}
-                    style={compact ? { left: STATUS_COL_LEFT } : undefined}
+                    className={`${frozenTdClass} text-center ${compact ? 'border-r border-border' : ''}`}
+                    style={columnStyle('avanco')}
                   >
-                    <StatusBadge
-                      status={project.status}
-                      blockedCount={project.blockedCount}
-                      startDelayedCount={project.startDelayedCount}
-                      lateCompletion={project.isLateCompletion}
-                    />
+                    <GanttProgressCell progress={project.progress} />
                   </td>
-                  <td className="relative px-4 py-3.5" style={{ width }}>
+                  <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width }}>
                     <TodayLine range={range} />
                     <GanttBars
                       range={range}
@@ -245,13 +252,8 @@ export function GanttTable({
                     return (
                       <Fragment key={activity.id}>
                         <tr className="border-b border-border bg-page/35">
-                          <td className={`${frozenTdClass} left-0 bg-card px-4 py-3.5`} />
-                          <td
-                            className={`${frozenTdClass} bg-card py-3.5 pl-7 pr-4 ${
-                              compact ? 'w-[340px] overflow-hidden' : 'border-r border-border'
-                            }`}
-                            style={{ left: LINHA_COL_WIDTH }}
-                          >
+                          <td className={frozenTdClass} style={columnStyle('linha')} />
+                          <td className={`${frozenTdClass} overflow-hidden !pl-7`} style={columnStyle('estrutura')}>
                             <div className="flex min-w-0 items-center gap-3">
                               <button
                                 type="button"
@@ -264,7 +266,7 @@ export function GanttTable({
                                   <ChevronDown className="h-4 w-4 shrink-0" />
                                 )}
                                 <RowTypeBadge type="activity" />
-                                <span className={compact ? 'truncate' : 'whitespace-nowrap'}>{activity.name}</span>
+                                <span className="truncate">{activity.name}</span>
                               </button>
                               {editMode && (
                                 <>
@@ -289,28 +291,52 @@ export function GanttTable({
                           </td>
                           {!compact && (
                             <>
-                              <td className="px-4 py-3.5" />
-                              <td className="px-4 py-3.5" />
-                              <td className={dateTdClass}>{formatDatePtBr(activity.plannedStart)}</td>
-                              <td className={dateTdClass}>{formatDatePtBr(activity.plannedEnd)}</td>
-                              <td className={dateTdClass}>{formatDatePtBr(activity.actualStart)}</td>
-                              <td className={dateTdClass}>{formatDatePtBr(activity.actualEnd)}</td>
+                              <td className={frozenTdClass} style={columnStyle('categoria')} />
+                              <td className={frozenTdClass} style={columnStyle('responsavel')} />
+                              <td
+                                className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                style={columnStyle('inicioPrevisto')}
+                              >
+                                {formatDatePtBr(activity.plannedStart)}
+                              </td>
+                              <td
+                                className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                style={columnStyle('fimPrevisto')}
+                              >
+                                {formatDatePtBr(activity.plannedEnd)}
+                              </td>
+                              <td
+                                className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                style={columnStyle('inicioReal')}
+                              >
+                                {formatDatePtBr(activity.actualStart)}
+                              </td>
+                              <td
+                                className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                style={columnStyle('fimReal')}
+                              >
+                                {formatDatePtBr(activity.actualEnd)}
+                              </td>
+                              <td
+                                className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                style={columnStyle('duracao')}
+                              >
+                                {formatDuration(
+                                  activity.tasks.reduce(
+                                    (sum, t) => sum + businessDaysBetween(t.plannedStart, t.plannedEnd, holidays, project.unit),
+                                    0,
+                                  ),
+                                )}
+                              </td>
                             </>
                           )}
                           <td
-                            className={`px-4 py-3.5 text-center ${
-                              compact ? `${frozenTdClass} border-r border-border bg-card` : ''
-                            }`}
-                            style={compact ? { left: STATUS_COL_LEFT } : undefined}
+                            className={`${frozenTdClass} text-center ${compact ? 'border-r border-border' : ''}`}
+                            style={columnStyle('avanco')}
                           >
-                            <StatusBadge
-                              status={activity.status}
-                              blockedCount={activity.blockedCount}
-                              startDelayedCount={activity.startDelayedCount}
-                              lateCompletion={activity.isLateCompletion}
-                            />
+                            <GanttProgressCell progress={activity.progress} />
                           </td>
-                          <td className="relative px-4 py-3.5" style={{ width }}>
+                          <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width }}>
                             <TodayLine range={range} />
                             <GanttBars
                               range={range}
@@ -329,8 +355,10 @@ export function GanttTable({
                               range={range}
                               tasksByRowNumber={tasksByRowNumber}
                               categories={categories}
-                              frozenColWidth={LINHA_COL_WIDTH}
-                              statusColLeft={STATUS_COL_LEFT}
+                              people={people}
+                              holidays={holidays}
+                              unit={project.unit}
+                              columns={columns}
                               compact={compact}
                               onClick={() => onOpenTask(task)}
                             />

@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2, Pencil
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
 import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
-import { useCatalog, useCategories, usePeople, useProjects } from '../hooks';
+import { useCatalog, useCategories, useHolidays, usePeople, useProjects } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
@@ -25,6 +25,7 @@ export function ProjectSchedulePage() {
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { people, createPerson } = usePeople();
+  const { holidays } = useHolidays();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [categoryFilter, setCategoryFilter] = useState('');
 
@@ -240,6 +241,8 @@ export function ProjectSchedulePage() {
               collapsedProjectIds={collapsedProjectIds}
               collapsedActivityIds={collapsedActivityIds}
               categories={categories}
+              people={people}
+              holidays={holidays}
               compact={compact}
               editMode={editMode}
               onToggleProject={toggleProject}

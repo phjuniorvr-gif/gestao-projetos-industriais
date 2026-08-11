@@ -1,8 +1,9 @@
 import { AlertTriangle } from 'lucide-react';
-import type { CategoryEntry, TaskView } from '../../types';
-import { formatDatePtBr, formatPredecessors } from '../../utils';
+import type { CategoryEntry, Holiday, Person, TaskView } from '../../types';
+import { businessDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
 import { Badge } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
+import { getColumnRect, type GanttColumn } from './ganttColumns';
 import { totalWidth, type DateRange } from './ganttMath';
 import { GanttBars } from './GanttBars';
 import { RowTypeBadge } from './RowTypeBadge';
@@ -13,26 +14,33 @@ interface GanttRowProps {
   range: DateRange;
   tasksByRowNumber: Map<number, TaskView>;
   categories: CategoryEntry[];
-  frozenColWidth: number;
-  statusColLeft: number;
+  people: Person[];
+  holidays: Holiday[];
+  unit: string;
+  columns: GanttColumn[];
   compact: boolean;
   onClick: () => void;
 }
 
-const dateTdClass = 'whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted';
+const cellClass = 'h-[34px] overflow-hidden truncate px-2 py-0 text-center align-middle text-xs text-text-muted';
 
 export function GanttRow({
   task,
   range,
   tasksByRowNumber,
   categories,
-  frozenColWidth,
-  statusColLeft,
+  people,
+  holidays,
+  unit,
+  columns,
   compact,
   onClick,
 }: GanttRowProps) {
   const width = totalWidth(range);
   const category = categories.find((c) => c.id === task.category);
+  const responsavel = people.find((p) => p.id === task.responsavelId);
+  const estrutura = getColumnRect(columns, 'estrutura');
+  const avanco = getColumnRect(columns, 'avanco');
 
   const predecessorEnds = task.predecessorRowNumbers
     .map((rowNumber) => tasksByRowNumber.get(rowNumber)?.plannedEnd)
@@ -41,21 +49,27 @@ export function GanttRow({
 
   return (
     <tr className="border-b border-border/70 bg-card hover:bg-page/60">
-      <td className="sticky left-0 z-25 bg-card px-4 py-3.5 text-center text-xs text-text-muted">
+      <td
+        className="sticky z-25 h-[34px] truncate bg-card px-2 py-0 text-center align-middle text-xs text-text-muted"
+        style={{ left: getColumnRect(columns, 'linha').left, width: getColumnRect(columns, 'linha').width }}
+      >
         {task.rowNumber}
       </td>
       <td
-        className={`sticky z-25 bg-card py-3.5 pl-14 pr-4 ${compact ? 'w-[340px] overflow-hidden' : 'border-r border-border'}`}
-        style={{ left: frozenColWidth }}
+        className={`sticky z-25 h-[34px] overflow-hidden bg-card py-0 pl-14 pr-4 align-middle ${compact ? '' : 'border-r border-border'}`}
+        style={{ left: estrutura.left, width: estrutura.width }}
       >
         <div className="flex min-w-0 items-center gap-2">
           <RowTypeBadge type="task" />
           <button
             type="button"
             onClick={onClick}
-            className="min-w-0 text-left text-sm text-text hover:text-action hover:underline"
+            className="min-w-0 flex-1 text-left text-sm text-text hover:text-action hover:underline"
           >
-            <span className={compact ? 'truncate' : ''}>{task.name}</span>
+            {/* Sempre trunca (não só compact) — nome sem limite quebrava em 2 linhas no modo
+                completo, esticando a linha além dos 34px. Nome inteiro sempre disponível ao abrir
+                a tarefa. */}
+            <span className="block truncate">{task.name}</span>
           </button>
           {!!task.replanCount && (
             <span
@@ -74,23 +88,34 @@ export function GanttRow({
       </td>
       {!compact && (
         <>
-          <td className="whitespace-nowrap px-4 py-3.5 text-center">
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'categoria').width }}>
             <Badge color={category?.color}>{category?.label ?? task.category}</Badge>
           </td>
-          <td className="whitespace-nowrap px-4 py-3.5 text-center text-xs text-text-muted">
-            {task.predecessorRowNumbers.length ? formatPredecessors(task.predecessorRowNumbers) : '—'}
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'responsavel').width }}>
+            {responsavel?.name ?? '—'}
           </td>
-          <td className={dateTdClass}>{formatDatePtBr(task.plannedStart)}</td>
-          <td className={dateTdClass}>{formatDatePtBr(task.plannedEnd)}</td>
-          <td className={dateTdClass}>{formatDatePtBr(task.actualStart)}</td>
-          <td className={dateTdClass}>{formatDatePtBr(task.actualEnd)}</td>
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'inicioPrevisto').width }}>
+            {formatDatePtBr(task.plannedStart)}
+          </td>
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'fimPrevisto').width }}>
+            {formatDatePtBr(task.plannedEnd)}
+          </td>
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'inicioReal').width }}>
+            {formatDatePtBr(task.actualStart)}
+          </td>
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'fimReal').width }}>
+            {formatDatePtBr(task.actualEnd)}
+          </td>
+          <td className={cellClass} style={{ width: getColumnRect(columns, 'duracao').width }}>
+            {formatDuration(businessDaysBetween(task.plannedStart, task.plannedEnd, holidays, unit))}
+          </td>
         </>
       )}
       <td
-        className={`whitespace-nowrap px-4 py-3.5 text-center ${
+        className={`h-[34px] overflow-hidden whitespace-nowrap px-2 py-0 text-center align-middle ${
           compact ? 'sticky z-25 border-r border-border bg-card' : ''
         }`}
-        style={compact ? { left: statusColLeft } : undefined}
+        style={compact ? { left: avanco.left, width: avanco.width } : { width: avanco.width }}
       >
         <StatusBadge
           status={task.status}
@@ -100,7 +125,7 @@ export function GanttRow({
           lateCompletionDays={task.lateCompletionDays}
         />
       </td>
-      <td className="relative px-4 py-3.5" style={{ width }}>
+      <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width }}>
         <TodayLine range={range} />
         <GanttBars
           range={range}
