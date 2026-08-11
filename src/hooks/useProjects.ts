@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchProjects, saveProjectTree, softDeleteProjectRemote } from '../services/projectsRepo';
+import { fetchProjects, restoreProjectRemote, saveProjectTree, softDeleteProjectRemote } from '../services/projectsRepo';
 import type { Activity, Category, Project, ProjectView, Task } from '../types';
 import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
 import type { DependencyValidation } from '../utils';
@@ -136,6 +136,13 @@ export function useProjects() {
   const removeProject = useCallback((projectId: string) => {
     setRawProjects((current) => current.filter((p) => p.id !== projectId));
     softDeleteProjectRemote(projectId).catch((err) => console.error('Falha ao excluir projeto no Supabase', err));
+  }, []);
+
+  /** Simétrico a `removeProject` — reinsere localmente sem esperar refetch, pro Desfazer (Fase 3)
+   * não ter atraso perceptível. Recebe o projeto já em mãos (capturado no momento da exclusão). */
+  const restoreProject = useCallback((project: Project) => {
+    setRawProjects((current) => (current.some((p) => p.id === project.id) ? current : [...current, project]));
+    restoreProjectRemote(project.id).catch((err) => console.error('Falha ao restaurar projeto no Supabase', err));
   }, []);
 
   const updateProjectInfo = useCallback(
@@ -283,6 +290,7 @@ export function useProjects() {
     today,
     createProject,
     removeProject,
+    restoreProject,
     updateProjectInfo,
     addActivity,
     removeActivity,

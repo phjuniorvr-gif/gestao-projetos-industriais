@@ -10,19 +10,24 @@ import {
   ProjectsTable,
   type ProjectFiltersState,
 } from '../components/projects';
-import { Button, ConfirmDialog } from '../components/ui';
-import { useHolidays, usePeople, useProjects } from '../hooks';
+import { Button, UndoToast } from '../components/ui';
+import { useHolidays, usePeople, useProjects, useUndoToast } from '../hooks';
 import { sortProjectsByCriticality } from '../utils';
-import { STATUS_LABEL, type Project, type ProjectStatus } from '../types';
+import { STATUS_LABEL, type Project, type ProjectStatus, type ProjectView } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
-  const { projects, today, removeProject, updateProjectInfo } = useProjects();
+  const { projects, today, removeProject, restoreProject, updateProjectInfo } = useProjects();
   const { people, createPerson } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
+  const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [editing, setEditing] = useState<Project | null>(null);
-  const [deleting, setDeleting] = useState<Project | null>(null);
+
+  const handleDelete = (project: ProjectView) => {
+    removeProject(project.id);
+    show(`${project.code} movido para Excluídos`, () => restoreProject(project));
+  };
 
   const safeHolidays = holidaysLoaded ? holidays : [];
 
@@ -97,7 +102,7 @@ export function ProjectsPage() {
         today={today}
         holidays={safeHolidays}
         onEdit={setEditing}
-        onDelete={setDeleting}
+        onDelete={handleDelete}
       />
 
       <EditProjectDialog
@@ -112,18 +117,7 @@ export function ProjectsPage() {
         }}
       />
 
-      <ConfirmDialog
-        open={Boolean(deleting)}
-        title="Excluir projeto"
-        message={deleting ? `Tem certeza que deseja excluir ${deleting.code} — ${deleting.name}?` : ''}
-        confirmLabel="Excluir"
-        danger
-        onCancel={() => setDeleting(null)}
-        onConfirm={() => {
-          if (deleting) removeProject(deleting.id);
-          setDeleting(null);
-        }}
-      />
+      <UndoToast toast={toast} onDismiss={dismiss} />
     </div>
   );
 }
