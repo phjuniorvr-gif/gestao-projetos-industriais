@@ -1,4 +1,4 @@
-import type { ReplanCampo, ReplanCampoData, Task } from '../types';
+import type { ReplanCampo, ReplanCampoData } from '../types';
 
 /**
  * Auditoria de replanejamento (Fase 2.5) — funções puras, arquivo separado de `status.ts`
@@ -6,7 +6,17 @@ import type { ReplanCampo, ReplanCampoData, Task } from '../types';
  * tabela própria), mesmo padrão de isolamento por assunto de `dependencies.ts`/`schedule.ts`.
  */
 
-type DateFields = Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>;
+// Shape próprio, não `Pick<Task,...>` — em `Task`, `baseStart`/`baseEnd` são obrigatórios
+// (garantidos por projectsRepo.ts/useProjects.ts desde a Fase 2.5), mas essas funções aceitam
+// um shape mais permissivo de propósito: a guarda contra `de` ausente em `buildReplanEntries`
+// só faz sentido se o tipo admitir a ausência — defesa que sobrevive mesmo que o dado real
+// nunca chegue a testá-la.
+interface DateFields {
+  plannedStart: string;
+  plannedEnd: string;
+  baseStart?: string;
+  baseEnd?: string;
+}
 type DatePatch = Partial<DateFields>;
 
 /** Conta quantas vezes o PREVISTO desta tarefa já foi empurrado — só `campo==='previsto'`,

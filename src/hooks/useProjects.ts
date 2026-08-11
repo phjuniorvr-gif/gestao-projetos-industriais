@@ -1,9 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchProjects, restoreProjectRemote, saveProjectTree, softDeleteProjectRemote } from '../services/projectsRepo';
+import {
+  fetchProjects,
+  insertReplanejamentos,
+  restoreProjectRemote,
+  saveProjectTree,
+  softDeleteProjectRemote,
+} from '../services/projectsRepo';
 import type { Activity, Category, Project, ProjectView, Task } from '../types';
-import { nextProjectCode, recomputeProject, todayISO, validateTaskDependencies } from '../utils';
-import type { DependencyValidation } from '../utils';
+import {
+  buildReplanEntries,
+  computeDateChanges,
+  nextProjectCode,
+  recomputeProject,
+  todayISO,
+  validateReplanMotivo,
+  validateTaskDependencies,
+} from '../utils';
+import type { DependencyValidation, ReplanValidation } from '../utils';
+import { useAuth } from './useAuth';
 import { useHolidays } from './useHolidays';
+import { useReplanejamentos } from './useReplanejamentos';
 
 // IDs precisam ser UUIDs válidos: são gravados direto nas colunas `uuid` do Supabase.
 function uid(): string {
@@ -49,6 +65,8 @@ export function useProjects() {
   const [rawProjects, setRawProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
   const { holidays, loaded: holidaysLoaded } = useHolidays();
+  const { replanejamentos, loaded: replanejamentosLoaded, refetch: refetchReplanejamentos } = useReplanejamentos();
+  const { session } = useAuth();
 
   useEffect(() => {
     fetchProjects()
@@ -72,11 +90,19 @@ export function useProjects() {
       window.removeEventListener('focus', recomputeToday);
     };
   }, []);
-  // holidays undefined (não []) enquanto não carregou — ver computeLateCompletionDays em
-  // status.ts: undefined é "não sei ainda", não "não há feriado".
+  // holidays/replanejamentos undefined (não []) enquanto não carregaram — ver
+  // computeLateCompletionDays em status.ts: undefined é "não sei ainda", não "vazio de verdade".
   const projects: ProjectView[] = useMemo(
-    () => rawProjects.map((p) => recomputeProject(p, today, holidaysLoaded ? holidays : undefined)),
-    [rawProjects, today, holidays, holidaysLoaded],
+    () =>
+      rawProjects.map((p) =>
+        recomputeProject(
+          p,
+          today,
+          holidaysLoaded ? holidays : undefined,
+          replanejamentosLoaded ? replanejamentos : undefined,
+        ),
+      ),
+    [rawProjects, today, holidays, holidaysLoaded, replanejamentos, replanejamentosLoaded],
   );
 
   const updateProject = useCallback(
@@ -110,6 +136,10 @@ export function useProjects() {
             predecessorRowNumbers: t.predecessorRowNumbers,
             plannedStart: t.plannedStart,
             plannedEnd: t.plannedEnd,
+            // Linha de base (Fase 2.5): seed = previsto no instante de criação, nunca mais
+            // tocado automaticamente depois — só via replanTask().
+            baseStart: t.plannedStart,
+            baseEnd: t.plannedEnd,
           };
         });
         return { id: activityId, projectId: id, name: a.name, tasks };
@@ -211,6 +241,11 @@ export function useProjects() {
           predecessorRowNumbers: input.predecessorRowNumbers ?? [],
           plannedStart: input.plannedStart,
           plannedEnd: input.plannedEnd,
+          // Linha de base (Fase 2.5): seed = previsto no instante de criação — este é o
+          // caminho "Adicionar tarefa" numa atividade existente, que não passa por
+          // computeDatesFromDuration, então o seed precisa estar aqui também.
+          baseStart: input.plannedStart,
+          baseEnd: input.plannedEnd,
         };
         return {
           ...project,
@@ -234,6 +269,45 @@ export function useProjects() {
       }));
     },
     [updateProject],
+  );
+
+  /**
+   * Muda previsto e/ou linha de base de uma tarefa, com motivo obrigatório sempre que algo
+   * realmente mudou (Fase 2.5) — ao lado de `updateTask`, não substituindo: nome/categoria/
+   * responsável/real/predecessoras continuam sem motivo, `updateTask` continua servindo pra
+   * eles. Quem decide se motivo é obrigatório é a própria função (computeDateChanges +
+   * validateReplanMotivo), não quem chama.
+   */
+  const replanTask = useCallback(
+    (
+      projectId: string,
+      taskId: string,
+      patch: Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>,
+      motivo: string,
+    ): ReplanValidation => {
+      const project = rawProjects.find((p) => p.id === projectId);
+      if (!project) return { valid: false, errors: ['Projeto não encontrado.'] };
+      const oldTask = project.activities.flatMap((a) => a.tasks).find((t) => t.id === taskId);
+      if (!oldTask) return { valid: false, errors: ['Tarefa não encontrada.'] };
+
+      const changes = computeDateChanges(oldTask, patch);
+      const validation = validateReplanMotivo(changes, motivo);
+      if (!validation.valid) return validation;
+
+      const quemUserId = session?.user?.id;
+      if (!quemUserId) return { valid: false, errors: ['Sessão expirada — faça login de novo antes de replanejar.'] };
+
+      const entries = buildReplanEntries(oldTask, patch, taskId, quemUserId, motivo.trim(), new Date().toISOString());
+
+      updateTask(projectId, taskId, patch);
+      if (entries.length > 0) {
+        insertReplanejamentos(entries)
+          .then(refetchReplanejamentos)
+          .catch((err) => console.error('Falha ao gravar histórico de replanejamento no Supabase', err));
+      }
+      return { valid: true, errors: [] };
+    },
+    [rawProjects, updateTask, session, refetchReplanejamentos],
   );
 
   const removeTask = useCallback(
@@ -296,6 +370,7 @@ export function useProjects() {
     removeActivity,
     addTask,
     updateTask,
+    replanTask,
     removeTask,
     reorderTask,
     setTaskPredecessors,

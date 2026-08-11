@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
-import type { Activity, Category, Project, Task } from '../types';
+import type { Activity, Category, Project, ReplanCampo, ReplanCampoData, Replanejamento, Task } from '../types';
+import type { ReplanEntryInput } from '../utils/replan';
 
 interface ProjectRow {
   id: string;
@@ -33,8 +34,22 @@ interface TaskRow {
   predecessor_row_numbers: number[];
   planned_start: string;
   planned_end: string;
+  base_start: string;
+  base_end: string;
   actual_start: string | null;
   actual_end: string | null;
+}
+
+interface ReplanejamentoRow {
+  id: string;
+  tarefa_id: string;
+  quando: string;
+  quem_user_id: string;
+  campo: ReplanCampo;
+  campo_data: ReplanCampoData;
+  de: string;
+  para: string;
+  motivo: string;
 }
 
 function orNull(value: string | undefined): string | null {
@@ -74,6 +89,8 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       predecessorRowNumbers: row.predecessor_row_numbers,
       plannedStart: row.planned_start,
       plannedEnd: row.planned_end,
+      baseStart: row.base_start,
+      baseEnd: row.base_end,
       actualStart: row.actual_start ?? undefined,
       actualEnd: row.actual_end ?? undefined,
     };
@@ -172,6 +189,8 @@ export async function saveProjectTree(project: Project): Promise<void> {
           predecessor_row_numbers: task.predecessorRowNumbers,
           planned_start: task.plannedStart,
           planned_end: task.plannedEnd,
+          base_start: task.baseStart,
+          base_end: task.baseEnd,
           actual_start: orNull(task.actualStart),
           actual_end: orNull(task.actualEnd),
         })),
@@ -184,6 +203,45 @@ export async function saveProjectTree(project: Project): Promise<void> {
   const { error: deleteTasksError } =
     taskIds.length > 0 ? await deleteTasks.not('id', 'in', formatIdList(taskIds)) : await deleteTasks;
   if (deleteTasksError) throw deleteTasksError;
+}
+
+/** Auditoria de replanejamento (Fase 2.5) — busca o log inteiro, mais simples que paginar por
+ * tarefa (55 tarefas hoje; se crescer muito, filtrar por projeto vira necessário). */
+export async function fetchReplanejamentos(): Promise<Replanejamento[]> {
+  const { data, error } = await supabase.from('replanejamentos').select('*').order('quando');
+  if (error) throw error;
+  return ((data ?? []) as ReplanejamentoRow[]).map((row) => ({
+    id: row.id,
+    tarefaId: row.tarefa_id,
+    quando: row.quando,
+    quemUserId: row.quem_user_id,
+    campo: row.campo,
+    campoData: row.campo_data,
+    de: row.de,
+    para: row.para,
+    motivo: row.motivo,
+  }));
+}
+
+/** Grava 1 ou mais linhas de replanejamento — chamado sempre depois de um `updateTask` que
+ * mexeu em previsto/base (useProjects.ts, `replanTask`). Escrita separada de `saveProjectTree`
+ * porque essa função já recebe a árvore com o patch aplicado, sem o valor antigo pra calcular
+ * `de`. */
+export async function insertReplanejamentos(entries: ReplanEntryInput[]): Promise<void> {
+  if (entries.length === 0) return;
+  const { error } = await supabase.from('replanejamentos').insert(
+    entries.map((e) => ({
+      tarefa_id: e.tarefaId,
+      quando: e.quando,
+      quem_user_id: e.quemUserId,
+      campo: e.campo,
+      campo_data: e.campoData,
+      de: e.de,
+      para: e.para,
+      motivo: e.motivo,
+    })),
+  );
+  if (error) throw error;
 }
 
 /** Move o projeto para "Excluídos" sem apagar os dados. */

@@ -46,6 +46,10 @@ export function SelectedActivitiesList({
         predecessorRowNumbers: t.predecessorRowNumbers,
         plannedStart: '',
         plannedEnd: '',
+        // Sintéticas só pra validação de dependência no wizard — nunca persistidas, então
+        // linha de base não tem sentido nenhum aqui, mas o tipo Task exige os campos.
+        baseStart: '',
+        baseEnd: '',
       })),
     [flatTasks, lineByKey],
   );

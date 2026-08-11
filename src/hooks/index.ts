@@ -3,6 +3,7 @@ export * from './useDeletedProjects';
 export * from './useCatalog';
 export * from './useCategories';
 export * from './useHolidays';
+export * from './useReplanejamentos';
 export * from './usePeople';
 export * from './useAuth';
 export * from './useUndoToast';

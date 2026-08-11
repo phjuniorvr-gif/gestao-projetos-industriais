@@ -1,5 +1,6 @@
-import type { ActivityView, Holiday, Project, ProjectStatus, ProjectView, Task, TaskView } from '../types';
+import type { ActivityView, Holiday, Project, ProjectStatus, ProjectView, Replanejamento, Task, TaskView } from '../types';
 import { addBusinessDays, businessDaysBetween, todayISO } from './dates';
+import { computeReplanCount } from './replan';
 
 interface DatedItem {
   plannedStart?: string;
@@ -192,8 +193,15 @@ export function computeLateCompletionDays(task: Task, holidays: Holiday[] | unde
  * projeto, nesta ordem, produzindo a árvore hidratada (`ProjectView`) a partir da forma
  * persistida (`Project`). `today` tem default (`todayISO()`); `holidays` não tem — `undefined`
  * é um valor com significado próprio (feriados ainda não carregaram), não "esqueci de passar".
+ * `replanejamentos` (Fase 2.5) segue o mesmo padrão: `undefined` = "histórico ainda não
+ * carregou", não "zero replanejamentos" — vira `replanCount: undefined` em vez de `0` mentiroso.
  */
-export function recomputeProject(project: Project, today: string = todayISO(), holidays?: Holiday[]): ProjectView {
+export function recomputeProject(
+  project: Project,
+  today: string = todayISO(),
+  holidays?: Holiday[],
+  replanejamentos?: Replanejamento[],
+): ProjectView {
   const allTasks = project.activities.flatMap((a) => a.tasks).sort((a, b) => a.rowNumber - b.rowNumber);
   const tasksByRowNumber = new Map<number, TaskView>();
 
@@ -210,6 +218,7 @@ export function recomputeProject(project: Project, today: string = todayISO(), h
       isStartDelayed,
       isLateCompletion: lateCompletion,
       lateCompletionDays: lateCompletion ? computeLateCompletionDays(task, holidays, project.unit) : undefined,
+      replanCount: replanejamentos ? computeReplanCount(task.id, replanejamentos) : undefined,
     };
     tasksByRowNumber.set(task.rowNumber, view);
     recomputedTasks.set(task.id, view);

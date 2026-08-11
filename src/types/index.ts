@@ -74,11 +74,10 @@ export interface Task {
   actualEnd?: string;
   /** Linha de base (Fase 2.5) — congelada no instante de criação da tarefa (seed =
    * plannedStart/plannedEnd nesse momento), só muda via replanTask() com motivo obrigatório.
-   * Opcional aqui de propósito: só vira obrigatório quando projectsRepo.ts garantir de verdade
-   * que todo Task vem com os dois preenchidos (Commit 2 da Fase 2.5) — tipo não pode mentir
-   * sobre o que o runtime ainda não entrega. */
-  baseStart?: string;
-  baseEnd?: string;
+   * Obrigatório: projectsRepo.ts (fetchProjectsWhere/saveProjectTree) e useProjects.ts
+   * (createProject/addTask) garantem os dois sempre preenchidos. */
+  baseStart: string;
+  baseEnd: string;
 }
 
 export interface Activity {

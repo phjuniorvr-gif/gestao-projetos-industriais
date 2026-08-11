@@ -27,6 +27,8 @@ const baseTask: Task = {
   predecessorRowNumbers: [],
   plannedStart: '2026-08-01',
   plannedEnd: '2026-08-10',
+  baseStart: '2026-08-01',
+  baseEnd: '2026-08-10',
 };
 
 function taskView(overrides: Partial<TaskView> = {}): TaskView {

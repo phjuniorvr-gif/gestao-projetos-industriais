@@ -37,6 +37,8 @@ const project: Project = {
           predecessorRowNumbers: [],
           plannedStart: '2026-07-01',
           plannedEnd: '2026-07-15',
+          baseStart: '2026-07-01',
+          baseEnd: '2026-07-15',
         },
         {
           // cenário 1: dentro do prazo, mas bloqueada pela predecessora (t1) ainda não concluída.
@@ -48,6 +50,8 @@ const project: Project = {
           predecessorRowNumbers: [1],
           plannedStart: '2026-08-01',
           plannedEnd: '2026-08-20',
+          baseStart: '2026-08-01',
+          baseEnd: '2026-08-20',
         },
       ],
     },
@@ -67,6 +71,8 @@ const project: Project = {
           predecessorRowNumbers: [],
           plannedStart: '2026-08-01',
           plannedEnd: '2026-08-20',
+          baseStart: '2026-08-01',
+          baseEnd: '2026-08-20',
         },
         {
           // cenário 3: concluída 3 dias úteis depois do previsto (Tiradentes descontado — ver
@@ -79,6 +85,8 @@ const project: Project = {
           predecessorRowNumbers: [],
           plannedStart: '2026-04-01',
           plannedEnd: '2026-04-17',
+          baseStart: '2026-04-01',
+          baseEnd: '2026-04-17',
           actualStart: '2026-04-01',
           actualEnd: '2026-04-23',
         },
@@ -91,6 +99,8 @@ const project: Project = {
           predecessorRowNumbers: [],
           plannedStart: '2026-05-01',
           plannedEnd: '2026-05-10',
+          baseStart: '2026-05-01',
+          baseEnd: '2026-05-10',
           actualStart: '2026-05-01',
           actualEnd: '2026-05-08',
         },
