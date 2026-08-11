@@ -68,6 +68,10 @@ export interface Task {
   /** Quem executa a tarefa — Person.id, opcional (sem dado de origem migrado). */
   responsavelId?: string;
   predecessorRowNumbers: number[];
+  /** Dependências tipadas (Fase 2.7) — substitui predecessorRowNumbers como fonte de verdade
+   * persistida; ainda opcional no Commit 1 (tipo/repo mudam juntos no Commit 2, mesmo padrão de
+   * baseStart/baseEnd na Fase 2.5). predecessorRowNumbers continua a FK real até lá. */
+  dependencies?: TaskDependency[];
   plannedStart: string;
   plannedEnd: string;
   actualStart?: string;
@@ -78,6 +82,19 @@ export interface Task {
    * (createProject/addTask) garantem os dois sempre preenchidos. */
   baseStart: string;
   baseEnd: string;
+}
+
+/** Os quatro tipos de dependência (Fase 2.7, spec 2.7) — regra em dias úteis de cada um em
+ * `computeDependencyRuleDate` (src/utils/dependencies.ts). */
+export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF';
+
+export interface TaskDependency {
+  /** Task.id da predecessora — não é número de linha (esse é só como o usuário escolhe/vê na
+   * UI); id sobrevive a exclusão/renumeração de outras tarefas sem precisar remapear nada. */
+  predecessorId: string;
+  tipo: DependencyType;
+  /** Folga em dias úteis — pode ser negativa (antecipação/lead time), spec não restringe o sinal. */
+  folgaDias: number;
 }
 
 export interface Activity {
@@ -118,6 +135,10 @@ export interface TaskView extends Task {
    * undefined enquanto o histórico ainda não carregou (mesmo padrão de lateCompletionDays: não
    * adivinha 0 antes de saber de verdade). */
   replanCount?: number;
+  /** Alguma dependência (dos 4 tipos) tem a data PREVISTA da tarefa violando a regra da tabela
+   * FS/SS/FF/SF (Fase 2.7) — sinaliza, nunca bloqueia salvar (spec 2.7). undefined até o Commit 2
+   * ligar isto em recomputeProject (mesmo padrão de replanCount/lateCompletionDays). */
+  hasDependencyViolation?: boolean;
 }
 
 export interface ActivityView extends Omit<Activity, 'tasks'> {

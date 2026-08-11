@@ -1,4 +1,5 @@
-import type { Task } from '../types';
+import type { DependencyType, Holiday, Task, TaskDependency } from '../types';
+import { addBusinessDays } from './dates';
 
 export function parsePredecessors(input: string): number[] {
   return input
@@ -31,6 +32,13 @@ export function validateTaskDependencies(taskRowNumber: number, allTasks: Task[]
 
   if (task.predecessorRowNumbers.includes(taskRowNumber)) {
     errors.push('Uma tarefa não pode depender dela mesma.');
+  }
+
+  const duplicated = task.predecessorRowNumbers.some(
+    (n, index) => task.predecessorRowNumbers.indexOf(n) !== index,
+  );
+  if (duplicated) {
+    errors.push('A mesma predecessora foi informada mais de uma vez.');
   }
 
   for (const predecessor of task.predecessorRowNumbers) {
@@ -71,4 +79,85 @@ function hasCycle(tasks: Task[]): boolean {
     if (visit(node)) return true;
   }
   return false;
+}
+
+/**
+ * Data-limite que a regra do tipo exige pra sucessora, a partir das datas PREVISTAS da
+ * predecessora (Fase 2.7, spec 2.7 — tabela dos 4 tipos, em dias úteis). FS/SS restringem o
+ * INÍCIO da sucessora; FF/SF restringem o FIM — só usada por `computeTaskDependencyViolated`
+ * (checagem de previsto); `computeTaskBlockedByDependencies` usa data REAL e resolve isso
+ * inline, porque só se aplica quando a data real já existe (regra diferente, ver comentário lá).
+ */
+export function computeDependencyRuleDate(
+  dependency: { tipo: DependencyType; folgaDias: number },
+  predecessor: { plannedStart: string; plannedEnd: string },
+  holidays: Holiday[],
+  unit: string,
+): string {
+  switch (dependency.tipo) {
+    case 'FS':
+      return addBusinessDays(predecessor.plannedEnd, 1 + dependency.folgaDias, holidays, unit);
+    case 'SS':
+      return addBusinessDays(predecessor.plannedStart, dependency.folgaDias, holidays, unit);
+    case 'FF':
+      return addBusinessDays(predecessor.plannedEnd, dependency.folgaDias, holidays, unit);
+    case 'SF':
+      return addBusinessDays(predecessor.plannedStart, dependency.folgaDias, holidays, unit);
+  }
+}
+
+/**
+ * Violação de PREVISTO (Fase 2.7, decisão 3) — compara a data prevista da sucessora contra a
+ * regra calculada com as datas PREVISTAS da predecessora (não real: isto é uma checagem de
+ * cronograma, "essas datas fazem sentido entre si", não de execução). Sinaliza, nunca bloqueia
+ * salvar (spec 2.7: "violação não bloqueia"). Vale pros 4 tipos — diferente de
+ * `computeTaskBlockedByDependencies`, que só considera FS/SS.
+ */
+export function computeTaskDependencyViolated(
+  task: { plannedStart: string; plannedEnd: string; dependencies?: TaskDependency[] },
+  tasksById: Map<string, { plannedStart: string; plannedEnd: string }>,
+  holidays: Holiday[],
+  unit: string,
+): boolean {
+  return (task.dependencies ?? []).some((dep) => {
+    const predecessor = tasksById.get(dep.predecessorId);
+    if (!predecessor) return false;
+    const ruleDate = computeDependencyRuleDate(dep, predecessor, holidays, unit);
+    const successorDate = dep.tipo === 'FF' || dep.tipo === 'SF' ? task.plannedEnd : task.plannedStart;
+    return successorDate < ruleDate;
+  });
+}
+
+/**
+ * Bloqueada (selo "não pode começar", Fase 2.7 — decisão 2, ajustada com o usuário): só FS e SS
+ * restringem o INÍCIO da sucessora, então só eles bloqueiam — FF/SF restringem o fim, uma tarefa
+ * só com predecessora FF pode começar livremente (marcar bloqueio ali seria falso positivo).
+ * Ao contrário de `computeTaskDependencyViolated` (previsto), usa data REAL da predecessora:
+ * sem `actualEnd` (FS) ou `actualStart` (SS) ainda, bloqueada incondicionalmente — a folga só
+ * entra depois que a data real existe, contada a partir dela. Guardas de `plannedStart`/já
+ * iniciada/antes do prazo preservam o comportamento anterior a este tipo de dependência existir.
+ */
+export function computeTaskBlockedByDependencies(
+  task: Task,
+  tasksById: Map<string, Task>,
+  today: string,
+  holidays: Holiday[],
+  unit: string,
+): boolean {
+  if (!task.plannedStart) return false;
+  if (task.actualStart || task.actualEnd) return false;
+  if (today < task.plannedStart) return false;
+
+  return (task.dependencies ?? []).some((dep) => {
+    if (dep.tipo !== 'FS' && dep.tipo !== 'SS') return false;
+    const predecessor = tasksById.get(dep.predecessorId);
+    if (!predecessor) return false;
+
+    const anchor = dep.tipo === 'FS' ? predecessor.actualEnd : predecessor.actualStart;
+    if (!anchor) return true;
+
+    const offset = dep.tipo === 'FS' ? 1 + dep.folgaDias : dep.folgaDias;
+    const thresholdDate = addBusinessDays(anchor, offset, holidays, unit);
+    return today < thresholdDate;
+  });
 }
