@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeLateCompletionDays,
+  computeProgress,
   computeTaskBlocked,
   computeTaskStartDelayed,
   computeTaskStatus,
@@ -10,6 +11,7 @@ import {
   rollUpLateCompletion,
   rollUpStartDelayedCount,
   rollUpStatus,
+  taskWeight,
 } from './status';
 import type { Task, TaskView } from '../types';
 
@@ -238,5 +240,72 @@ describe('rollUpDates', () => {
       actualStart: undefined,
       actualEnd: undefined,
     });
+  });
+});
+
+describe('taskWeight', () => {
+  it('início e fim no mesmo dia útil: peso 1 direto da contagem (não é o Math.max entrando em ação)', () => {
+    const task = { plannedStart: '2026-08-10', plannedEnd: '2026-08-10' }; // segunda-feira
+    expect(taskWeight(task, [], 'Matriz')).toBe(1);
+  });
+
+  it('intervalo cai inteiro num fim de semana: contagem daria 0, Math.max força o mínimo 1', () => {
+    const task = { plannedStart: '2026-08-01', plannedEnd: '2026-08-02' }; // sábado a domingo
+    expect(taskWeight(task, [], 'Matriz')).toBe(1);
+  });
+
+  it('desconta feriado nacional dentro do intervalo (Tiradentes, 21/abr/2026)', () => {
+    // segunda 20/abr a quinta 23/abr: 4 dias úteis de calendário, mas terça é Tiradentes → 3.
+    const task = { plannedStart: '2026-04-20', plannedEnd: '2026-04-23' };
+    expect(taskWeight(task, [], 'Matriz')).toBe(3);
+  });
+
+  it('plannedStart/plannedEnd ausentes: 0 — guarda explícita, peso neutro', () => {
+    expect(taskWeight({}, [], 'Matriz')).toBe(0);
+    expect(taskWeight({ plannedStart: '2026-08-10' }, [], 'Matriz')).toBe(0);
+    expect(taskWeight({ plannedEnd: '2026-08-10' }, [], 'Matriz')).toBe(0);
+  });
+});
+
+describe('computeProgress', () => {
+  it('sem tarefas: 0', () => {
+    expect(computeProgress([], [], 'Matriz')).toBe(0);
+  });
+
+  it('nenhuma tarefa concluída: 0', () => {
+    const tasks = [taskView({ status: 'planned' }), taskView({ status: 'in_progress' })];
+    expect(computeProgress(tasks, [], 'Matriz')).toBe(0);
+  });
+
+  it('todas concluídas: 100', () => {
+    const tasks = [taskView({ status: 'completed' }), taskView({ status: 'completed' })];
+    expect(computeProgress(tasks, [], 'Matriz')).toBe(100);
+  });
+
+  it('exemplo exato da spec: 2 de 5 tarefas concluídas somando 22 de 114 dias úteis de peso → 19%, não os 40% que a contagem simples daria', () => {
+    // Pesos conferidos rodando businessDaysBetween de verdade (não conta de calendário à mão —
+    // a função desconta feriado nacional sempre, então uma conta manual bateria errado):
+    //   concluída A: 2026-01-05 a 2026-01-16 → peso 10
+    //   concluída B: 2026-01-19 a 2026-02-03 → peso 12   (soma concluído = 22)
+    //   pendente C:  2026-02-04 a 2026-03-13 → peso 27
+    //   pendente D:  2026-03-16 a 2026-04-24 → peso 28
+    //   pendente E:  2026-04-27 a 2026-06-18 → peso 37   (soma total = 114)
+    const tasks = [
+      taskView({ status: 'completed', plannedStart: '2026-01-05', plannedEnd: '2026-01-16' }),
+      taskView({ status: 'completed', plannedStart: '2026-01-19', plannedEnd: '2026-02-03' }),
+      taskView({ status: 'planned', plannedStart: '2026-02-04', plannedEnd: '2026-03-13' }),
+      taskView({ status: 'planned', plannedStart: '2026-03-16', plannedEnd: '2026-04-24' }),
+      taskView({ status: 'planned', plannedStart: '2026-04-27', plannedEnd: '2026-06-18' }),
+    ];
+    expect(computeProgress(tasks, [], 'Matriz')).toBe(19);
+  });
+
+  it('arredondamento nunca sobe pra 100 sem 100% concluído', () => {
+    // peso 199 (concluída) + peso 1 (pendente) = 200 → 99,5% → Math.round ingênuo daria 100.
+    const tasks = [
+      taskView({ status: 'completed', plannedStart: '2026-01-05', plannedEnd: '2026-10-19' }), // peso 199
+      taskView({ status: 'planned', plannedStart: '2026-10-20', plannedEnd: '2026-10-20' }), // peso 1
+    ];
+    expect(computeProgress(tasks, [], 'Matriz')).toBe(99);
   });
 });

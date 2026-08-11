@@ -18,7 +18,6 @@ const project: Project = {
   name: 'Projeto de teste',
   unit: 'Matriz',
   sector: '',
-  progress: 0,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   activities: [
@@ -140,6 +139,10 @@ describe('recomputeProject — cenários de ponta a ponta (substitui o teste man
     expect(activityA.status).toBe('delayed'); // alguma filha (t1) é delayed
     expect(activityA.blockedCount).toBe(1); // só t2
     expect(activityA.startDelayedCount).toBe(2); // t1 e t2, os dois nunca começaram
+  });
+
+  it('Fase 2.2 — atividade sem nenhuma tarefa concluída tem avanço 0%, mesmo com peso > 0', () => {
+    expect(activityA.progress).toBe(0); // t1 e t2 têm peso (dias úteis), mas nenhuma concluiu
   });
 
   it('atividade B: em andamento (nem tudo completed), com 1 late completion e 1 start-delayed', () => {

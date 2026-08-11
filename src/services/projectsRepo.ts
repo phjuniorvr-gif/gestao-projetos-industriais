@@ -9,7 +9,6 @@ interface ProjectRow {
   unit: string;
   sector: string;
   gerente_id: string | null;
-  progress: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -104,7 +103,6 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
     unit: row.unit,
     sector: row.sector,
     gerenteId: row.gerente_id ?? undefined,
-    progress: row.progress,
     activities: activitiesByProject.get(row.id) ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -134,7 +132,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
     unit: project.unit,
     sector: project.sector,
     gerente_id: orNull(project.gerenteId),
-    progress: project.progress,
     created_at: project.createdAt,
     updated_at: project.updatedAt,
   });

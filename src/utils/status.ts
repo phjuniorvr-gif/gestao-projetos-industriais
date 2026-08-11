@@ -125,13 +125,39 @@ export function rollUpStartDelayedCount(children: { isStartDelayed?: boolean; st
 }
 
 /**
- * Progresso: percentual de tarefas concluídas sobre o total (sem peso — pesar por dias úteis é
- * Fase 2.2).
+ * Peso da tarefa pro avanço ponderado (Fase 2.2): dias úteis entre previsto início/fim, mínimo 1
+ * (uma tarefa de 1 dia útil, ou cujo intervalo caia inteiro num fim de semana, não pode ter peso
+ * zero — senão não conta nem contra nem a favor do avanço). Isolado numa função só porque, se no
+ * futuro o peso mais fiel for custo ou homem-hora em vez de duração, muda-se só aqui. Guarda
+ * explícita pra datas ausentes: `Task.plannedStart/plannedEnd` são obrigatórios no tipo real
+ * (nunca chega undefined de uma tarefa de verdade), mas a assinatura aceita um shape genérico —
+ * contrato precisa ser intencional, não acidente de deixar `businessDaysBetween` receber
+ * `undefined`. Peso 0 é neutro: não distorce numerador nem denominador de `computeProgress`.
  */
-export function computeProgress(tasks: TaskView[]): number {
+export function taskWeight(task: { plannedStart?: string; plannedEnd?: string }, holidays: Holiday[], unit: string): number {
+  if (!task.plannedStart || !task.plannedEnd) return 0;
+  return Math.max(1, businessDaysBetween(task.plannedStart, task.plannedEnd, holidays, unit));
+}
+
+/**
+ * Progresso ponderado por peso (dias úteis) das tarefas concluídas sobre o total — Fase 2.2.
+ * Contagem simples mente: uma atividade com 2 de 5 tarefas concluídas parece 40%, mas se essas
+ * duas somam só 22 dos 114 dias úteis totais, o avanço real é 19%. Nunca retorna 100 sem que
+ * TODAS as tarefas estejam concluídas — arredondamento não pode fazer um projeto 99,6% pronto
+ * aparentar "acabou".
+ */
+export function computeProgress(tasks: TaskView[], holidays: Holiday[], unit: string): number {
   if (tasks.length === 0) return 0;
-  const done = tasks.filter((t) => t.status === 'completed').length;
-  return Math.round((done / tasks.length) * 100);
+  let totalWeight = 0;
+  let completedWeight = 0;
+  for (const task of tasks) {
+    const weight = taskWeight(task, holidays, unit);
+    totalWeight += weight;
+    if (task.status === 'completed') completedWeight += weight;
+  }
+  if (totalWeight === 0) return 0;
+  if (completedWeight === totalWeight) return 100;
+  return Math.min(99, Math.round((completedWeight / totalWeight) * 100));
 }
 
 /**
@@ -175,6 +201,11 @@ export function recomputeProject(project: Project, today: string = todayISO(), h
     recomputedTasks.set(task.id, view);
   }
 
+  // undefined (feriados ainda não carregaram) vira [] só aqui: diferente de lateCompletionDays
+  // (selo com modo só-ícone), progresso é elemento sempre visível — aproxima sem feriado
+  // descontado e se corrige sozinho quando `holidays` carregar, em vez de não mostrar nada.
+  const safeHolidays = holidays ?? [];
+
   const activities: ActivityView[] = project.activities.map((activity) => {
     const tasks = activity.tasks.map((t) => recomputedTasks.get(t.id)!);
     const dates = rollUpDates(tasks);
@@ -186,11 +217,16 @@ export function recomputeProject(project: Project, today: string = todayISO(), h
       blockedCount: rollUpBlockedCount(tasks),
       startDelayedCount: rollUpStartDelayedCount(tasks),
       isLateCompletion: rollUpLateCompletion(tasks),
+      progress: computeProgress(tasks, safeHolidays, project.unit),
     };
   });
 
   const projectDates = rollUpDates(activities);
-  const progress = computeProgress(activities.flatMap((a) => a.tasks));
+  // Soma o peso de TODAS as tarefas do projeto de uma vez (não uma média dos `progress` já
+  // calculados por atividade) — é a conta que a spec define ("Projeto = mesma conta, somando as
+  // tarefas de todas as suas atividades") e lida certo com atividade vazia (peso 0, que numa
+  // média entraria como divisão por zero). Não "simplificar" pra média de atividades depois.
+  const progress = computeProgress(activities.flatMap((a) => a.tasks), safeHolidays, project.unit);
 
   return {
     ...project,

@@ -122,7 +122,6 @@ export function useProjects() {
         unit: input.unit,
         sector: input.sector ?? '',
         gerenteId: input.gerenteId,
-        progress: 0,
         activities,
         createdAt: now,
         updatedAt: now,

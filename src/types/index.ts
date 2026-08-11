@@ -90,7 +90,6 @@ export interface Project {
   sector: string;
   /** Quem responde pelo prazo do projeto — Person.id. Nullable: trava "obrigatório" é Fase 7. */
   gerenteId?: string;
-  progress: number;
   activities: Activity[];
   createdAt: string;
   updatedAt: string;
@@ -121,6 +120,8 @@ export interface ActivityView extends Omit<Activity, 'tasks'> {
   plannedEnd?: string;
   actualStart?: string;
   actualEnd?: string;
+  /** Avanço ponderado por dias úteis (computeProgress, Fase 2.2) — Activity não tem % própria. */
+  progress: number;
   tasks: TaskView[];
 }
 
@@ -134,6 +135,8 @@ export interface ProjectView extends Omit<Project, 'activities'> {
   plannedEnd?: string;
   actualStart?: string;
   actualEnd?: string;
+  /** Avanço ponderado por dias úteis (computeProgress, Fase 2.2) — Project não tem % própria. */
+  progress: number;
   activities: ActivityView[];
 }
 
