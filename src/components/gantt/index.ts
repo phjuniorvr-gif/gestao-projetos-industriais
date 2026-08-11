@@ -1,3 +1,4 @@
+export * from './dependencyArrows';
 export * from './ganttColumns';
 export * from './ganttMath';
 export * from './GanttBars';

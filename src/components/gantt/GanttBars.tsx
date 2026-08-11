@@ -1,11 +1,13 @@
 import { STATUS_COLOR, type TaskStatus } from '../../types';
-import { diffDays, todayISO } from '../../utils';
-import { computeTaskBarSegments, offsetPx, type DateRange } from './ganttMath';
+import { todayISO } from '../../utils';
+import { computeTaskBarSegments, type DateRange } from './ganttMath';
 
 // Fase 4 — barra de TAREFA: previsto (cor por status) e real ficam SEMPRE os dois visíveis, um
 // embaixo do outro — não um substituindo o outro (ajuste feito no checkpoint visual, o desenho
 // original da spec/protótipo só tinha previsto vs. base, sem trilha de real). Linha de base fina
-// abaixo dos dois (tracejada quando o previsto já não bate mais com ela).
+// abaixo dos dois (tracejada quando o previsto já não bate mais com ela). O conector simples de
+// predecessora que existia aqui (Commit 2) foi removido no Commit 4 — virou seta de verdade por
+// tipo de dependência, desenhada uma vez para a tabela inteira em GanttTable.tsx, não por linha.
 interface GanttBarsProps {
   range: DateRange;
   pxPerDay: number;
@@ -16,9 +18,6 @@ interface GanttBarsProps {
   baseEnd: string;
   actualStart?: string;
   actualEnd?: string;
-  /** Fim previsto da predecessora crítica (a de fim mais tardio) — conector simples até a Fase
-   * 4 desenhar setas de verdade por tipo de dependência (Commit 4). */
-  connectorFromISO?: string;
 }
 
 export function GanttBars({
@@ -31,7 +30,6 @@ export function GanttBars({
   baseEnd,
   actualStart,
   actualEnd,
-  connectorFromISO,
 }: GanttBarsProps) {
   const today = todayISO();
   const { baseline, previsto, real, excesso } = computeTaskBarSegments(
@@ -40,12 +38,6 @@ export function GanttBars({
     pxPerDay,
     today,
   );
-
-  const connectorWidth = connectorFromISO ? diffDays(connectorFromISO, plannedStart) * pxPerDay : 0;
-  const connector =
-    connectorFromISO && connectorWidth > 0
-      ? { left: offsetPx(range, connectorFromISO, pxPerDay), width: connectorWidth }
-      : null;
 
   return (
     <div className="relative h-full">
@@ -78,11 +70,6 @@ export function GanttBars({
             : undefined,
         }}
       />
-      {connector && (
-        <div className="pointer-events-none absolute h-px bg-text-muted2" style={{ left: connector.left, width: connector.width, top: 6 }}>
-          <span className="absolute -right-px -top-[3px] h-0 w-0 border-y-[4px] border-y-transparent border-l-[5px] border-l-text-muted2" />
-        </div>
-      )}
     </div>
   );
 }

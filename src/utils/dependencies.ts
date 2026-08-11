@@ -118,6 +118,25 @@ export function computeDependencyRuleDate(
 }
 
 /**
+ * Violação de PREVISTO de uma única aresta (dependência) — extraída de
+ * `computeTaskDependencyViolated` (Fase 2.7) pra ser reaproveitada também por
+ * `countViolatedDependencyEdges` (Fase 4, Commit 4), que conta arestas, não tarefas.
+ * `predecessor` ausente (dependência pendurada) nunca conta como violação.
+ */
+export function isDependencyEdgeViolated(
+  dep: { tipo: DependencyType; folgaDias: number },
+  predecessor: { plannedStart: string; plannedEnd: string } | undefined,
+  task: { plannedStart: string; plannedEnd: string },
+  holidays: Holiday[],
+  unit: string,
+): boolean {
+  if (!predecessor) return false;
+  const ruleDate = computeDependencyRuleDate(dep, predecessor, holidays, unit);
+  const successorDate = dep.tipo === 'FF' || dep.tipo === 'SF' ? task.plannedEnd : task.plannedStart;
+  return successorDate < ruleDate;
+}
+
+/**
  * Violação de PREVISTO (Fase 2.7, decisão 3) — compara a data prevista da sucessora contra a
  * regra calculada com as datas PREVISTAS da predecessora (não real: isto é uma checagem de
  * cronograma, "essas datas fazem sentido entre si", não de execução). Sinaliza, nunca bloqueia
@@ -130,13 +149,32 @@ export function computeTaskDependencyViolated(
   holidays: Holiday[],
   unit: string,
 ): boolean {
-  return (task.dependencies ?? []).some((dep) => {
-    const predecessor = tasksById.get(dep.predecessorId);
-    if (!predecessor) return false;
-    const ruleDate = computeDependencyRuleDate(dep, predecessor, holidays, unit);
-    const successorDate = dep.tipo === 'FF' || dep.tipo === 'SF' ? task.plannedEnd : task.plannedStart;
-    return successorDate < ruleDate;
-  });
+  return (task.dependencies ?? []).some((dep) => isDependencyEdgeViolated(dep, tasksById.get(dep.predecessorId), task, holidays, unit));
+}
+
+/**
+ * Contador pro rodapé do Gantt (Fase 4, Commit 4) — conta ARESTAS violadas (uma tarefa com 2
+ * dependências violadas conta 2), diferente de `computeTaskDependencyViolated`, que é por tarefa
+ * (`some()`, usado no selo). `tasks`/`tasksById` cobrem só o conjunto atualmente visível no
+ * Gantt (já filtrado por categoria/projeto). `unitByTaskId` (não um `unit` único) porque a tela
+ * de Cronograma de Projetos mostra vários projetos — e portanto várias unidades — ao mesmo tempo;
+ * `isDependencyEdgeViolated`/`computeDependencyRuleDate` continuam recebendo um `unit` por
+ * chamada, é só a busca desse valor que muda de "constante" pra "por tarefa" aqui.
+ */
+export function countViolatedDependencyEdges(
+  tasks: { id: string; plannedStart: string; plannedEnd: string; dependencies: TaskDependency[] }[],
+  tasksById: Map<string, { plannedStart: string; plannedEnd: string }>,
+  holidays: Holiday[],
+  unitByTaskId: Map<string, string>,
+): number {
+  let count = 0;
+  for (const task of tasks) {
+    const unit = unitByTaskId.get(task.id) ?? '';
+    for (const dep of task.dependencies) {
+      if (isDependencyEdgeViolated(dep, tasksById.get(dep.predecessorId), task, holidays, unit)) count++;
+    }
+  }
+  return count;
 }
 
 /**

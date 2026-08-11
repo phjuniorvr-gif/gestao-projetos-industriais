@@ -15,7 +15,6 @@ interface GanttRowProps {
   range: DateRange;
   pxPerDay: number;
   timelineBackground: CSSProperties;
-  tasksByRowNumber: Map<number, TaskView>;
   categories: CategoryEntry[];
   people: Person[];
   holidays: Holiday[];
@@ -32,7 +31,6 @@ export function GanttRow({
   range,
   pxPerDay,
   timelineBackground,
-  tasksByRowNumber,
   categories,
   people,
   holidays,
@@ -46,11 +44,6 @@ export function GanttRow({
   const responsavel = people.find((p) => p.id === task.responsavelId);
   const estrutura = getColumnRect(columns, 'estrutura');
   const avanco = getColumnRect(columns, 'avanco');
-
-  const predecessorEnds = task.predecessorRowNumbers
-    .map((rowNumber) => tasksByRowNumber.get(rowNumber)?.plannedEnd)
-    .filter((date): date is string => Boolean(date));
-  const connectorFromISO = predecessorEnds.length ? predecessorEnds.sort().at(-1) : undefined;
 
   return (
     <tr className="border-b border-border/70 bg-card hover:bg-page/60">
@@ -142,7 +135,6 @@ export function GanttRow({
           baseEnd={task.baseEnd}
           actualStart={task.actualStart}
           actualEnd={task.actualEnd}
-          connectorFromISO={connectorFromISO}
         />
       </td>
     </tr>

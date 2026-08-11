@@ -1,7 +1,14 @@
 import { Fragment, type CSSProperties, type RefObject } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import type { ActivityView, CategoryEntry, Holiday, Person, ProjectView, TaskView } from '../../types';
-import { businessDaysBetween, formatDatePtBr, formatDuration, todayISO } from '../../utils';
+import { businessDaysBetween, formatDatePtBr, formatDuration, isDependencyEdgeViolated, todayISO } from '../../utils';
+import {
+  buildVisibleRowIndex,
+  computeArrowGroups,
+  computeDependencyArrowGeometry,
+  resolveVisibleDependencyEndpoint,
+  type DependencyEdge,
+} from './dependencyArrows';
 import { getColumnRect, getGanttColumns, getGanttLeftWidth, type GanttColumnKey } from './ganttColumns';
 import { GanttProgressCell } from './GanttProgressCell';
 import {
@@ -18,6 +25,8 @@ import { GanttSummaryBar } from './GanttSummaryBar';
 import { GanttRow } from './GanttRow';
 import { RowTypeBadge } from './RowTypeBadge';
 import { TodayLine } from './TodayLine';
+
+const ROW_HEIGHT = 34;
 
 interface GanttTableProps {
   projects: ProjectView[];
@@ -125,9 +134,41 @@ export function GanttTable({
   const dayTicks = zoom === 'dia' ? getDayTicks(range, today) : [];
   const weekendOffsetDays =
     zoom === 'mes' ? [] : getDayTicks(range, today).filter((d) => d.isWeekend).map((d) => d.offsetDays);
-  const tasksByRowNumber = new Map(
-    projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)).map((t) => [t.rowNumber, t]),
+  const allTasks = projects.flatMap((p) => p.activities.flatMap((a) => a.tasks));
+
+  // Fase 4, Commit 4 — setas de dependência: mapas de ancestralidade (pra resolver ponta dentro
+  // de atividade/projeto recolhido) e unidade por tarefa (pra violação em dias úteis, que varia
+  // por projeto quando esta tabela mostra o portfólio inteiro, não um projeto só).
+  const tasksById = new Map(allTasks.map((t) => [t.id, t]));
+  const taskToActivityId = new Map<string, string>();
+  const activityToProjectId = new Map<string, string>();
+  const unitByTaskId = new Map<string, string>();
+  for (const project of projects) {
+    for (const activity of project.activities) {
+      activityToProjectId.set(activity.id, project.id);
+      for (const task of activity.tasks) {
+        taskToActivityId.set(task.id, activity.id);
+        unitByTaskId.set(task.id, project.unit);
+      }
+    }
+  }
+
+  const dependencyEdges: DependencyEdge[] = allTasks.flatMap((task) =>
+    task.dependencies.map((dep) => ({
+      taskId: task.id,
+      predecessorTaskId: dep.predecessorId,
+      tipo: dep.tipo,
+      folgaDias: dep.folgaDias,
+      violated: isDependencyEdgeViolated(dep, tasksById.get(dep.predecessorId), task, holidays, unitByTaskId.get(task.id) ?? ''),
+    })),
   );
+  const violatedEdgeCount = dependencyEdges.filter((e) => e.violated).length;
+
+  const visibleRowIndex = buildVisibleRowIndex(projects, collapsedProjectIds, collapsedActivityIds);
+  const arrowGroups = computeArrowGroups(dependencyEdges, (taskId) =>
+    resolveVisibleDependencyEndpoint(taskId, taskToActivityId, activityToProjectId, collapsedActivityIds, collapsedProjectIds),
+  );
+  const bodyHeight = visibleRowIndex.size * ROW_HEIGHT;
 
   // Fase 4: largura do painel esquerdo somada de uma lista única de colunas (ganttColumns.ts) —
   // nunca mais escrita à mão (era o bug que a spec avisa: LINHA_COL_WIDTH/ESTRUTURA_COL_WIDTH/
@@ -172,7 +213,9 @@ export function GanttTable({
   }
 
   return (
+    <div className="space-y-2">
     <div ref={scrollContainerRef} className="max-h-[70vh] overflow-auto rounded-lg border border-border">
+    <div className="relative">
       {/* table-layout: fixed + largura total explícita — sem isso, o layout automático deixa
           conteúdo mais largo que a coluna declarada esticar a coluna de verdade, o `left` das
           colunas sticky seguintes fica errado, e o Gantt (que não é sticky, só flui depois) passa
@@ -423,7 +466,6 @@ export function GanttTable({
                               range={range}
                               pxPerDay={pxPerDay}
                               timelineBackground={timelineBackground}
-                              tasksByRowNumber={tasksByRowNumber}
                               categories={categories}
                               people={people}
                               holidays={holidays}
@@ -441,6 +483,61 @@ export function GanttTable({
           })}
         </tbody>
       </table>
+      {/* Overlay de setas: um SVG só, por cima da tabela inteira, não uma por linha — precisa
+          cruzar múltiplas linhas (predecessora numa atividade, sucessora noutra). Alinhado à
+          mesma origem de coordenadas das barras: `left: leftWidth` pousa exatamente onde a
+          coluna de timeline dos `<td>` começa (posicionamento absoluto ignora o padding do
+          ancestral, mesma lógica de `GanttBars`/`TodayLine`), `top` pula só a altura do
+          cabeçalho. `pointer-events-none` — a seta nunca deve capturar clique. */}
+      <svg
+        className="pointer-events-none absolute z-10"
+        style={{ left: leftWidth, top: HEADER_ROW_HEIGHT * headerLevels.length }}
+        width={width}
+        height={bodyHeight}
+      >
+        {arrowGroups.map((group, index) => {
+          const origem = visibleRowIndex.get(`${group.origem.level}:${group.origem.id}`);
+          const destino = visibleRowIndex.get(`${group.destino.level}:${group.destino.id}`);
+          if (!origem?.plannedStart || !origem.plannedEnd || !destino?.plannedStart || !destino.plannedEnd) return null;
+
+          const geometry = computeDependencyArrowGeometry(
+            group.tipo,
+            group.folgaDias,
+            { rowIndex: origem.rowIndex, plannedStart: origem.plannedStart, plannedEnd: origem.plannedEnd },
+            { rowIndex: destino.rowIndex, plannedStart: destino.plannedStart, plannedEnd: destino.plannedEnd },
+            range,
+            pxPerDay,
+            ROW_HEIGHT,
+          );
+          const color = group.violada ? 'var(--color-status-delayed)' : 'var(--color-text-muted2)';
+
+          return (
+            <g key={index}>
+              <path
+                d={geometry.path}
+                fill="none"
+                stroke={color}
+                strokeWidth={1.5}
+                strokeDasharray={group.violada ? '4 3' : undefined}
+              />
+              <path d={geometry.arrowheadPath} fill={color} />
+              {geometry.labelText && (
+                <text x={geometry.labelX} y={geometry.labelY} textAnchor="middle" fontSize={9} fill={color}>
+                  {geometry.labelText}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+    </div>
+    {violatedEdgeCount > 0 && (
+      <p className="text-xs font-medium text-status-delayed">
+        {violatedEdgeCount} {violatedEdgeCount === 1 ? 'dependência violada' : 'dependências violadas'} (previsto em
+        conflito com a regra da predecessora)
+      </p>
+    )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import {
   computeDependencyRuleDate,
   computeTaskBlockedByDependencies,
   computeTaskDependencyViolated,
+  countViolatedDependencyEdges,
   validateTaskDependencies,
 } from './dependencies';
 import type { DependencyType, Task, TaskDependency } from '../types';
@@ -143,6 +144,41 @@ describe('computeTaskDependencyViolated', () => {
     expect(
       computeTaskDependencyViolated({ plannedStart: '2026-08-01', plannedEnd: '2026-08-04' }, tasksById, [], 'matriz'),
     ).toBe(false);
+  });
+});
+
+describe('countViolatedDependencyEdges', () => {
+  it('fixture de 3 tarefas/4 dependências, 2 violadas → 2', () => {
+    const tasksById = new Map([['p1', { plannedStart: '2026-08-03', plannedEnd: '2026-08-05' }]]);
+    const tasks = [
+      {
+        id: 'a',
+        plannedStart: '2026-08-05',
+        plannedEnd: '2026-08-12',
+        dependencies: [
+          { predecessorId: 'p1', tipo: 'FS' as const, folgaDias: 0 }, // violado: 05 < 06
+          { predecessorId: 'p1', tipo: 'FS' as const, folgaDias: -1 }, // ok: 05 não é < 05
+        ],
+      },
+      {
+        id: 'b',
+        plannedStart: '2026-08-06',
+        plannedEnd: '2026-08-12',
+        dependencies: [
+          { predecessorId: 'p1', tipo: 'FS' as const, folgaDias: 0 }, // ok: 06 não é < 06
+          { predecessorId: 'p1', tipo: 'SS' as const, folgaDias: 5 }, // violado: 06 < 10
+        ],
+      },
+    ];
+    const unitByTaskId = new Map([
+      ['a', 'matriz'],
+      ['b', 'matriz'],
+    ]);
+    expect(countViolatedDependencyEdges(tasks, tasksById, [], unitByTaskId)).toBe(2);
+  });
+
+  it('sem dependências: 0', () => {
+    expect(countViolatedDependencyEdges([], new Map(), [], new Map())).toBe(0);
   });
 });
 
