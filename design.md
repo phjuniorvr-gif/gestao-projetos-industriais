@@ -73,7 +73,13 @@ Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma i
 - **Painel lateral** de detalhe/edição (`ProjectDetailPanel.tsx`) — painel, não modal; lista continua visível atrás, fecha com Esc.
 - **Toast com desfazer** de 6s (`useUndoToast`/`UndoToast.tsx`) — genérico, nasceu pra exclusão de projeto, pronto pra reusar sem alteração na exclusão de atividade (Fase 4/próxima, já prevista no CLAUDE.md).
 
+## Entregues na Fase 2.5
+
+- **Replanejamento com motivo obrigatório, sem modal** — os campos "Início/Fim previsto" e "Início/Fim linha de base" do `TaskPanel.tsx` viram rascunho comparado contra o valor salvo; qualquer mudança real revela inline (dentro do próprio painel lateral, sem overlay novo) uma textarea "Motivo do replanejamento" + botão "Confirmar alteração". A spec original imaginava modal; ficou inline porque o painel lateral (Fase 3) já é o lugar natural de edição de tarefa, e um modal-sobre-painel duplicaria a camada sem necessidade.
+- **Selo `R{n}`** (fundo `bg-action/10`, texto `text-action`, pílula `rounded-full`) — conta quantas vezes o previsto já foi empurrado; aparece no cabeçalho do `TaskPanel` e ao lado do nome da tarefa em `GanttRow.tsx`.
+- **Lista "Histórico de replanejamento"** no rodapé do `TaskPanel` (quando/quem/campo+data/de→para/motivo), visível só quando a tarefa já tem `R{n} > 0`.
+
 ## Ainda não existem — entregas de fases futuras
 
-- **Modal de replanejamento** com motivo obrigatório (Fase 2.5/4).
+- **Barra tracejada de linha de base** no Gantt, quando previsto ≠ base (Fase 4 — desenho de timeline).
 - **Tooltip** de barra do Gantt (Fase 4).
