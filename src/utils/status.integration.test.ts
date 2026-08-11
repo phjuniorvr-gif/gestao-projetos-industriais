@@ -155,4 +155,28 @@ describe('recomputeProject — cenários de ponta a ponta (substitui o teste man
     expect(view.startDelayedCount).toBe(3);
     expect(view.isLateCompletion).toBe(true);
   });
+
+  // Fase 2.4: Activity/Project (persistido) não têm mais campo de data próprio — este bloco
+  // prova que ActivityView/ProjectView continuam vindo com data via rollUpDates mesmo assim.
+  it('datas de atividade/projeto vêm só via roll-up das tarefas, mesmo sem campo bruto em Activity/Project', () => {
+    // activityA: t1 (07-01→07-15) + t2 (08-01→08-20), nenhuma com actualEnd.
+    expect(activityA.plannedStart).toBe('2026-07-01');
+    expect(activityA.plannedEnd).toBe('2026-08-20');
+    expect(activityA.actualStart).toBeUndefined();
+    expect(activityA.actualEnd).toBeUndefined();
+
+    // activityB: t3 (08-01→08-20, sem actual) + t4 (actualStart 04-01) + t5 (actualStart 05-01);
+    // actualEnd fica undefined porque t3 não concluiu — nem todas as filhas têm actualEnd.
+    expect(activityB.plannedStart).toBe('2026-04-01');
+    expect(activityB.plannedEnd).toBe('2026-08-20');
+    expect(activityB.actualStart).toBe('2026-04-01');
+    expect(activityB.actualEnd).toBeUndefined();
+
+    // projeto: extremos das duas atividades; actualEnd continua undefined (activityA nunca
+    // concluiu — nem todas as atividades têm actualEnd).
+    expect(view.plannedStart).toBe('2026-04-01');
+    expect(view.plannedEnd).toBe('2026-08-20');
+    expect(view.actualStart).toBe('2026-04-01');
+    expect(view.actualEnd).toBeUndefined();
+  });
 });

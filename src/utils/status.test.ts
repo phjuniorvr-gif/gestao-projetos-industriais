@@ -6,6 +6,7 @@ import {
   computeTaskStatus,
   isLateCompletion,
   rollUpBlockedCount,
+  rollUpDates,
   rollUpLateCompletion,
   rollUpStartDelayedCount,
   rollUpStatus,
@@ -189,5 +190,53 @@ describe('computeLateCompletionDays', () => {
     // Dias úteis no intervalo: seg 20, ter 21 (Tiradentes — descontado), qua 22, qui 23 → 3, não 4.
     const task: Task = { ...baseTask, plannedEnd: '2026-04-17', actualEnd: '2026-04-23' };
     expect(computeLateCompletionDays(task, [], 'Matriz')).toBe(3);
+  });
+});
+
+describe('rollUpDates', () => {
+  it('plannedStart é o mínimo entre os filhos que têm a data', () => {
+    const result = rollUpDates([{ plannedStart: '2026-08-10' }, { plannedStart: '2026-08-01' }, { plannedStart: '2026-08-20' }]);
+    expect(result.plannedStart).toBe('2026-08-01');
+  });
+
+  it('plannedEnd é o máximo entre os filhos que têm a data', () => {
+    const result = rollUpDates([{ plannedEnd: '2026-08-10' }, { plannedEnd: '2026-08-01' }, { plannedEnd: '2026-08-20' }]);
+    expect(result.plannedEnd).toBe('2026-08-20');
+  });
+
+  it('actualStart é o mínimo entre os filhos que JÁ começaram — ANY, não todos', () => {
+    const result = rollUpDates([{ actualStart: '2026-08-05' }, {}, { actualStart: '2026-08-01' }]);
+    expect(result.actualStart).toBe('2026-08-01');
+  });
+
+  it('actualEnd fica undefined quando nem todos os filhos concluíram — 4 de 5 concluídas', () => {
+    const children = [
+      { actualEnd: '2026-08-01' },
+      { actualEnd: '2026-08-02' },
+      { actualEnd: '2026-08-03' },
+      { actualEnd: '2026-08-04' },
+      {}, // 5ª ainda não concluiu
+    ];
+    expect(rollUpDates(children).actualEnd).toBeUndefined();
+  });
+
+  it('actualEnd é o máximo só quando TODOS os filhos concluíram — 5 de 5', () => {
+    const children = [
+      { actualEnd: '2026-08-01' },
+      { actualEnd: '2026-08-02' },
+      { actualEnd: '2026-08-03' },
+      { actualEnd: '2026-08-04' },
+      { actualEnd: '2026-08-05' },
+    ];
+    expect(rollUpDates(children).actualEnd).toBe('2026-08-05');
+  });
+
+  it('coleção vazia retorna tudo undefined', () => {
+    expect(rollUpDates([])).toEqual({
+      plannedStart: undefined,
+      plannedEnd: undefined,
+      actualStart: undefined,
+      actualEnd: undefined,
+    });
   });
 });

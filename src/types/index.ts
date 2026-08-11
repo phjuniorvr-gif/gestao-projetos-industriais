@@ -56,6 +56,9 @@ export interface Person {
 // abaixo) são o que recomputeProject produz — status e condições derivadas anexadas —
 // e é o que useProjects() devolve e todo componente de UI consome. Ver CLAUDE.md (Fase 2.3):
 // nada calculável fica no tipo persistido, então não existe placeholder de status pra mentir.
+// Mesma regra vale pras datas de Activity/Project (Fase 2.4): não têm data própria — só Task
+// tem, e Activity/Project recebem plannedStart/plannedEnd/actualStart/actualEnd só em
+// ActivityView/ProjectView, via rollUpDates (extremos das tarefas/atividades filhas).
 export interface Task {
   id: string;
   rowNumber: number;
@@ -76,10 +79,6 @@ export interface Activity {
   projectId: string;
   name: string;
   tasks: Task[];
-  plannedStart?: string;
-  plannedEnd?: string;
-  actualStart?: string;
-  actualEnd?: string;
 }
 
 export interface Project {
@@ -91,10 +90,6 @@ export interface Project {
   sector: string;
   /** Quem responde pelo prazo do projeto — Person.id. Nullable: trava "obrigatório" é Fase 7. */
   gerenteId?: string;
-  plannedStart?: string;
-  plannedEnd?: string;
-  actualStart?: string;
-  actualEnd?: string;
   progress: number;
   activities: Activity[];
   createdAt: string;
@@ -121,6 +116,11 @@ export interface ActivityView extends Omit<Activity, 'tasks'> {
   blockedCount: number;
   startDelayedCount: number;
   isLateCompletion: boolean;
+  /** Roll-up das tarefas filhas (rollUpDates) — Activity (persistida) não tem data própria. */
+  plannedStart?: string;
+  plannedEnd?: string;
+  actualStart?: string;
+  actualEnd?: string;
   tasks: TaskView[];
 }
 
@@ -129,6 +129,11 @@ export interface ProjectView extends Omit<Project, 'activities'> {
   blockedCount: number;
   startDelayedCount: number;
   isLateCompletion: boolean;
+  /** Roll-up das atividades filhas (rollUpDates) — Project (persistido) não tem data própria. */
+  plannedStart?: string;
+  plannedEnd?: string;
+  actualStart?: string;
+  actualEnd?: string;
   activities: ActivityView[];
 }
 

@@ -134,10 +134,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
     unit: project.unit,
     sector: project.sector,
     gerente_id: orNull(project.gerenteId),
-    planned_start: orNull(project.plannedStart),
-    planned_end: orNull(project.plannedEnd),
-    actual_start: orNull(project.actualStart),
-    actual_end: orNull(project.actualEnd),
     progress: project.progress,
     created_at: project.createdAt,
     updated_at: project.updatedAt,
@@ -152,10 +148,6 @@ export async function saveProjectTree(project: Project): Promise<void> {
         project_id: project.id,
         name: activity.name,
         position: index,
-        planned_start: orNull(activity.plannedStart),
-        planned_end: orNull(activity.plannedEnd),
-        actual_start: orNull(activity.actualStart),
-        actual_end: orNull(activity.actualEnd),
       })),
     );
     if (error) throw error;
