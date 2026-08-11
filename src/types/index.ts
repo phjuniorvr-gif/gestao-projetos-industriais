@@ -72,6 +72,13 @@ export interface Task {
   plannedEnd: string;
   actualStart?: string;
   actualEnd?: string;
+  /** Linha de base (Fase 2.5) — congelada no instante de criação da tarefa (seed =
+   * plannedStart/plannedEnd nesse momento), só muda via replanTask() com motivo obrigatório.
+   * Opcional aqui de propósito: só vira obrigatório quando projectsRepo.ts garantir de verdade
+   * que todo Task vem com os dois preenchidos (Commit 2 da Fase 2.5) — tipo não pode mentir
+   * sobre o que o runtime ainda não entrega. */
+  baseStart?: string;
+  baseEnd?: string;
 }
 
 export interface Activity {
@@ -108,6 +115,10 @@ export interface TaskView extends Task {
   isLateCompletion: boolean;
   /** Dias úteis de atraso na conclusão — só definido quando os feriados já carregaram. */
   lateCompletionDays?: number;
+  /** Nº de vezes que o PREVISTO foi empurrado (replanejamentos com campo='previsto') — Fase 2.5.
+   * undefined enquanto o histórico ainda não carregou (mesmo padrão de lateCompletionDays: não
+   * adivinha 0 antes de saber de verdade). */
+  replanCount?: number;
 }
 
 export interface ActivityView extends Omit<Activity, 'tasks'> {
@@ -120,6 +131,11 @@ export interface ActivityView extends Omit<Activity, 'tasks'> {
   plannedEnd?: string;
   actualStart?: string;
   actualEnd?: string;
+  /** Roll-up da linha de base das tarefas filhas (Fase 2.5) — mesma regra de extremos de
+   * plannedStart/plannedEnd (não a assimetria de actualStart/actualEnd: base nunca é parcial,
+   * os dois são sempre seedados juntos na criação da tarefa). */
+  baseStart?: string;
+  baseEnd?: string;
   /** Avanço ponderado por dias úteis (computeProgress, Fase 2.2) — Activity não tem % própria. */
   progress: number;
   tasks: TaskView[];
@@ -135,6 +151,10 @@ export interface ProjectView extends Omit<Project, 'activities'> {
   plannedEnd?: string;
   actualStart?: string;
   actualEnd?: string;
+  /** Roll-up da linha de base das atividades filhas (Fase 2.5) — mesma regra de extremos,
+   * ver comentário equivalente em ActivityView. */
+  baseStart?: string;
+  baseEnd?: string;
   /** Avanço ponderado por dias úteis (computeProgress, Fase 2.2) — Project não tem % própria. */
   progress: number;
   activities: ActivityView[];
@@ -151,4 +171,23 @@ export interface ActivityTemplate {
   category: Category;
   tasks: TaskTemplate[];
   active: boolean;
+}
+
+// Auditoria de replanejamento (Fase 2.5) — toda mudança de previsto OU de linha de base grava
+// uma linha aqui, com motivo obrigatório. campo diz qual conceito mudou (previsto/base);
+// campoData diz qual das duas datas (início/fim) — sem essa segunda dimensão uma linha do log
+// não diz o que exatamente mudou.
+export type ReplanCampo = 'previsto' | 'base';
+export type ReplanCampoData = 'inicio' | 'fim';
+
+export interface Replanejamento {
+  id: string;
+  tarefaId: string;
+  quando: string;
+  quemUserId: string;
+  campo: ReplanCampo;
+  campoData: ReplanCampoData;
+  de: string;
+  para: string;
+  motivo: string;
 }

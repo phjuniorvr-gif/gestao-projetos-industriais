@@ -237,9 +237,28 @@ describe('rollUpDates', () => {
     expect(rollUpDates([])).toEqual({
       plannedStart: undefined,
       plannedEnd: undefined,
+      baseStart: undefined,
+      baseEnd: undefined,
       actualStart: undefined,
       actualEnd: undefined,
     });
+  });
+
+  it('baseStart é o mínimo entre os filhos que têm a data — mesma regra de extremos de plannedStart', () => {
+    const result = rollUpDates([{ baseStart: '2026-08-10' }, { baseStart: '2026-08-01' }, { baseStart: '2026-08-20' }]);
+    expect(result.baseStart).toBe('2026-08-01');
+  });
+
+  it('baseEnd é o máximo entre os filhos que têm a data — mesma regra de extremos de plannedEnd', () => {
+    const result = rollUpDates([{ baseEnd: '2026-08-10' }, { baseEnd: '2026-08-01' }, { baseEnd: '2026-08-20' }]);
+    expect(result.baseEnd).toBe('2026-08-20');
+  });
+
+  it('base não segue a assimetria de actual — some() com só 1 filho preenchido já dá o valor, sem exigir every()', () => {
+    // Diferente de actualEnd (que exige TODOS terem valor), baseEnd aparece assim que QUALQUER
+    // filho tem baseEnd — porque base é sempre seedada nos dois lados juntos, nunca parcial.
+    const children = [{ baseStart: '2026-08-01', baseEnd: '2026-08-05' }, {}, {}];
+    expect(rollUpDates(children).baseEnd).toBe('2026-08-05');
   });
 });
 

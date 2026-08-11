@@ -4,6 +4,8 @@ import { addBusinessDays, businessDaysBetween, todayISO } from './dates';
 interface DatedItem {
   plannedStart?: string;
   plannedEnd?: string;
+  baseStart?: string;
+  baseEnd?: string;
   actualStart?: string;
   actualEnd?: string;
 }
@@ -40,10 +42,20 @@ export function rollUpStatus(children: StatusedItem[]): ProjectStatus {
   return 'planned';
 }
 
-/** Seção "REGRAS DAS DATAS": previsto = extremos entre os filhos; real só quando aplicável. */
+/**
+ * Seção "REGRAS DAS DATAS": previsto = extremos entre os filhos; real só quando aplicável.
+ *
+ * Linha de base (Fase 2.5) usa a MESMA regra de extremos simples de `planned`, não a assimetria
+ * de `actual` (`any`/`every`): `baseStart`/`baseEnd` são sempre seedados JUNTOS, no instante de
+ * criação da tarefa (`useProjects.ts`) — nunca existe uma tarefa com um preenchido e o outro não,
+ * diferente de `actualStart`/`actualEnd` (que podem ser preenchidos em momentos diferentes
+ * conforme a execução avança). Não há "base parcial" que justificasse `every()` aqui.
+ */
 export function rollUpDates(children: DatedItem[]): DatedItem {
   const plannedStarts = children.map((c) => c.plannedStart).filter((d): d is string => Boolean(d));
   const plannedEnds = children.map((c) => c.plannedEnd).filter((d): d is string => Boolean(d));
+  const baseStarts = children.map((c) => c.baseStart).filter((d): d is string => Boolean(d));
+  const baseEnds = children.map((c) => c.baseEnd).filter((d): d is string => Boolean(d));
   const actualStarts = children.map((c) => c.actualStart).filter((d): d is string => Boolean(d));
   const actualEnds = children.map((c) => c.actualEnd).filter((d): d is string => Boolean(d));
 
@@ -52,6 +64,8 @@ export function rollUpDates(children: DatedItem[]): DatedItem {
   return {
     plannedStart: plannedStarts.length ? plannedStarts.sort()[0] : undefined,
     plannedEnd: plannedEnds.length ? plannedEnds.sort().at(-1) : undefined,
+    baseStart: baseStarts.length ? baseStarts.sort()[0] : undefined,
+    baseEnd: baseEnds.length ? baseEnds.sort().at(-1) : undefined,
     actualStart: actualStarts.length ? actualStarts.sort()[0] : undefined,
     actualEnd: allHaveActualEnd ? actualEnds.sort().at(-1) : undefined,
   };
