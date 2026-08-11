@@ -79,7 +79,13 @@ Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma i
 - **Selo `R{n}`** (fundo `bg-action/10`, texto `text-action`, pílula `rounded-full`) — conta quantas vezes o previsto já foi empurrado; aparece no cabeçalho do `TaskPanel` e ao lado do nome da tarefa em `GanttRow.tsx`.
 - **Lista "Histórico de replanejamento"** no rodapé do `TaskPanel` (quando/quem/campo+data/de→para/motivo), visível só quando a tarefa já tem `R{n} > 0`.
 
+## Entregues na Fase 2.7
+
+- **Editor de predecessoras em linhas**, dentro do `TaskPanel.tsx` — cada dependência é uma linha (número da tarefa · tipo FS/SS/FF/SF · folga em dias úteis · remover), com "+ Adicionar predecessora" no fim. Substitui o campo de texto único (`TaskDependencyInput.tsx`, que só aceitava números separados por vírgula, sempre `FS+0`) — esse componente continua existindo só pro wizard de criação (`SelectedActivitiesList.tsx`).
+- **Selo de conflito de dependência** — triângulo laranja (`AlertTriangle`, cor `text-status-delayed`) com texto no `TaskPanel` ("Previsto em conflito com a regra de alguma dependência") e só o ícone com `title` em `GanttRow.tsx`, ao lado do selo `R{n}`. Aparece quando `hasDependencyViolation` é `true` — sinaliza, não impede salvar.
+
 ## Ainda não existem — entregas de fases futuras
 
 - **Barra tracejada de linha de base** no Gantt, quando previsto ≠ base (Fase 4 — desenho de timeline).
 - **Tooltip** de barra do Gantt (Fase 4).
+- **Setas de dependência no Gantt** (linha ligando predecessora↔sucessora, rótulo com tipo+folga, seta tracejada quando violada, contador no rodapé) e a **data sugerida pela regra com botão "Aplicar"** no editor de predecessoras — ambos Fase 4.
