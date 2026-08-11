@@ -1,6 +1,6 @@
 import { STATUS_COLOR, type TaskStatus } from '../../types';
 import { diffDays, todayISO } from '../../utils';
-import { computeTaskBarSegments, offsetPx, PX_PER_DAY, type DateRange } from './ganttMath';
+import { computeTaskBarSegments, offsetPx, type DateRange } from './ganttMath';
 
 // Fase 4 — barra de TAREFA: previsto (cor por status) e real ficam SEMPRE os dois visíveis, um
 // embaixo do outro — não um substituindo o outro (ajuste feito no checkpoint visual, o desenho
@@ -8,6 +8,7 @@ import { computeTaskBarSegments, offsetPx, PX_PER_DAY, type DateRange } from './
 // abaixo dos dois (tracejada quando o previsto já não bate mais com ela).
 interface GanttBarsProps {
   range: DateRange;
+  pxPerDay: number;
   status: TaskStatus;
   plannedStart: string;
   plannedEnd: string;
@@ -22,6 +23,7 @@ interface GanttBarsProps {
 
 export function GanttBars({
   range,
+  pxPerDay,
   status,
   plannedStart,
   plannedEnd,
@@ -35,13 +37,14 @@ export function GanttBars({
   const { baseline, previsto, real, excesso } = computeTaskBarSegments(
     { plannedStart, plannedEnd, baseStart, baseEnd, actualStart, actualEnd },
     range,
+    pxPerDay,
     today,
   );
 
-  const connectorWidth = connectorFromISO ? diffDays(connectorFromISO, plannedStart) * PX_PER_DAY : 0;
+  const connectorWidth = connectorFromISO ? diffDays(connectorFromISO, plannedStart) * pxPerDay : 0;
   const connector =
     connectorFromISO && connectorWidth > 0
-      ? { left: offsetPx(range, connectorFromISO), width: connectorWidth }
+      ? { left: offsetPx(range, connectorFromISO, pxPerDay), width: connectorWidth }
       : null;
 
   return (

@@ -1,10 +1,16 @@
 import type { Project, Task } from '../../types';
-import { diffDays, toISODate } from '../../utils';
+import { addDays, diffDays, toISODate } from '../../utils';
 
-export const PX_PER_DAY = 8;
+export type GanttZoom = 'dia' | 'semana' | 'mes';
 
-/** Largura reservada para os rótulos "Prev."/"Real" antes de cada trilha de barras. */
-export const LABEL_COLUMN_WIDTH = 40;
+/** Pixels por dia, por zoom — explícito, não "proporcional" (Fase 4, Commit 3). `semana` mantém
+ * o valor que já era hardcoded (8) antes do zoom existir, pra não mudar a escala de quem nunca
+ * trocar de zoom. */
+export const ZOOM_PX_PER_DAY: Record<GanttZoom, number> = {
+  dia: 24,
+  semana: 8,
+  mes: 3,
+};
 
 export interface DateRange {
   start: string;
@@ -101,6 +107,7 @@ export function getYearTicks(range: DateRange): YearTick[] {
 export interface WeekTick {
   key: string;
   label: string;
+  offsetDays: number;
   days: number;
 }
 
@@ -124,19 +131,54 @@ export function getWeekTicks(range: DateRange): WeekTick[] {
     if (days > 0) {
       const day = String(cursor.getUTCDate()).padStart(2, '0');
       const month = String(cursor.getUTCMonth() + 1).padStart(2, '0');
-      ticks.push({ key: toISODate(segmentStart), label: `${day}/${month}`, days });
+      ticks.push({
+        key: toISODate(segmentStart),
+        label: `${day}/${month}`,
+        offsetDays: diffDays(range.start, toISODate(segmentStart)),
+        days,
+      });
     }
     cursor.setUTCDate(cursor.getUTCDate() + 7);
   }
   return ticks;
 }
 
-export function totalWidth(range: DateRange): number {
-  return (diffDays(range.start, range.end) + 1) * PX_PER_DAY;
+export interface DayTick {
+  key: string;
+  label: string;
+  offsetDays: number;
+  /** Sábado ou domingo — sempre via `getUTCDay()` (nunca `getDay()`, que roda em fuso local e
+   * sombrearia o dia errado em UTC-3: meia-noite UTC de sábado já é sexta 21h local). */
+  isWeekend: boolean;
+  isToday: boolean;
 }
 
-export function offsetPx(range: DateRange, dateISO: string): number {
-  return diffDays(range.start, dateISO) * PX_PER_DAY;
+/** Um tick por dia do intervalo — usado no cabeçalho do zoom "dia" e pro sombreamento de fim de
+ * semana nos zooms "dia"/"semana". `today` é injetado (nunca lido do relógio aqui), mesmo padrão
+ * do resto do app (`computeTaskStatus`, etc.) — determinístico e testável. */
+export function getDayTicks(range: DateRange, today: string): DayTick[] {
+  const totalDays = diffDays(range.start, range.end) + 1;
+  const ticks: DayTick[] = [];
+  for (let i = 0; i < totalDays; i++) {
+    const dateISO = addDays(range.start, i);
+    const dayOfWeek = new Date(dateISO).getUTCDay();
+    ticks.push({
+      key: dateISO,
+      label: String(new Date(dateISO).getUTCDate()).padStart(2, '0'),
+      offsetDays: i,
+      isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+      isToday: dateISO === today,
+    });
+  }
+  return ticks;
+}
+
+export function totalWidth(range: DateRange, pxPerDay: number): number {
+  return (diffDays(range.start, range.end) + 1) * pxPerDay;
+}
+
+export function offsetPx(range: DateRange, dateISO: string, pxPerDay: number): number {
+  return diffDays(range.start, dateISO) * pxPerDay;
 }
 
 export interface BarRect {
@@ -144,9 +186,14 @@ export interface BarRect {
   width: number;
 }
 
-export function barRect(range: DateRange, startISO: string, endISO: string): BarRect {
-  const left = offsetPx(range, startISO);
-  const width = Math.max(PX_PER_DAY, (diffDays(startISO, endISO) + 1) * PX_PER_DAY);
+// Largura mínima FIXA (não derivada de pxPerDay) — no zoom mês (pxPerDay=3), uma tarefa de 1 dia
+// sem piso independente vira 3px, quase invisível, e é justamente o zoom de panorama onde mais
+// se olha o portfólio inteiro. Medido: 12 das 66 tarefas reais têm plannedStart===plannedEnd.
+const MIN_BAR_WIDTH = 6;
+
+export function barRect(range: DateRange, startISO: string, endISO: string, pxPerDay: number): BarRect {
+  const left = offsetPx(range, startISO, pxPerDay);
+  const width = Math.max(MIN_BAR_WIDTH, (diffDays(startISO, endISO) + 1) * pxPerDay);
   return { left, width };
 }
 
@@ -182,19 +229,20 @@ export function computeTaskBarSegments(
     actualEnd?: string;
   },
   range: DateRange,
+  pxPerDay: number,
   today: string,
 ): TaskBarSegments {
-  const previsto = barRect(range, task.plannedStart, task.plannedEnd);
+  const previsto = barRect(range, task.plannedStart, task.plannedEnd, pxPerDay);
   const dashed = task.baseStart !== task.plannedStart || task.baseEnd !== task.plannedEnd;
-  const baseline = { ...barRect(range, task.baseStart, task.baseEnd), dashed };
+  const baseline = { ...barRect(range, task.baseStart, task.baseEnd, pxPerDay), dashed };
 
   if (!task.actualStart) {
     return { baseline, previsto };
   }
 
   const realEnd = task.actualEnd ?? today;
-  const real = barRect(range, task.actualStart, realEnd);
-  const excesso = realEnd > task.plannedEnd ? barRect(range, task.plannedEnd, realEnd) : undefined;
+  const real = barRect(range, task.actualStart, realEnd, pxPerDay);
+  const excesso = realEnd > task.plannedEnd ? barRect(range, task.plannedEnd, realEnd, pxPerDay) : undefined;
 
   return { baseline, previsto, real, excesso };
 }

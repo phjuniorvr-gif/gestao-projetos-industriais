@@ -10,6 +10,7 @@ import { barRect, type DateRange } from './ganttMath';
 // base aqui — projeto/atividade não têm linha de base própria.
 interface GanttSummaryBarProps {
   range: DateRange;
+  pxPerDay: number;
   status: ProjectStatus;
   plannedStart?: string;
   plannedEnd?: string;
@@ -28,6 +29,7 @@ function summaryColor(status: ProjectStatus): string {
 
 export function GanttSummaryBar({
   range,
+  pxPerDay,
   status,
   plannedStart,
   plannedEnd,
@@ -36,12 +38,12 @@ export function GanttSummaryBar({
   progress,
 }: GanttSummaryBarProps) {
   if (!plannedStart || !plannedEnd) return null;
-  const bar = barRect(range, plannedStart, plannedEnd);
+  const bar = barRect(range, plannedStart, plannedEnd, pxPerDay);
   const color = summaryColor(status);
 
   const realEnd = actualEnd ?? (actualStart ? todayISO() : undefined);
-  const real = actualStart && realEnd ? barRect(range, actualStart, realEnd) : null;
-  const excesso = real && realEnd && realEnd > plannedEnd ? barRect(range, plannedEnd, realEnd) : null;
+  const real = actualStart && realEnd ? barRect(range, actualStart, realEnd, pxPerDay) : null;
+  const excesso = real && realEnd && realEnd > plannedEnd ? barRect(range, plannedEnd, realEnd, pxPerDay) : null;
 
   return (
     <div className="relative h-full">

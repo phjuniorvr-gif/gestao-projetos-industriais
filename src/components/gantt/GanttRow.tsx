@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { CategoryEntry, Holiday, Person, TaskView } from '../../types';
 import { businessDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
@@ -12,6 +13,8 @@ import { TodayLine } from './TodayLine';
 interface GanttRowProps {
   task: TaskView;
   range: DateRange;
+  pxPerDay: number;
+  timelineBackground: CSSProperties;
   tasksByRowNumber: Map<number, TaskView>;
   categories: CategoryEntry[];
   people: Person[];
@@ -27,6 +30,8 @@ const cellClass = 'h-[34px] overflow-hidden truncate px-2 py-0 text-center align
 export function GanttRow({
   task,
   range,
+  pxPerDay,
+  timelineBackground,
   tasksByRowNumber,
   categories,
   people,
@@ -36,7 +41,7 @@ export function GanttRow({
   compact,
   onClick,
 }: GanttRowProps) {
-  const width = totalWidth(range);
+  const width = totalWidth(range, pxPerDay);
   const category = categories.find((c) => c.id === task.category);
   const responsavel = people.find((p) => p.id === task.responsavelId);
   const estrutura = getColumnRect(columns, 'estrutura');
@@ -125,10 +130,11 @@ export function GanttRow({
           lateCompletionDays={task.lateCompletionDays}
         />
       </td>
-      <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width }}>
-        <TodayLine range={range} />
+      <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width, ...timelineBackground }}>
+        <TodayLine range={range} pxPerDay={pxPerDay} />
         <GanttBars
           range={range}
+          pxPerDay={pxPerDay}
           status={task.status}
           plannedStart={task.plannedStart}
           plannedEnd={task.plannedEnd}

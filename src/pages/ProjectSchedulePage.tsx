@@ -1,12 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2, Pencil } from 'lucide-react';
+import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2, Pencil } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
-import { AddActivityDialog, AddTaskPanel, GanttTable, ScheduleLegend, TaskPanel } from '../components/gantt';
+import {
+  AddActivityDialog,
+  AddTaskPanel,
+  calculatePortfolioRange,
+  GanttTable,
+  getGanttColumns,
+  getGanttLeftWidth,
+  offsetPx,
+  ScheduleLegend,
+  TaskPanel,
+  ZOOM_PX_PER_DAY,
+  type GanttZoom,
+} from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useHolidays, usePeople, useProjects } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
+
+const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
+  { value: 'dia', label: 'Dia' },
+  { value: 'semana', label: 'Semana' },
+  { value: 'mes', label: 'Mês' },
+];
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
@@ -59,6 +77,8 @@ export function ProjectSchedulePage() {
   const [allExpanded, setAllExpanded] = useState(false);
   const [compact, setCompact] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  const [zoom, setZoom] = useState<GanttZoom>('semana');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedTask, setSelectedTask] = useState<TaskView | null>(null);
   const [addingToActivity, setAddingToActivity] = useState<ActivityView | null>(null);
   const [addingActivityToProject, setAddingActivityToProject] = useState<ProjectView | null>(null);
@@ -138,6 +158,23 @@ export function ProjectSchedulePage() {
     });
   }
 
+  // Centraliza "hoje" na área visível do Gantt — mesma fórmula do protótipo:
+  // scrollLeft = x(hoje) - (largura visível - largura do painel esquerdo) / 2. As colunas do
+  // painel esquerdo são sticky (não "ocupam" scroll), então a área de timeline visível começa em
+  // `scrollLeft` e vai até `scrollLeft + clientWidth`; x(hoje) aqui é relativo ao início da
+  // timeline (offsetPx), não ao início absoluto da tabela.
+  function scrollToToday() {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const range = calculatePortfolioRange(ganttProjects);
+    const today = todayISO();
+    if (today < range.start || today > range.end) return;
+    const leftWidth = getGanttLeftWidth(getGanttColumns(!compact));
+    const pxPerDay = ZOOM_PX_PER_DAY[zoom];
+    const target = offsetPx(range, today, pxPerDay) - (container.clientWidth - leftWidth) / 2;
+    container.scrollLeft = Math.max(0, target);
+  }
+
   // mantém "selectedTask" sincronizada com o estado mais atual do projeto após edições
   const liveSelectedTask = selectedTask ? (allTasks.find((t) => t.id === selectedTask.id) ?? null) : null;
 
@@ -191,6 +228,23 @@ export function ProjectSchedulePage() {
               >
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Link>
+              <div className="flex items-center rounded-[9px] border border-border bg-page p-0.5">
+                {ZOOM_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setZoom(option.value)}
+                    className={`rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      zoom === option.value ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <Button variant="secondary" icon={<CalendarClock className="h-4 w-4" />} onClick={scrollToToday}>
+                Ir para hoje
+              </Button>
               <Button
                 variant={compact ? 'primary' : 'secondary'}
                 icon={compact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
@@ -245,6 +299,8 @@ export function ProjectSchedulePage() {
               holidays={holidays}
               compact={compact}
               editMode={editMode}
+              zoom={zoom}
+              scrollContainerRef={scrollContainerRef}
               onToggleProject={toggleProject}
               onToggleActivity={toggleActivity}
               onOpenTask={setSelectedTask}
