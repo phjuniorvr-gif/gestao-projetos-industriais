@@ -12,7 +12,7 @@ import {
   LABEL_COLUMN_WIDTH,
   totalWidth,
 } from './ganttMath';
-import { GanttBars } from './GanttBars';
+import { GanttSummaryBar } from './GanttSummaryBar';
 import { GanttRow } from './GanttRow';
 import { RowTypeBadge } from './RowTypeBadge';
 import { TodayLine } from './TodayLine';
@@ -236,12 +236,14 @@ export function GanttTable({
                   </td>
                   <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width }}>
                     <TodayLine range={range} />
-                    <GanttBars
+                    <GanttSummaryBar
                       range={range}
+                      status={project.status}
                       plannedStart={project.plannedStart}
                       plannedEnd={project.plannedEnd}
                       actualStart={project.actualStart}
                       actualEnd={project.actualEnd}
+                      progress={project.progress}
                     />
                   </td>
                 </tr>
@@ -338,12 +340,14 @@ export function GanttTable({
                           </td>
                           <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width }}>
                             <TodayLine range={range} />
-                            <GanttBars
+                            <GanttSummaryBar
                               range={range}
+                              status={activity.status}
                               plannedStart={activity.plannedStart}
                               plannedEnd={activity.plannedEnd}
                               actualStart={activity.actualStart}
                               actualEnd={activity.actualEnd}
+                              progress={activity.progress}
                             />
                           </td>
                         </tr>

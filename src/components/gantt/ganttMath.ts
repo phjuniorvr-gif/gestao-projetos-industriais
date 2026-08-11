@@ -139,8 +139,62 @@ export function offsetPx(range: DateRange, dateISO: string): number {
   return diffDays(range.start, dateISO) * PX_PER_DAY;
 }
 
-export function barRect(range: DateRange, startISO: string, endISO: string) {
+export interface BarRect {
+  left: number;
+  width: number;
+}
+
+export function barRect(range: DateRange, startISO: string, endISO: string): BarRect {
   const left = offsetPx(range, startISO);
   const width = Math.max(PX_PER_DAY, (diffDays(startISO, endISO) + 1) * PX_PER_DAY);
   return { left, width };
+}
+
+export interface TaskBarSegments {
+  /** Linha de base — sempre existe (baseStart/baseEnd são obrigatórios em Task desde a Fase
+   * 2.5), `dashed` quando o previsto já não bate mais com ela (foi replanejado). */
+  baseline: BarRect & { dashed: boolean };
+  /** Barra do PREVISTO — cor por status, sempre em [plannedStart, plannedEnd], fixa (não muda
+   * com o real). Pedido explícito do usuário: previsto e real ficam sempre os dois visíveis,
+   * não um substituindo o outro. */
+  previsto: BarRect;
+  /** Barra do REAL — só existe quando `actualStart` existe. Fim: `actualEnd` quando concluiu,
+   * `today` quando já começou mas não terminou ("cresce" até agora). */
+  real?: BarRect;
+  /** Só existe quando o fim do REAL passa do previsto — overlay hachurado sobre a cauda de
+   * `real` (não de `previsto`, que é fixo e nunca "excede" a si mesmo). */
+  excesso?: BarRect;
+}
+
+/**
+ * Geometria da barra de TAREFA (Fase 4) — projeto/atividade usam a barra-resumo (navy + cunha +
+ * preenchimento de avanço), não esta função. Previsto e real são duas barras sempre visíveis
+ * (não uma substituindo a outra) — decisão do usuário no checkpoint visual, ajustando o desenho
+ * original da spec/protótipo (que só desenhava previsto vs. base, sem trilha de real).
+ */
+export function computeTaskBarSegments(
+  task: {
+    plannedStart: string;
+    plannedEnd: string;
+    baseStart: string;
+    baseEnd: string;
+    actualStart?: string;
+    actualEnd?: string;
+  },
+  range: DateRange,
+  today: string,
+): TaskBarSegments {
+  const previsto = barRect(range, task.plannedStart, task.plannedEnd);
+  const dashed = task.baseStart !== task.plannedStart || task.baseEnd !== task.plannedEnd;
+  const baseline = { ...barRect(range, task.baseStart, task.baseEnd), dashed };
+
+  if (!task.actualStart) {
+    return { baseline, previsto };
+  }
+
+  const realEnd = task.actualEnd ?? today;
+  const real = barRect(range, task.actualStart, realEnd);
+  const excesso = realEnd > task.plannedEnd ? barRect(range, task.plannedEnd, realEnd) : undefined;
+
+  return { baseline, previsto, real, excesso };
 }

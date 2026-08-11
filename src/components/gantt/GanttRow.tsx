@@ -129,8 +129,11 @@ export function GanttRow({
         <TodayLine range={range} />
         <GanttBars
           range={range}
+          status={task.status}
           plannedStart={task.plannedStart}
           plannedEnd={task.plannedEnd}
+          baseStart={task.baseStart}
+          baseEnd={task.baseEnd}
           actualStart={task.actualStart}
           actualEnd={task.actualEnd}
           connectorFromISO={connectorFromISO}
