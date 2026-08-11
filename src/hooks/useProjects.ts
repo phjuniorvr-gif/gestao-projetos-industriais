@@ -57,7 +57,21 @@ export function useProjects() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const today = todayISO();
+  // Estado (não const recalculada a cada render): sem um trigger de re-render, uma aba aberta
+  // durante a virada da meia-noite (ou muito tempo em segundo plano) ficaria com "hoje" parado
+  // no valor de quando montou. Recalcula ao voltar o foco/visibilidade da aba.
+  const [today, setToday] = useState(todayISO());
+  useEffect(() => {
+    const recomputeToday = () => {
+      if (document.visibilityState === 'visible') setToday(todayISO());
+    };
+    document.addEventListener('visibilitychange', recomputeToday);
+    window.addEventListener('focus', recomputeToday);
+    return () => {
+      document.removeEventListener('visibilitychange', recomputeToday);
+      window.removeEventListener('focus', recomputeToday);
+    };
+  }, []);
   // holidays undefined (não []) enquanto não carregou — ver computeLateCompletionDays em
   // status.ts: undefined é "não sei ainda", não "não há feriado".
   const projects: ProjectView[] = useMemo(

@@ -1,6 +1,7 @@
 import { AlertTriangle, Clock, Hourglass } from 'lucide-react';
 import { Badge } from '../ui';
 import { STATUS_COLOR, STATUS_LABEL, type ProjectStatus } from '../../types';
+import { shouldShowStartDelayedBadge } from '../../utils/status';
 
 interface StatusBadgeProps {
   status: ProjectStatus;
@@ -26,9 +27,7 @@ export function StatusBadge({
   lateCompletion,
   lateCompletionDays,
 }: StatusBadgeProps) {
-  // Redundante mostrar "deveria ter começado" quando já está bloqueada (mesma causa raiz) ou
-  // quando o status já é "Atrasado" (o chip principal já entrega a informação).
-  const showStartDelayed = startDelayed && !blocked && status !== 'delayed';
+  const showStartDelayed = shouldShowStartDelayedBadge({ isStartDelayed: startDelayed, isBlocked: blocked, status });
 
   return (
     <span className="inline-flex items-center gap-1.5">

@@ -96,6 +96,21 @@ export function rollUpLateCompletion(children: { isLateCompletion: boolean }[]):
 }
 
 /**
+ * Regra de exibição (não de dado — `isStartDelayed` continua calculado certo mesmo quando
+ * isto retorna false): suprime o selo de "deveria ter começado" quando a tarefa já está
+ * bloqueada (mesma causa raiz, bloqueado é mais específico) ou quando o status já é "Atrasado"
+ * (o chip principal já entrega a informação). Extraída de StatusBadge pra ser testável sem
+ * depender de renderização de componente.
+ */
+export function shouldShowStartDelayedBadge(item: {
+  isStartDelayed?: boolean;
+  isBlocked?: boolean;
+  status: ProjectStatus;
+}): boolean {
+  return Boolean(item.isStartDelayed) && !item.isBlocked && item.status !== 'delayed';
+}
+
+/**
  * Contagem, não booleano: `some()` sobre 50+ tarefas satura (quase todo projeto médio tem
  * alguma tarefa ainda não iniciada) e vira ruído fixo aceso, sem informar nada. Funciona nos
  * dois níveis — tarefas-filhas (`isBlocked` booleano) ou atividades-filhas (`blockedCount` já
