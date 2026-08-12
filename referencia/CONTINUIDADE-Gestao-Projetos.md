@@ -5,7 +5,7 @@
 
 ## O projeto
 
-App interno da Colorvisão/Colormaq para gestão de projetos industriais. Está em produção com dados reais (8 projetos, 14 atividades, 55 tarefas, 1 usuário).
+App interno da Colorvisão/Colormaq para gestão de projetos industriais. Está em produção com dados reais (8 projetos, 14 atividades, 66 tarefas, 2 usuários — 1 administrador real + 1 de teste criado pra validar a Fase 5).
 
 **Stack:** Vite + React 19 + TypeScript + React Router v7 + Supabase + Vercel.
 **Pasta:** `Desktop\Projetos DEV\Projeto-gestao-de-projetos`
@@ -39,34 +39,39 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 
 **Fase 4 — Tela de Cronograma.** 7 commits de entrega + 1 de fechamento. Sem migração — tudo derivado/desenhado em cima do que 2.5/2.7 já modelaram. Painel esquerdo com colunas somadas de uma lista única (`ganttColumns.ts`, corrige o bug que a spec avisava) e 4 colunas de data separadas (não intervalo único — pedido do usuário no checkpoint). Barras: previsto e real **sempre os dois visíveis** por tarefa (diverge da spec/protótipo, que mesclava numa só), excesso vermelho sólido não hachurado, barra-resumo de atividade/projeto colorida por status. Zoom Dia/Semana/Mês (24/8/3 px/dia) com grade vertical e sombreamento de fim de semana; piso de barra fixo em 6px (12/66 tarefas reais têm 1 dia de duração, sumiriam no zoom mês sem isso); `getUTCDay()` sempre, nunca `getDay()` (mesma pegadinha de fuso da 2.6). Setas de dependência por tipo, ancorando na linha visível mais próxima quando a ponta está recolhida, deduplicadas por (origem/destino/tipo resolvidos), contador de arestas violadas no rodapé. Tooltip completo na barra. Criação direto no cronograma (`+` sempre visível no hover da linha + botão "Novo item" com seletor). Editor de predecessoras virou `<select>` de candidatas seguras (exclui auto-dependência, ciclo e duplicata na mesma tarefa) com data sugerida + "Aplicar". **Marco (losango) fora de escopo** — medido 12/66 tarefas com `plannedStart===plannedEnd`, provando que "marco = duração zero" seria errado; sem campo `isMilestone` no modelo. **Reverteu uma decisão da 2.5**: linha de base deixou de ser editável na UI (só previsto replaneja) — pedido explícito do usuário, a âncora do indicador de atraso não devia ter sido editável desde o início; infraestrutura de banco (`replanejamentos.campo='base'`) não mudou, só ficou sem UI que a acione. Bug real pego no meio da fase: cabeçalho/linha-de-hoje reservavam 40px de um prefixo de texto que as barras já tinham parado de usar desde o Commit 2 — corrigido no Commit 3.
 
+**Fase 5 — Permissões (RLS por perfil).** 4 commits de entrega + 1 de fechamento. Dois perfis (`perfis.papel ∈ {'usuario','administrador'}`, tabela própria — não coluna em `pessoas`, não JWT claim, escolhida entre 3 opções com o usuário) com RLS de verdade, não só esconder botão. **Achado que mudou tudo**: `saveProjectTree()` é o único caminho de gravação do app — toda mudança reescreve o projeto inteiro (atividades + delete/reinsert de dependências), então travar `activities`/`dependencias` no banco sem separar um caminho de escrita pro usuário comum quebraria a única ação que a spec libera pra ele ("informar real"). Resolvido com dois caminhos isolados: `updateTaskActual` (update de 1 coluna) e a RPC `replanejar_tarefa()` (tarefa + log de replanejamento na MESMA transação — antes eram duas chamadas independentes, não atômicas; o mesmo gap existia também na tela de Projetos, corrigido junto). Trigger de proteção de coluna em `tasks` por DIFERENÇA (`to_jsonb` menos `actual_start`/`actual_end`), não por lista de nomes — protege coluna futura por padrão. `replanejamentos.INSERT` também virou admin-only (fecha uma falsificação que a RPC atômica sozinha não fechava). UI trava com `LockBadge` + `disabled`, tratando `isAdmin === undefined` (carregando) como travado, nunca liberado por engano. **Reafirma a decisão da Fase 4**: base continua travada pra todos, inclusive administrador — não reabriu. Migration restritiva (a arriscada) testada em duas camadas antes de confiar nela: SQL simulando cada papel (`set local role`/`request.jwt.claims`, sempre dentro de `begin/rollback`) e depois navegador de verdade com um segundo usuário criado só pra isso — só depois disso confirmado que a conta real continuou com acesso total. Script de reversão salvo em `supabase/backups/` antes de aplicar.
+
 ## Decisões de modelagem (estão no CLAUDE.md)
 
 1. **Dois papéis:** `gerente_id` no projeto (1), `responsavel_id` na tarefa (1). Equipe é consulta, não campo. Atividade não tem responsável.
-2. **Status derivado só em TS, sem espelho SQL** — diferente do padrão da 2.6. Consequência: nenhuma policy RLS da Fase 5 pode filtrar por status, nenhuma query server-side pode ordenar por ele. Dívida documentada: view `v_tasks_status`, sem fase alvo.
+2. **Status derivado só em TS, sem espelho SQL** — diferente do padrão da 2.6. Consequência: nenhuma policy RLS pode filtrar por status, nenhuma query server-side pode ordenar por ele — a Fase 5 confirmou isso na prática (nenhuma das policies novas precisou filtrar por status). Dívida ainda registrada, sem fase alvo: view `v_tasks_status`, se algum dia precisar.
 3. **Separação `Task` (persistido) x `TaskView` (computado).** O tipo raw não tem status nem campo derivado — assim ninguém consegue fabricar um status falso. Recompute mora só no `useProjects`, nunca no repo.
 4. **Coluna com dado real não se apaga:** rename para `_legacy` + `COMMENT ON COLUMN`. Drop fica para a Fase 7.
 5. **Ordem de migração:** código para de escrever → commit → **push confirmado** → deploy → dump completo e autônomo → migration. Vercel+Supabase sem staging.
 6. **Avanço 100% automático.** Tarefa binária; atividade/projeto = peso concluído ÷ peso total, ponderado por dias úteis.
-7. **Linha de base congelada (implementado na Fase 2.5):** seed = previsto na criação da tarefa, motivo obrigatório pra alterar previsto OU base, gravando em `replanejamentos` (cobre os dois campos, não só previsto). Sem gating de admin ainda — vale pra qualquer usuário logado; a Fase 5 restringe.
+7. **Linha de base congelada (implementado na Fase 2.5, revisado na 4 e na 5):** seed = previsto na criação da tarefa. Base **não é editável por ninguém** desde a Fase 4 (reversão do "com motivo" original, pedido do usuário) — a Fase 5 reafirmou isso, não reabriu. Só previsto replaneja, com motivo obrigatório, gravando em `replanejamentos`; desde a Fase 5, só administrador pode replanejar (RLS de verdade, não só UI) e a escrita é atômica (RPC `replanejar_tarefa()`, tarefa + log na mesma transação).
 8. **Dependências (implementado na Fase 2.7):** 4 tipos (FS, SS, FF, SF) com folga em dias úteis, por `id` da tarefa (não número de linha). Violação de previsto sinaliza, não bloqueia. Bloqueio de início (`isBlocked`) só por FS/SS, usando data real. Anti-ciclo + duplicata validados no cliente (`useProjects.ts`), antes de gravar.
 9. **Exclusão de atividade com tarefas:** bloqueada por padrão, com ação explícita de administrador + Desfazer de 6s.
 10. **"Hoje" em America/Sao_Paulo**, injetável nas funções puras, recalculado em `visibilitychange`/foco. Comparação de atraso estrita (`today > plannedEnd`).
+11. **Permissões (implementado na Fase 5):** dois perfis, tabela `perfis` própria (`user_id`→`auth.users`, `papel`). RLS de verdade: usuário comum só informa `actual_start`/`actual_end`; todo o resto (criar/editar/excluir atividade/tarefa/projeto, previsto, dependências) é admin-only, aplicado tanto na UI (cadeado) quanto no banco (trigger de coluna em `tasks` + policies). Gerenciar quem é administrador é manual, via SQL Editor — sem tela no app ainda.
 
 ## O que falta
 
-**Fase 4 concluída.** Próxima: **Fase 5 (Permissões — RLS por perfil)**. Não existe primitiva de papel em lugar nenhum do código ainda (`Person` sem `role`, `useAuth` só expõe `session` bruta) — toda decisão de "quem pode editar o quê" registrada até aqui (base, previsto, exclusão de atividade, criação no cronograma) foi deliberadamente deixada aberta pra qualquer usuário logado, com a fronteira explícita de que é a Fase 5 quem restringe de verdade. Como o status é derivado só em TS (decisão da Fase 2.3), nenhuma policy de RLS vai poder filtrar/ordenar por status — dívida técnica já registrada (view `v_tasks_status`, sem fase alvo fixa; criar se a Fase 5 precisar filtrar por status no servidor).
+**Fase 5 concluída.** Próxima: **Fase 6 (Mobile)** — referência `referencia/Gestao-Projetos-Mobile.html`, tabela vira card (`ProjectCard.tsx`, reservado desde a Fase 3 sem uso, é pra reusar aqui), painel lateral vira bottom sheet, 4 abas (Resumo/Projetos/Cronograma/Equipe), mini-gantt sobrevive em 22px.
 
-**Depois:** Fase 6 (mobile), Fase 7 (validações, QA e drop das colunas `_legacy`).
+**Depois:** Fase 7 (validações, QA e drop das colunas `_legacy`).
 
 ## Pendências anotadas
 
-- Warning do Supabase: proteção contra senha vazada desligada. Trivial, não urgente com 1 usuário.
+- Warning do Supabase: proteção contra senha vazada desligada. Trivial, não urgente.
 - Feriados municipais de Matriz, MEC e Feira ainda não cadastrados.
 - Teste de `dias_uteis`/`soma_dias_uteis` depende de usuário de teste autenticado — hoje só `pascoa`/`feriados_nacionais` cobertas.
-- Na Fase 7, `responsavel_id` vira obrigatório — precisa de preenchimento em massa nas 55 tarefas.
+- Na Fase 7, `responsavel_id` vira obrigatório — precisa de preenchimento em massa nas tarefas.
 - Colunas `_legacy` a dropar na Fase 7: `status_legacy` (3 tabelas), 8 colunas de data em `activities`/`projects`, `progress_legacy`, `predecessor_row_numbers_legacy` (tasks).
 - Rótulo "sem tarefas" quando atividade não tem tarefa — decisão de exibição adiada.
 - Marco (losango) no Gantt: fora de escopo da Fase 4, precisa de campo `isMilestone` novo + decisão de produto (medido: 12/66 tarefas reais têm duração de 1 dia, então "duração zero" não seria a regra certa de inferência).
+- Gerenciar papel (`perfis.papel`) é manual via SQL Editor — sem tela no app. Se a lista de usuários crescer, vale uma tela simples de administração (fora de escopo da Fase 5, não pedida).
+- Usuário de teste da Fase 5 (`dorival.junior@colormaq.com.br`) continua no banco, sem `perfis` — decidir se apaga ou promove quando alguém de verdade precisar desse acesso.
 
 ## Como trabalhamos
 
