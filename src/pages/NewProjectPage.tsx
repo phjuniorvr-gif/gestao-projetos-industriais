@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout';
-import { Button, Card, FormField, Input, Select, Textarea, Badge } from '../components/ui';
+import { Badge, Button, Card, EmptyState, FormField, Input, Select, Textarea } from '../components/ui';
 import { ActivitySourceForm, SelectedActivitiesList } from '../components/wizard';
 import type { DraftActivity } from '../components/wizard';
 import { PersonSelect } from '../components/shared/PersonSelect';
-import { useCatalog, useCategories, useHolidays, usePeople, useProjects } from '../hooks';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects } from '../hooks';
 import { computeDatesFromDuration, nextProjectCode, todayISO } from '../utils';
 import type { NewActivityInput } from '../hooks';
 
@@ -18,6 +18,7 @@ export function NewProjectPage() {
   const { categories } = useCategories();
   const { holidays } = useHolidays();
   const { people, createPerson } = usePeople();
+  const isAdmin = usePerfil();
   const [step, setStep] = useState<0 | 1>(0);
 
   const [name, setName] = useState('');
@@ -158,6 +159,18 @@ export function NewProjectPage() {
       activities,
     });
     navigate('/projetos');
+  }
+
+  // Fase 5 — o botão "Novo Projeto" que leva aqui já fica travado pra quem não é administrador;
+  // esta guarda cobre quem chega direto pela URL. `isAdmin === false` (não `undefined`, ainda
+  // carregando) pra não piscar essa mensagem antes de saber o papel de verdade.
+  if (isAdmin === false) {
+    return (
+      <EmptyState
+        title="Somente administrador pode criar projeto"
+        description="Fale com um administrador do sistema para criar um novo projeto."
+      />
+    );
   }
 
   return (

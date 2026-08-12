@@ -6,4 +6,5 @@ export * from './useHolidays';
 export * from './useReplanejamentos';
 export * from './usePeople';
 export * from './useAuth';
+export * from './usePerfil';
 export * from './useUndoToast';

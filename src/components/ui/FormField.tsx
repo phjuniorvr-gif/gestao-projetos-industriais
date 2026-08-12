@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 
 interface FormFieldProps {
-  label: string;
+  /** `ReactNode`, não só `string` — permite anexar `LockBadge` (Fase 5) ao lado do texto sem
+   * precisar de um wrapper novo em quem chama. */
+  label: ReactNode;
   required?: boolean;
   error?: string;
   className?: string;

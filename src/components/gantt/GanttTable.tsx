@@ -78,6 +78,8 @@ interface GanttTableProps {
   compact: boolean;
   /** Quando verdadeiro, mostra os botões de adicionar/excluir atividade e tarefa. */
   editMode: boolean;
+  /** Fase 5 — `undefined` enquanto o papel ainda não carregou, tratado como travado. */
+  isAdmin: boolean | undefined;
   zoom: GanttZoom;
   /** Container com scroll horizontal — exposto pro botão "Ir para hoje" da página calcular o
    * `scrollLeft`, sem duplicar o cálculo de range/colunas fora deste componente. */
@@ -154,6 +156,7 @@ export function GanttTable({
   holidays,
   compact,
   editMode,
+  isAdmin,
   zoom,
   scrollContainerRef,
   onToggleProject,
@@ -163,6 +166,8 @@ export function GanttTable({
   onAddActivity,
   onRemoveActivity,
 }: GanttTableProps) {
+  // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
+  const locked = isAdmin !== true;
   const [hover, setHover] = useState<{ target: HoverTarget; x: number; y: number } | null>(null);
   const pxPerDay = ZOOM_PX_PER_DAY[zoom];
   const today = todayISO();
@@ -404,11 +409,14 @@ export function GanttTable({
                       </button>
                       {/* "+" sempre existe, só fica visível no hover da linha (spec: sem gate de
                           modo Editar) — a lixeira de excluir atividade continua atrás do modo
-                          Editar, é ação destrutiva, não o que esta liberação pede. */}
+                          Editar, é ação destrutiva, não o que esta liberação pede. Travado por
+                          papel (Fase 5): criar atividade é admin-only. */}
                       <button
                         type="button"
                         onClick={() => onAddActivity(project)}
-                        className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100"
+                        disabled={locked}
+                        title={locked ? 'Somente administrador pode criar atividade.' : undefined}
+                        className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100 disabled:cursor-not-allowed disabled:no-underline"
                       >
                         <Plus className="h-3.5 w-3.5" /> Atividade
                       </button>
@@ -497,11 +505,14 @@ export function GanttTable({
                                 <span className="truncate">{activity.name}</span>
                               </button>
                               {/* "+" sempre existe, só fica visível no hover da linha — a lixeira
-                                  (ação destrutiva) continua atrás do modo Editar. */}
+                                  (ação destrutiva) continua atrás do modo Editar. Travado por
+                                  papel (Fase 5): criar tarefa é admin-only. */}
                               <button
                                 type="button"
                                 onClick={() => onAddTask(activity)}
-                                className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100"
+                                disabled={locked}
+                                title={locked ? 'Somente administrador pode criar tarefa.' : undefined}
+                                className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100 disabled:cursor-not-allowed disabled:no-underline"
                               >
                                 <Plus className="h-3.5 w-3.5" /> Tarefa
                               </button>

@@ -9,6 +9,7 @@ interface PersonSelectProps {
   onCreatePerson: (name: string) => Promise<Person>;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 const NEW_OPTION = '__nova_pessoa__';
@@ -21,6 +22,7 @@ export function PersonSelect({
   onCreatePerson,
   placeholder = 'Selecionar…',
   className = 'w-full',
+  disabled = false,
 }: PersonSelectProps) {
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -68,6 +70,7 @@ export function PersonSelect({
         onChange(e.target.value || undefined);
       }}
       className={className}
+      disabled={disabled}
     >
       <option value="">{placeholder}</option>
       {options.map((p) => (

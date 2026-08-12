@@ -16,7 +16,7 @@ import {
   type GanttZoom,
 } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
-import { useCatalog, useCategories, useHolidays, usePeople, useProjects } from '../hooks';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
@@ -41,6 +41,7 @@ export function ProjectSchedulePage() {
     addActivity,
     removeActivity,
   } = useProjects();
+  const isAdmin = usePerfil();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { people, createPerson } = usePeople();
@@ -258,6 +259,8 @@ export function ProjectSchedulePage() {
                   variant="secondary"
                   icon={<ListPlus className="h-4 w-4" />}
                   onClick={() => setNewItemMenuOpen((open) => !open)}
+                  disabled={isAdmin !== true}
+                  title={isAdmin !== true ? 'Somente administrador pode criar atividade ou tarefa.' : undefined}
                 >
                   Novo item
                 </Button>
@@ -307,6 +310,8 @@ export function ProjectSchedulePage() {
                 variant={editMode ? 'secondary' : 'primary'}
                 icon={<Pencil className="h-4 w-4" />}
                 onClick={() => setEditMode((e) => !e)}
+                disabled={isAdmin !== true}
+                title={isAdmin !== true ? 'Somente administrador pode excluir atividade.' : undefined}
               >
                 Editar
               </Button>
@@ -343,6 +348,7 @@ export function ProjectSchedulePage() {
               holidays={holidays}
               compact={compact}
               editMode={editMode}
+              isAdmin={isAdmin}
               zoom={zoom}
               scrollContainerRef={scrollContainerRef}
               onToggleProject={toggleProject}
@@ -362,6 +368,7 @@ export function ProjectSchedulePage() {
         categories={categories}
         people={people}
         replanejamentos={replanejamentos}
+        isAdmin={isAdmin}
         holidays={holidays}
         unit={ganttProjects.find((p) => p.id === activityIdToProjectId.get(liveSelectedTask?.activityId ?? ''))?.unit ?? ''}
         onCreatePerson={createPerson}

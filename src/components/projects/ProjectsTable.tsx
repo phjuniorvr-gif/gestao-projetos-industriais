@@ -10,6 +10,8 @@ interface ProjectsTableProps {
   people: Person[];
   today: string;
   holidays: Holiday[];
+  /** Fase 5 — `undefined` enquanto o papel ainda não carregou, tratado como travado. */
+  isAdmin: boolean | undefined;
   onEdit: (project: ProjectView) => void;
   onDelete: (project: ProjectView) => void;
   onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
@@ -21,6 +23,7 @@ export function ProjectsTable({
   people,
   today,
   holidays,
+  isAdmin,
   onEdit,
   onDelete,
   onUpdateTask,
@@ -51,6 +54,7 @@ export function ProjectsTable({
             people={people}
             today={today}
             holidays={holidays}
+            isAdmin={isAdmin}
             onEdit={onEdit}
             onDelete={onDelete}
             onUpdateTask={onUpdateTask}

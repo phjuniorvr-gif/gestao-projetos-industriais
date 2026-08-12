@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
-import { Button, Card, FormField, Input, Select, Textarea } from '../ui';
+import { Button, Card, FormField, Input, LockBadge, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import type { Category, CategoryEntry, DependencyType, Holiday, Person, Replanejamento, Task, TaskView } from '../../types';
 import {
@@ -37,6 +37,9 @@ interface TaskPanelProps {
   replanejamentos: Replanejamento[];
   holidays: Holiday[];
   unit: string;
+  /** Fase 5 — `undefined` enquanto o papel ainda não carregou, tratado como travado (não
+   * `false`): ver `usePerfil`. */
+  isAdmin: boolean | undefined;
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
@@ -57,6 +60,7 @@ export function TaskPanel({
   replanejamentos,
   holidays,
   unit,
+  isAdmin,
   onCreatePerson,
   onClose,
   onSave,
@@ -65,6 +69,9 @@ export function TaskPanel({
   onReplan,
   onDelete,
 }: TaskPanelProps) {
+  // `undefined` (carregando) conta como travado — nunca libera por engano antes de saber o
+  // papel de verdade (ver usePerfil.ts).
+  const locked = isAdmin !== true;
   const [dependencyDrafts, setDependencyDrafts] = useState<
     { predecessorRowNumber: number | ''; tipo: DependencyType; folgaDias: number }[]
   >([]);
@@ -193,14 +200,20 @@ export function TaskPanel({
         </div>
 
         <div className="space-y-3">
-          <FormField label="Nome">
-            <Input defaultValue={task.name} onBlur={(e) => onSave(task.id, { name: e.target.value })} className="w-full" />
+          <FormField label={<>Nome {locked && <LockBadge />}</>}>
+            <Input
+              defaultValue={task.name}
+              onBlur={(e) => onSave(task.id, { name: e.target.value })}
+              disabled={locked}
+              className="w-full"
+            />
           </FormField>
 
-          <FormField label="Categoria">
+          <FormField label={<>Categoria {locked && <LockBadge />}</>}>
             <Select
               defaultValue={task.category}
               onChange={(e) => onSave(task.id, { category: e.target.value as Category })}
+              disabled={locked}
               className="w-full"
             >
               {categories.map((c) => (
@@ -211,30 +224,33 @@ export function TaskPanel({
             </Select>
           </FormField>
 
-          <FormField label="Responsável">
+          <FormField label={<>Responsável {locked && <LockBadge />}</>}>
             <PersonSelect
               value={task.responsavelId}
               onChange={(id) => onSave(task.id, { responsavelId: id })}
               people={people}
               onCreatePerson={onCreatePerson}
               placeholder="Sem responsável"
+              disabled={locked}
             />
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Início previsto">
+            <FormField label={<>Início previsto {locked && <LockBadge />}</>}>
               <Input
                 type="date"
                 value={draftPlannedStart}
                 onChange={(e) => setDraftPlannedStart(e.target.value)}
+                disabled={locked}
                 className="w-full"
               />
             </FormField>
-            <FormField label="Fim previsto">
+            <FormField label={<>Fim previsto {locked && <LockBadge />}</>}>
               <Input
                 type="date"
                 value={draftPlannedEnd}
                 onChange={(e) => setDraftPlannedEnd(e.target.value)}
+                disabled={locked}
                 className="w-full"
               />
             </FormField>
@@ -290,7 +306,7 @@ export function TaskPanel({
             </FormField>
           </div>
 
-          <FormField label="Predecessora(s)">
+          <FormField label={<>Predecessora(s) {locked && <LockBadge />}</>}>
             <div className="space-y-2">
               {task.hasDependencyViolation && (
                 <p className="flex items-center gap-1.5 text-xs font-medium text-status-delayed">
@@ -328,6 +344,7 @@ export function TaskPanel({
                           commitDependencyDrafts(next);
                         }}
                         className="w-36"
+                        disabled={locked}
                       >
                         <option value="">Selecione…</option>
                         {candidates.map((rowNumber) => {
@@ -348,6 +365,7 @@ export function TaskPanel({
                           commitDependencyDrafts(next);
                         }}
                         className="w-20"
+                        disabled={locked}
                       >
                         {DEPENDENCY_TYPES.map((tipo) => (
                           <option key={tipo} value={tipo}>
@@ -365,13 +383,15 @@ export function TaskPanel({
                           setDependencyDrafts(next);
                           commitDependencyDrafts(next);
                         }}
+                        disabled={locked}
                         className="w-16"
                       />
                       <span className="text-xs text-text-muted">du</span>
                       <button
                         type="button"
                         onClick={() => removeDependencyDraft(index)}
-                        className="text-text-muted hover:text-status-delayed"
+                        disabled={locked}
+                        className="text-text-muted hover:text-status-delayed disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label="Remover predecessora"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -393,7 +413,8 @@ export function TaskPanel({
                         <button
                           type="button"
                           onClick={() => applySuggestedDate(row.tipo, ruleDate)}
-                          className="shrink-0 font-semibold text-action hover:underline"
+                          disabled={locked}
+                          className="shrink-0 font-semibold text-action hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                         >
                           Aplicar
                         </button>
@@ -402,7 +423,7 @@ export function TaskPanel({
                   </div>
                 );
               })}
-              <Button variant="ghost" icon={<Plus className="h-3.5 w-3.5" />} onClick={addDependencyDraft}>
+              <Button variant="ghost" icon={<Plus className="h-3.5 w-3.5" />} onClick={addDependencyDraft} disabled={locked}>
                 Adicionar predecessora
               </Button>
               {dependencyErrors.map((error) => (
@@ -442,6 +463,8 @@ export function TaskPanel({
               onDelete(task.id);
               onClose();
             }}
+            disabled={locked}
+            title={locked ? 'Somente administrador pode excluir tarefa.' : undefined}
           >
             Excluir tarefa
           </Button>

@@ -14,15 +14,24 @@ import {
   type ProjectFiltersState,
 } from '../components/projects';
 import { Button, UndoToast } from '../components/ui';
-import { useHolidays, usePeople, useProjects, useUndoToast } from '../hooks';
+import { useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { sortProjectsByCriticality } from '../utils';
 import { STATUS_LABEL, type ProjectStatus, type ProjectView } from '../types';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
-  const { projects, today, addActivity, createProject, removeProject, restoreProject, updateProjectInfo, updateTask } =
-    useProjects();
+  const {
+    projects,
+    today,
+    addActivity,
+    createProject,
+    removeProject,
+    restoreProject,
+    updateProjectInfo,
+    updateTaskActualDates,
+  } = useProjects();
   const { people, createPerson } = usePeople();
+  const isAdmin = usePerfil();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
@@ -112,7 +121,13 @@ export function ProjectsPage() {
           subtitle="Visão Geral - Automação"
           actions={
             <>
-              <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/novo-projeto')}>
+              <Button
+                variant="primary"
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => navigate('/novo-projeto')}
+                disabled={isAdmin !== true}
+                title={isAdmin !== true ? 'Somente administrador pode criar projeto.' : undefined}
+              >
                 Novo Projeto
               </Button>
               <ProjectFilters filters={filters} units={units} years={years} onChange={setFilters} />
@@ -135,9 +150,10 @@ export function ProjectsPage() {
           people={people}
           today={today}
           holidays={safeHolidays}
+          isAdmin={isAdmin}
           onEdit={(project) => setEditingId(project.id)}
           onDelete={handleDelete}
-          onUpdateTask={updateTask}
+          onUpdateTask={updateTaskActualDates}
           onDuplicate={handleDuplicate}
         />
 
@@ -152,12 +168,13 @@ export function ProjectsPage() {
         people={people}
         today={today}
         holidays={safeHolidays}
+        isAdmin={isAdmin}
         onCreatePerson={createPerson}
         onSave={(patch) => {
           if (editing) updateProjectInfo(editing.id, patch);
         }}
         onAddActivity={() => setAddingActivityToId(editingId)}
-        onUpdateTask={updateTask}
+        onUpdateTask={updateTaskActualDates}
         onClose={() => setEditingId(null)}
       />
 

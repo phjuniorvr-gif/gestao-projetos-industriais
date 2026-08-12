@@ -10,3 +10,4 @@ export * from './Checkbox';
 export * from './FormField';
 export * from './ConfirmDialog';
 export * from './UndoToast';
+export * from './LockBadge';

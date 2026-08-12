@@ -14,6 +14,8 @@ interface ProjectRowProps {
   people: Person[];
   today: string;
   holidays: Holiday[];
+  /** Fase 5 — `undefined` enquanto o papel ainda não carregou, tratado como travado. */
+  isAdmin: boolean | undefined;
   onEdit: (project: ProjectView) => void;
   onDelete: (project: ProjectView) => void;
   onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
@@ -26,7 +28,17 @@ function initials(name: string): string {
 }
 
 /** Linha da tabela de Projetos (Fase 3) — 6 colunas fixas via `PROJECTS_GRID_COLS`. */
-export function ProjectRow({ project, people, today, holidays, onEdit, onDelete, onUpdateTask, onDuplicate }: ProjectRowProps) {
+export function ProjectRow({
+  project,
+  people,
+  today,
+  holidays,
+  isAdmin,
+  onEdit,
+  onDelete,
+  onUpdateTask,
+  onDuplicate,
+}: ProjectRowProps) {
   const navigate = useNavigate();
   const gerente = people.find((p) => p.id === project.gerenteId);
   const team = computeProjectTeam(project, people);
@@ -167,6 +179,7 @@ export function ProjectRow({ project, people, today, holidays, onEdit, onDelete,
       <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
         <ProjectActionsMenu
           activityCount={project.activities.length}
+          isAdmin={isAdmin}
           onEdit={() => onEdit(project)}
           onViewActivities={goToSchedule}
           onUpdateProgress={() => setProgressPopoverOpen(true)}

@@ -5,7 +5,7 @@ import type { Holiday, Person, Project, ProjectView, Task } from '../../types';
 import { STATUS_COLOR } from '../../types';
 import { businessDaysBetween, formatDatePtBr, formatPeriod } from '../../utils';
 import { computeActivityTeam, computeExpectedProgress, computeScheduleDeviationDays } from '../../utils/portfolio';
-import { Button, FormField, Input, Textarea } from '../ui';
+import { Button, FormField, Input, LockBadge, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import { InlineTaskProgressEdit } from './InlineTaskProgressEdit';
 import { MiniGantt } from './MiniGantt';
@@ -15,6 +15,8 @@ interface ProjectDetailPanelProps {
   people: Person[];
   today: string;
   holidays: Holiday[];
+  /** Fase 5 — `undefined` enquanto o papel ainda não carregou, tratado como travado. */
+  isAdmin: boolean | undefined;
   onCreatePerson: (name: string) => Promise<Person>;
   onSave: (patch: Pick<Project, 'name' | 'description' | 'unit' | 'gerenteId'>) => void;
   onAddActivity: () => void;
@@ -42,6 +44,7 @@ export function ProjectDetailPanel({
   people,
   today,
   holidays,
+  isAdmin,
   onCreatePerson,
   onSave,
   onAddActivity,
@@ -49,6 +52,7 @@ export function ProjectDetailPanel({
   onClose,
 }: ProjectDetailPanelProps) {
   const navigate = useNavigate();
+  const locked = isAdmin !== true;
   const [editingId, setEditingId] = useState(false);
   const [progressPopoverOpen, setProgressPopoverOpen] = useState(false);
   const [name, setName] = useState('');
@@ -120,9 +124,11 @@ export function ProjectDetailPanel({
                 <button
                   type="button"
                   onClick={() => setEditingId(true)}
-                  className="text-xs font-medium text-action hover:underline"
+                  disabled={locked}
+                  title={locked ? 'Somente administrador pode editar projeto.' : undefined}
+                  className="flex items-center gap-1 text-xs font-medium text-action hover:underline disabled:cursor-not-allowed disabled:text-text-muted2 disabled:no-underline"
                 >
-                  Editar
+                  Editar {locked && <LockBadge />}
                 </button>
               )}
             </div>
@@ -223,8 +229,14 @@ export function ProjectDetailPanel({
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted2">Atividades e equipe</h3>
-              <button type="button" onClick={onAddActivity} className="text-xs font-medium text-action hover:underline">
-                + Adicionar atividade
+              <button
+                type="button"
+                onClick={onAddActivity}
+                disabled={locked}
+                title={locked ? 'Somente administrador pode criar atividade.' : undefined}
+                className="flex items-center gap-1 text-xs font-medium text-action hover:underline disabled:cursor-not-allowed disabled:text-text-muted2 disabled:no-underline"
+              >
+                + Adicionar atividade {locked && <LockBadge />}
               </button>
             </div>
             <p className="mb-2 text-[11px] text-text-muted2">
