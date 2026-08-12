@@ -1,7 +1,7 @@
 # Onde paramos — refatoração do Gestão de Projetos Industriais
 
 > Cole isto na primeira mensagem de uma conversa nova para retomar sem perder contexto.
-> Atualizado em 11/ago/2026.
+> Atualizado em 12/ago/2026.
 
 ## O projeto
 
@@ -37,6 +37,8 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 
 **Fase 2.7 — Dependências FS/SS/FF/SF.** 5 commits. `Task.predecessorRowNumbers` (FK por número de linha, coluna array) virou `Task.dependencies` (FK por `id`, tabela `dependencias` própria, tipo+folga por linha) — número de linha continua sendo só como o usuário escolhe/vê a predecessora, traduzido na borda UI↔dado persistido (`useProjects.ts`). `isBlocked` ficou **ciente do tipo**: pela própria tabela de regras da spec, só FS e SS restringem o *início* da sucessora, então só eles bloqueiam — usando a data REAL da predecessora (`actualEnd`/`actualStart`) + folga contada a partir dela; FF/SF nunca bloqueiam (bloqueio ali seria falso positivo), só entram em `hasDependencyViolation` (campo novo, checagem sobre PREVISTO, pros 4 tipos, sinaliza sem bloquear salvar — exatamente a regra "violação não bloqueia" da spec). Trocar a chave de `recomputeProject` de `tasksByRowNumber` (incremental, dependia de predecessora ter número menor) pra `tasksById` (direto, sem ordem) corrigiu um bug latente, não foi só refactor. Editor de linhas (tarefa · tipo · folga · remover) construído já nesta fase, dentro do `TaskPanel.tsx` — não esperado pra Fase 4 (sem ele não dava pra escolher tipo/folga nenhum). RLS da tabela nova (`dependencias`) já saiu certo desta vez — lição da 2.5 aplicada de propósito, checado via `get_advisors` antes de fechar o commit.
 
+**Fase 4 — Tela de Cronograma.** 7 commits de entrega + 1 de fechamento. Sem migração — tudo derivado/desenhado em cima do que 2.5/2.7 já modelaram. Painel esquerdo com colunas somadas de uma lista única (`ganttColumns.ts`, corrige o bug que a spec avisava) e 4 colunas de data separadas (não intervalo único — pedido do usuário no checkpoint). Barras: previsto e real **sempre os dois visíveis** por tarefa (diverge da spec/protótipo, que mesclava numa só), excesso vermelho sólido não hachurado, barra-resumo de atividade/projeto colorida por status. Zoom Dia/Semana/Mês (24/8/3 px/dia) com grade vertical e sombreamento de fim de semana; piso de barra fixo em 6px (12/66 tarefas reais têm 1 dia de duração, sumiriam no zoom mês sem isso); `getUTCDay()` sempre, nunca `getDay()` (mesma pegadinha de fuso da 2.6). Setas de dependência por tipo, ancorando na linha visível mais próxima quando a ponta está recolhida, deduplicadas por (origem/destino/tipo resolvidos), contador de arestas violadas no rodapé. Tooltip completo na barra. Criação direto no cronograma (`+` sempre visível no hover da linha + botão "Novo item" com seletor). Editor de predecessoras virou `<select>` de candidatas seguras (exclui auto-dependência, ciclo e duplicata na mesma tarefa) com data sugerida + "Aplicar". **Marco (losango) fora de escopo** — medido 12/66 tarefas com `plannedStart===plannedEnd`, provando que "marco = duração zero" seria errado; sem campo `isMilestone` no modelo. **Reverteu uma decisão da 2.5**: linha de base deixou de ser editável na UI (só previsto replaneja) — pedido explícito do usuário, a âncora do indicador de atraso não devia ter sido editável desde o início; infraestrutura de banco (`replanejamentos.campo='base'`) não mudou, só ficou sem UI que a acione. Bug real pego no meio da fase: cabeçalho/linha-de-hoje reservavam 40px de um prefixo de texto que as barras já tinham parado de usar desde o Commit 2 — corrigido no Commit 3.
+
 ## Decisões de modelagem (estão no CLAUDE.md)
 
 1. **Dois papéis:** `gerente_id` no projeto (1), `responsavel_id` na tarefa (1). Equipe é consulta, não campo. Atividade não tem responsável.
@@ -52,9 +54,9 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 
 ## O que falta
 
-**2.5 e 2.7 concluídas.** Próxima: **Fase 4 (Tela de Cronograma)** — a mais pesada do roteiro, trata como sub-fases. Desenha o que 2.5/2.7 já modelaram mas não desenharam: barra tracejada de linha de base, setas de dependência (com rótulo tipo+folga, tracejada laranja quando violada, contador no rodapé), tooltip completo na barra, data sugerida pela regra com botão "Aplicar" no editor de predecessoras, zoom Dia/Semana/Mês, criação direto no cronograma (`+` no hover da linha).
+**Fase 4 concluída.** Próxima: **Fase 5 (Permissões — RLS por perfil)**. Não existe primitiva de papel em lugar nenhum do código ainda (`Person` sem `role`, `useAuth` só expõe `session` bruta) — toda decisão de "quem pode editar o quê" registrada até aqui (base, previsto, exclusão de atividade, criação no cronograma) foi deliberadamente deixada aberta pra qualquer usuário logado, com a fronteira explícita de que é a Fase 5 quem restringe de verdade. Como o status é derivado só em TS (decisão da Fase 2.3), nenhuma policy de RLS vai poder filtrar/ordenar por status — dívida técnica já registrada (view `v_tasks_status`, sem fase alvo fixa; criar se a Fase 5 precisar filtrar por status no servidor).
 
-**Depois:** Fase 5 (permissões com RLS por perfil), Fase 6 (mobile), Fase 7 (validações, QA e drop das colunas `_legacy`).
+**Depois:** Fase 6 (mobile), Fase 7 (validações, QA e drop das colunas `_legacy`).
 
 ## Pendências anotadas
 
@@ -64,8 +66,7 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 - Na Fase 7, `responsavel_id` vira obrigatório — precisa de preenchimento em massa nas 55 tarefas.
 - Colunas `_legacy` a dropar na Fase 7: `status_legacy` (3 tabelas), 8 colunas de data em `activities`/`projects`, `progress_legacy`, `predecessor_row_numbers_legacy` (tasks).
 - Rótulo "sem tarefas" quando atividade não tem tarefa — decisão de exibição adiada.
-- Tooltip "2/5 tarefas · 22/114du" no Gantt — Fase 4, usando `taskWeight` exportada.
-- Setas de dependência + data sugerida com botão "Aplicar" no editor de predecessoras — ficaram pra Fase 4 de propósito (2.7 entregou só o editor de linhas tipo/folga).
+- Marco (losango) no Gantt: fora de escopo da Fase 4, precisa de campo `isMilestone` novo + decisão de produto (medido: 12/66 tarefas reais têm duração de 1 dia, então "duração zero" não seria a regra certa de inferência).
 
 ## Como trabalhamos
 

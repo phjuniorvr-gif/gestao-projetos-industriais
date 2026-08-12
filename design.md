@@ -58,13 +58,15 @@ Quase nenhuma. Separação por borda de 1px (`border-border`), não por sombra. 
 
 ## Densidade de tabela — regra para as Fases 3/4
 
-Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma informação por coluna, sem gráfico embutido (ex.: lista de atividades do painel lateral, tabela do Gantt na Fase 4: densidade ali é requisito, não estética — cronograma com linha alta esconde o encadeamento).
+Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma informação por coluna, sem gráfico embutido (ex.: lista de atividades do painel lateral, tabela do Gantt: densidade ali é requisito, não estética — cronograma com linha alta esconde o encadeamento).
 
 **Correção feita na Fase 3, ao construir a tabela de Projetos de verdade**: a linha da tabela de Projetos embute mini-gantt de 2 trilhas (previsto/real) + bloco de avanço com barra e texto de delta — não cabe em 34px sem esvaziar a informação que a própria spec pede pra essa coluna. Régua real usada: **~64px** (altura do conteúdo, sem valor fixo forçado — cada linha cresce até caber Projeto/Cronograma/Avanço). 34px continua valendo como regra padrão pra qualquer linha sem visualização embutida; a tabela de Projetos é a exceção documentada, não a régua geral revogada.
 
+**Confirmado na Fase 4**: a tabela do Gantt (`GanttTable.tsx`/`GanttRow.tsx`) usa 34px de verdade, não só documentado — inclusive as linhas de projeto/atividade, que têm barra-resumo embutida (diferente da tabela de Projetos, que precisou da exceção de 64px). `overflow-hidden`/`truncate` em toda célula é o que torna isso possível sem quebrar em 2 linhas.
+
 ## Componentes já padronizados nesta fase
 
-`Button`, `Card`, `Input`, `Select`, `Textarea`, `Checkbox`, `Badge`/`StatusBadge`, `EmptyState`, `Skeleton`, `ConfirmDialog`, `FormField` (`src/components/ui/`) — cores, raio e foco herdados dos tokens acima. `Sidebar` (azul institucional, sem mudança de código, só de token). `PageHeader` (escala tipográfica). `TodayLine` do Gantt recebeu o azul de ação no lugar do laranja de atraso (a linha de "hoje" é azul por regra explícita do spec; o rótulo fixo e o botão "Ir para hoje" são entrega da Fase 4).
+`Button`, `Card`, `Input`, `Select`, `Textarea`, `Checkbox`, `Badge`/`StatusBadge`, `EmptyState`, `Skeleton`, `ConfirmDialog`, `FormField` (`src/components/ui/`) — cores, raio e foco herdados dos tokens acima. `Sidebar` (azul institucional, sem mudança de código, só de token). `PageHeader` (escala tipográfica). `TodayLine` do Gantt é azul de ação, não laranja de atraso (regra explícita do spec) — rótulo fixo dd/mm e botão "Ir para hoje" entregues na Fase 4.
 
 ## Entregues na Fase 3
 
@@ -75,7 +77,7 @@ Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma i
 
 ## Entregues na Fase 2.5
 
-- **Replanejamento com motivo obrigatório, sem modal** — os campos "Início/Fim previsto" e "Início/Fim linha de base" do `TaskPanel.tsx` viram rascunho comparado contra o valor salvo; qualquer mudança real revela inline (dentro do próprio painel lateral, sem overlay novo) uma textarea "Motivo do replanejamento" + botão "Confirmar alteração". A spec original imaginava modal; ficou inline porque o painel lateral (Fase 3) já é o lugar natural de edição de tarefa, e um modal-sobre-painel duplicaria a camada sem necessidade.
+- **Replanejamento com motivo obrigatório, sem modal** — os campos "Início/Fim previsto" do `TaskPanel.tsx` viram rascunho comparado contra o valor salvo; qualquer mudança real revela inline (dentro do próprio painel lateral, sem overlay novo) uma textarea "Motivo do replanejamento" + botão "Confirmar alteração". A spec original imaginava modal; ficou inline porque o painel lateral (Fase 3) já é o lugar natural de edição de tarefa, e um modal-sobre-painel duplicaria a camada sem necessidade. **Revertido na Fase 4**: "Início/Fim linha de base" também era editável desta forma (texto original desta linha, histórico); virou texto só-leitura (`formatPeriod`) a pedido do usuário — a base não deveria ter sido editável desde o início, ver `CLAUDE.md`.
 - **Selo `R{n}`** (fundo `bg-action/10`, texto `text-action`, pílula `rounded-full`) — conta quantas vezes o previsto já foi empurrado; aparece no cabeçalho do `TaskPanel` e ao lado do nome da tarefa em `GanttRow.tsx`.
 - **Lista "Histórico de replanejamento"** no rodapé do `TaskPanel` (quando/quem/campo+data/de→para/motivo), visível só quando a tarefa já tem `R{n} > 0`.
 
@@ -84,8 +86,13 @@ Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma i
 - **Editor de predecessoras em linhas**, dentro do `TaskPanel.tsx` — cada dependência é uma linha (número da tarefa · tipo FS/SS/FF/SF · folga em dias úteis · remover), com "+ Adicionar predecessora" no fim. Substitui o campo de texto único (`TaskDependencyInput.tsx`, que só aceitava números separados por vírgula, sempre `FS+0`) — esse componente continua existindo só pro wizard de criação (`SelectedActivitiesList.tsx`).
 - **Selo de conflito de dependência** — triângulo laranja (`AlertTriangle`, cor `text-status-delayed`) com texto no `TaskPanel` ("Previsto em conflito com a regra de alguma dependência") e só o ícone com `title` em `GanttRow.tsx`, ao lado do selo `R{n}`. Aparece quando `hasDependencyViolation` é `true` — sinaliza, não impede salvar.
 
-## Ainda não existem — entregas de fases futuras
+## Entregues na Fase 4
 
-- **Barra tracejada de linha de base** no Gantt, quando previsto ≠ base (Fase 4 — desenho de timeline).
-- **Tooltip** de barra do Gantt (Fase 4).
-- **Setas de dependência no Gantt** (linha ligando predecessora↔sucessora, rótulo com tipo+folga, seta tracejada quando violada, contador no rodapé) e a **data sugerida pela regra com botão "Aplicar"** no editor de predecessoras — ambos Fase 4.
+- **Painel esquerdo do Gantt com colunas somadas** (`ganttColumns.ts`) — `getGanttColumns`/`getGanttLeftWidth`/`getColumnRect` são a única fonte de largura/posição das colunas sticky; substitui `LINHA_COL_WIDTH`/`ESTRUTURA_COL_WIDTH`/`STATUS_COL_LEFT` hardcoded que existiam antes (o bug que a spec avisa). 4 colunas de data separadas (Início/Fim previsto, Início/Fim real), não um intervalo único — decisão do usuário no checkpoint, para ler início e fim lado a lado sem abrir a tarefa.
+- **Barras por nível**: projeto/atividade têm barra-resumo com pontas em cunha, cor por status (navy neutro em planejado/andamento, vermelha se atrasado, verde se concluído) + preenchimento claro do avanço. Tarefa mostra **previsto e real sempre visíveis**, um embaixo do outro (não um substituindo o outro — divergência deliberada do desenho original da spec/protótipo), com linha de base fina embaixo (tracejada quando previsto ≠ base) e **excesso em vermelho sólido**, não hachurado (pedido do usuário).
+- **Eixo do tempo com zoom** Dia/Semana/Mês (24/8/3 px por dia), grade vertical (mês sempre, semana no zoom semana) e sombreamento de fim de semana (zooms dia/semana). Linha de "hoje" com rótulo fixo dd/mm + botão "Ir para hoje".
+- **Setas de dependência no Gantt** por tipo FS/SS/FF/SF, roteamento em cotovelo, rótulo tipo+folga (só quando não for o caso trivial FS+0), tracejada laranja quando violada. Ponta numa atividade/projeto recolhido ancora na linha visível mais próxima (nunca some); arestas que resolvem pro mesmo par (origem/destino/tipo) deduplicam numa seta só. Contador de arestas violadas no rodapé.
+- **Tooltip** de barra (tarefa: base/previsto com contagem `(R{n})`/real/avanço/responsável/dependências com motivo do conflito/dias além do previsto; atividade/projeto: previsto/real/avanço como razão qtd·dias-úteis/dias além do previsto).
+- **Criação direto no cronograma**: "+" por linha sempre existe, visível só no hover (não fica mais atrás do modo Editar); botão "Novo item" no topo cobre o caso da linha-alvo não estar visível, com seletor de projeto/atividade.
+- **Editor de predecessoras**: campo de predecessora vira `<select>` só com candidatas seguras (exclui a própria tarefa, quem criaria ciclo, predecessoras já ligadas nas outras linhas); faixa por linha com a **data sugerida pela regra + botão "Aplicar"** (só popula o rascunho, motivo continua obrigatório), fica laranja quando o previsto atual já viola a regra.
+- **Marco (losango)**: fora de escopo — 12 das 66 tarefas reais (18%) têm `plannedStart === plannedEnd`, provando que "marco = duração zero" seria inferência errada; não existe campo `isMilestone`. Gap real registrado, não esquecimento.
