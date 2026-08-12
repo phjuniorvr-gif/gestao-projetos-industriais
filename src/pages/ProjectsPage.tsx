@@ -162,9 +162,11 @@ export function ProjectsPage() {
       />
 
       <AddActivityDialog
-        project={addingActivityTo}
-        onAdd={(name) => {
-          if (addingActivityTo) addActivity(addingActivityTo.id, name);
+        open={Boolean(addingActivityTo)}
+        projects={projects}
+        initialProjectId={addingActivityTo?.id}
+        onAdd={(projectId, name) => {
+          addActivity(projectId, name);
           setAddingActivityToId(null);
         }}
         onCancel={() => setAddingActivityToId(null)}

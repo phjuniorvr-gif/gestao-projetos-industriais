@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, Maximize2, Minimize2, Pencil } from 'lucide-react';
+import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, ListPlus, Maximize2, Minimize2, Pencil } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
 import {
   AddActivityDialog,
@@ -77,11 +77,15 @@ export function ProjectSchedulePage() {
   const [allExpanded, setAllExpanded] = useState(false);
   const [compact, setCompact] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  const [newItemMenuOpen, setNewItemMenuOpen] = useState(false);
   const [zoom, setZoom] = useState<GanttZoom>('semana');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedTask, setSelectedTask] = useState<TaskView | null>(null);
-  const [addingToActivity, setAddingToActivity] = useState<ActivityView | null>(null);
-  const [addingActivityToProject, setAddingActivityToProject] = useState<ProjectView | null>(null);
+  // { open: false } fecha o painel. initialProjectId/initialActivityId vêm preenchidos quando
+  // aberto pelo "+" de uma linha específica (pula o seletor); ausentes quando aberto pelo "＋ Novo
+  // item" do topo da página (Fase 4, Commit 6) — cobre o caso da linha-alvo não estar visível.
+  const [activityDialog, setActivityDialog] = useState<{ open: boolean; initialProjectId?: string }>({ open: false });
+  const [taskPanelState, setTaskPanelState] = useState<{ open: boolean; initialActivityId?: string }>({ open: false });
   const [deletingActivity, setDeletingActivity] = useState<ActivityView | null>(null);
 
   const ganttProjects = useMemo(() => {
@@ -245,6 +249,45 @@ export function ProjectSchedulePage() {
               <Button variant="secondary" icon={<CalendarClock className="h-4 w-4" />} onClick={scrollToToday}>
                 Ir para hoje
               </Button>
+              {/* Cobre o caso da linha-alvo (projeto/atividade) não estar visível na tela — os
+                  "+" por linha (sempre visíveis no hover, Fase 4 Commit 6) continuam sendo o
+                  caminho mais rápido quando a linha já está à vista. */}
+              <div className="relative">
+                <Button
+                  variant="secondary"
+                  icon={<ListPlus className="h-4 w-4" />}
+                  onClick={() => setNewItemMenuOpen((open) => !open)}
+                >
+                  Novo item
+                </Button>
+                {newItemMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setNewItemMenuOpen(false)} />
+                    <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-[9px] border border-border bg-card p-1 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewItemMenuOpen(false);
+                          setActivityDialog({ open: true });
+                        }}
+                        className="block w-full rounded-md px-3 py-2 text-left text-sm text-text hover:bg-page"
+                      >
+                        Nova atividade
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewItemMenuOpen(false);
+                          setTaskPanelState({ open: true });
+                        }}
+                        className="block w-full rounded-md px-3 py-2 text-left text-sm text-text hover:bg-page"
+                      >
+                        Nova tarefa
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <Button
                 variant={compact ? 'primary' : 'secondary'}
                 icon={compact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
@@ -304,8 +347,8 @@ export function ProjectSchedulePage() {
               onToggleProject={toggleProject}
               onToggleActivity={toggleActivity}
               onOpenTask={setSelectedTask}
-              onAddTask={setAddingToActivity}
-              onAddActivity={setAddingActivityToProject}
+              onAddTask={(activity) => setTaskPanelState({ open: true, initialActivityId: activity.id })}
+              onAddActivity={(project) => setActivityDialog({ open: true, initialProjectId: project.id })}
               onRemoveActivity={setDeletingActivity}
             />
           </div>
@@ -350,28 +393,33 @@ export function ProjectSchedulePage() {
       />
 
       <AddActivityDialog
-        project={addingActivityToProject}
-        onCancel={() => setAddingActivityToProject(null)}
-        onAdd={(name) => {
-          if (!addingActivityToProject) return;
-          addActivity(addingActivityToProject.id, name);
-          setAddingActivityToProject(null);
+        open={activityDialog.open}
+        projects={ganttProjects}
+        initialProjectId={activityDialog.initialProjectId}
+        onCancel={() => setActivityDialog({ open: false })}
+        onAdd={(projectId, name) => {
+          addActivity(projectId, name);
+          setActivityDialog({ open: false });
         }}
       />
 
       <AddTaskPanel
-        activity={addingToActivity}
+        open={taskPanelState.open}
+        projects={ganttProjects}
+        initialActivityId={taskPanelState.initialActivityId}
         catalog={catalog}
         categories={categories}
-        onClose={() => setAddingToActivity(null)}
-        onAdd={(names) => {
-          if (!addingToActivity) return;
-          const lastTask = addingToActivity.tasks.at(-1);
-          let cursor = lastTask?.plannedEnd ?? addingToActivity.plannedStart ?? todayISO();
+        onClose={() => setTaskPanelState({ open: false })}
+        onAdd={(activityId, names) => {
+          const projectId = activityIdToProjectId.get(activityId);
+          const activity = ganttProjects.flatMap((p) => p.activities).find((a) => a.id === activityId);
+          if (!projectId || !activity) return;
+          const lastTask = activity.tasks.at(-1);
+          let cursor = lastTask?.plannedEnd ?? activity.plannedStart ?? todayISO();
           for (const item of names) {
             const start = cursor;
             const end = addDays(start, 7);
-            addTask(addingToActivity.projectId, addingToActivity.id, {
+            addTask(projectId, activityId, {
               name: item.name,
               category: item.category,
               plannedStart: start,

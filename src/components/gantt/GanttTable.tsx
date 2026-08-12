@@ -381,7 +381,7 @@ export function GanttTable({
             const projectCollapsed = collapsedProjectIds.has(project.id);
             return (
               <Fragment key={project.id}>
-                <tr className="border-b border-border bg-page/70">
+                <tr className="group border-b border-border bg-page/70">
                   <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('linha')}>
                     —
                   </td>
@@ -402,15 +402,16 @@ export function GanttTable({
                           {project.code} — {project.name}
                         </span>
                       </button>
-                      {editMode && (
-                        <button
-                          type="button"
-                          onClick={() => onAddActivity(project)}
-                          className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Atividade
-                        </button>
-                      )}
+                      {/* "+" sempre existe, só fica visível no hover da linha (spec: sem gate de
+                          modo Editar) — a lixeira de excluir atividade continua atrás do modo
+                          Editar, é ação destrutiva, não o que esta liberação pede. */}
+                      <button
+                        type="button"
+                        onClick={() => onAddActivity(project)}
+                        className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Atividade
+                      </button>
                     </div>
                   </td>
                   {!compact && (
@@ -478,7 +479,7 @@ export function GanttTable({
                     const collapsed = collapsedActivityIds.has(activity.id);
                     return (
                       <Fragment key={activity.id}>
-                        <tr className="border-b border-border bg-page/35">
+                        <tr className="group border-b border-border bg-page/35">
                           <td className={frozenTdClass} style={columnStyle('linha')} />
                           <td className={`${frozenTdClass} overflow-hidden !pl-7`} style={columnStyle('estrutura')}>
                             <div className="flex min-w-0 items-center gap-3">
@@ -495,24 +496,24 @@ export function GanttTable({
                                 <RowTypeBadge type="activity" />
                                 <span className="truncate">{activity.name}</span>
                               </button>
+                              {/* "+" sempre existe, só fica visível no hover da linha — a lixeira
+                                  (ação destrutiva) continua atrás do modo Editar. */}
+                              <button
+                                type="button"
+                                onClick={() => onAddTask(activity)}
+                                className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100"
+                              >
+                                <Plus className="h-3.5 w-3.5" /> Tarefa
+                              </button>
                               {editMode && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => onAddTask(activity)}
-                                    className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action hover:underline"
-                                  >
-                                    <Plus className="h-3.5 w-3.5" /> Tarefa
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onRemoveActivity(activity)}
-                                    className="shrink-0 text-text-muted hover:text-status-delayed"
-                                    aria-label="Excluir atividade"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </>
+                                <button
+                                  type="button"
+                                  onClick={() => onRemoveActivity(activity)}
+                                  className="shrink-0 text-text-muted hover:text-status-delayed"
+                                  aria-label="Excluir atividade"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                               )}
                             </div>
                           </td>
