@@ -65,7 +65,41 @@ export function validateTaskDependencies(taskRowNumber: number, allTasks: Depend
   return { valid: errors.length === 0, errors };
 }
 
-function hasCycle(tasks: DependencyGraphNode[]): boolean {
+/**
+ * Candidatas a predecessora pro `<select>` de uma linha do editor (Fase 4, Commit 7) — exclui
+ * TRÊS coisas, não só quem criaria ciclo:
+ *   1. a própria tarefa (autodependência);
+ *   2. quem criaria ciclo se virasse predecessora (testado hipoteticamente contra `hasCycle`,
+ *      não um grafo/BFS próprio — mesma checagem que `validateTaskDependencies` já usa);
+ *   3. predecessoras já ligadas à MESMA tarefa noutra linha do editor (`alreadyLinkedRowNumbers`)
+ *      — sem isso o `<select>` ofereceria uma predecessora repetida, que `validateTaskDependencies`
+ *      já rejeita como duplicata, mas só depois de tentar salvar.
+ * Quem chama passa, por linha, as predecessoras das OUTRAS linhas dessa mesma tarefa (não a
+ * dela própria) — é assim que trocar de predecessora numa linha já existente continua possível.
+ */
+export function computeCandidatePredecessors(
+  taskRowNumber: number,
+  allTasks: DependencyGraphNode[],
+  alreadyLinkedRowNumbers: number[],
+): number[] {
+  const excludedDirect = new Set<number>([taskRowNumber, ...alreadyLinkedRowNumbers]);
+
+  return allTasks
+    .map((t) => t.rowNumber)
+    .filter((rowNumber) => !excludedDirect.has(rowNumber))
+    .filter((rowNumber) => {
+      const hypothetical = allTasks.map((t) =>
+        t.rowNumber === taskRowNumber ? { ...t, predecessorRowNumbers: [...t.predecessorRowNumbers, rowNumber] } : t,
+      );
+      return !hasCycle(hypothetical);
+    })
+    .sort((a, b) => a - b);
+}
+
+// Exportada (não mais só de uso interno) — computeCandidatePredecessors (acima) reaproveita esta
+// mesma função, testando cada candidata hipoteticamente, em vez de duplicar a lógica de detecção
+// de ciclo com um grafo/BFS próprio.
+export function hasCycle(tasks: DependencyGraphNode[]): boolean {
   const graph = new Map<number, number[]>();
   for (const task of tasks) {
     graph.set(task.rowNumber, task.predecessorRowNumbers);

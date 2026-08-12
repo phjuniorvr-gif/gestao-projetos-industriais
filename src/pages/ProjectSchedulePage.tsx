@@ -361,6 +361,8 @@ export function ProjectSchedulePage() {
         categories={categories}
         people={people}
         replanejamentos={replanejamentos}
+        holidays={holidays}
+        unit={ganttProjects.find((p) => p.id === activityIdToProjectId.get(liveSelectedTask?.activityId ?? ''))?.unit ?? ''}
         onCreatePerson={createPerson}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, patch) => {

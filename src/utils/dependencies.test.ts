@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeCandidatePredecessors,
   computeDependencyRuleDate,
   computeTaskBlockedByDependencies,
   computeTaskDependencyViolated,
@@ -71,6 +72,39 @@ describe('validateTaskDependencies', () => {
   it('válida sem nenhum problema', () => {
     const tasks = [withPredecessors(1, [2, 3]), withPredecessors(2, []), withPredecessors(3, [])];
     expect(validateTaskDependencies(1, tasks)).toEqual({ valid: true, errors: [] });
+  });
+});
+
+describe('computeCandidatePredecessors', () => {
+  // A←B←C: B depende de A, C depende de B. D solta, sem relação com a cadeia.
+  const chain: DependencyGraphNode[] = [
+    { rowNumber: 1, predecessorRowNumbers: [] }, // A
+    { rowNumber: 2, predecessorRowNumbers: [1] }, // B
+    { rowNumber: 3, predecessorRowNumbers: [2] }, // C
+    { rowNumber: 4, predecessorRowNumbers: [] }, // D
+  ];
+
+  it('a própria tarefa nunca aparece na lista dela mesma', () => {
+    expect(computeCandidatePredecessors(1, chain, [])).not.toContain(1);
+    expect(computeCandidatePredecessors(4, chain, [])).not.toContain(4);
+  });
+
+  it('quem depende dela direta ou indiretamente (ciclo) não aparece — só D sobra pra A', () => {
+    // B depende de A; C depende de B (logo, de A também, transitivamente) — os dois criariam
+    // ciclo se virassem predecessora de A. Só D (sem nenhuma relação) é candidata segura.
+    expect(computeCandidatePredecessors(1, chain, [])).toEqual([4]);
+  });
+
+  it('sem risco de ciclo (D não participa da cadeia): todas as outras 3 são candidatas', () => {
+    expect(computeCandidatePredecessors(4, chain, [])).toEqual([1, 2, 3]);
+  });
+
+  it('predecessora já ligada noutra linha do editor não aparece de novo, mas reaparece se a lista de exclusão não incluir aquela linha', () => {
+    // Simula: tarefa D já tem a linha 1 (A) ligada. Uma linha NOVA do editor de D não deve
+    // oferecer A de novo (já ligada). A própria linha que já tem A selecionado, ao recalcular
+    // suas candidatas excluindo só as OUTRAS linhas (lista vazia aqui), continua vendo A.
+    expect(computeCandidatePredecessors(4, chain, [1])).toEqual([2, 3]);
+    expect(computeCandidatePredecessors(4, chain, [])).toEqual([1, 2, 3]);
   });
 });
 

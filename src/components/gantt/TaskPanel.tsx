@@ -2,8 +2,15 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
 import { Button, Card, FormField, Input, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
-import type { Category, CategoryEntry, DependencyType, Person, Replanejamento, Task, TaskView } from '../../types';
-import { formatDatePtBr, formatPeriod } from '../../utils';
+import type { Category, CategoryEntry, DependencyType, Holiday, Person, Replanejamento, Task, TaskView } from '../../types';
+import {
+  addDays,
+  computeCandidatePredecessors,
+  computeDependencyRuleDate,
+  diffDays,
+  formatDatePtBr,
+  formatPeriod,
+} from '../../utils';
 import type { DependencyValidation, ReplanValidation } from '../../utils';
 
 // Base não é editável por aqui — congelada na criação da tarefa (Fase 2.5) e só existe pra dar
@@ -28,6 +35,8 @@ interface TaskPanelProps {
   categories: CategoryEntry[];
   people: Person[];
   replanejamentos: Replanejamento[];
+  holidays: Holiday[];
+  unit: string;
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
@@ -42,6 +51,8 @@ export function TaskPanel({
   categories,
   people,
   replanejamentos,
+  holidays,
+  unit,
   onCreatePerson,
   onClose,
   onSave,
@@ -104,6 +115,21 @@ export function TaskPanel({
       setReplanErrors([]);
     } else {
       setReplanErrors(result.errors);
+    }
+  }
+
+  /** "Aplicar" (Fase 4, Commit 7) — só popula o rascunho (mantendo a duração atual, desloca
+   * início OU fim conforme o tipo), nunca grava sozinho: o rascunho já preenchido revela a faixa
+   * de motivo obrigatório (acima), mesmo fluxo da Fase 2.5. Duração em dias corridos (não úteis)
+   * — desloca a janela inteira, não recalcula quantos dias úteis cabem nela. */
+  function applySuggestedDate(tipo: DependencyType, ruleDate: string) {
+    const duration = diffDays(draftPlannedStart, draftPlannedEnd);
+    if (tipo === 'FS' || tipo === 'SS') {
+      setDraftPlannedStart(ruleDate);
+      setDraftPlannedEnd(addDays(ruleDate, duration));
+    } else {
+      setDraftPlannedEnd(ruleDate);
+      setDraftPlannedStart(addDays(ruleDate, -duration));
     }
   }
 
@@ -267,61 +293,110 @@ export function TaskPanel({
                   Previsto em conflito com a regra de alguma dependência.
                 </p>
               )}
-              {dependencyDrafts.map((row, index) => (
-                <div key={index} className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={row.predecessorRowNumber}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? '' : Number(e.target.value);
-                      setDependencyDrafts((rows) =>
-                        rows.map((r, i) => (i === index ? { ...r, predecessorRowNumber: value } : r)),
-                      );
-                    }}
-                    onBlur={() => commitDependencyDrafts(dependencyDrafts)}
-                    placeholder="Nº"
-                    className="w-16"
-                  />
-                  <Select
-                    value={row.tipo}
-                    onChange={(e) => {
-                      const tipo = e.target.value as DependencyType;
-                      const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, tipo } : r));
-                      setDependencyDrafts(next);
-                      commitDependencyDrafts(next);
-                    }}
-                    className="w-20"
-                  >
-                    {DEPENDENCY_TYPES.map((tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {tipo}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input
-                    type="number"
-                    value={row.folgaDias}
-                    title="Folga (dias úteis)"
-                    onChange={(e) => {
-                      const folgaDias = Number(e.target.value) || 0;
-                      const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, folgaDias } : r));
-                      setDependencyDrafts(next);
-                      commitDependencyDrafts(next);
-                    }}
-                    className="w-16"
-                  />
-                  <span className="text-xs text-text-muted">du</span>
-                  <button
-                    type="button"
-                    onClick={() => removeDependencyDraft(index)}
-                    className="text-text-muted hover:text-status-delayed"
-                    aria-label="Remover predecessora"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+              {dependencyDrafts.map((row, index) => {
+                // Candidatas excluem a própria tarefa, quem criaria ciclo, e as predecessoras já
+                // ligadas nas OUTRAS linhas deste mesmo editor (não a desta linha — senão trocar
+                // de predecessora numa linha existente ficaria impossível).
+                const alreadyLinkedElsewhere = dependencyDrafts
+                  .filter((_, i) => i !== index)
+                  .map((r) => r.predecessorRowNumber)
+                  .filter((n): n is number => n !== '');
+                const candidates = computeCandidatePredecessors(task.rowNumber, allTasks, alreadyLinkedElsewhere);
+                const predecessorTask =
+                  row.predecessorRowNumber === '' ? undefined : allTasks.find((t) => t.rowNumber === row.predecessorRowNumber);
+                const ruleDate = predecessorTask
+                  ? computeDependencyRuleDate({ tipo: row.tipo, folgaDias: row.folgaDias }, predecessorTask, holidays, unit)
+                  : undefined;
+                const campoLabel = row.tipo === 'FF' || row.tipo === 'SF' ? 'o fim' : 'o início';
+                const successorDraftDate = row.tipo === 'FF' || row.tipo === 'SF' ? draftPlannedEnd : draftPlannedStart;
+                const violated = Boolean(ruleDate && successorDraftDate < ruleDate);
+
+                return (
+                  <div key={index} className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Select
+                        value={row.predecessorRowNumber}
+                        onChange={(e) => {
+                          const value: number | '' = e.target.value === '' ? '' : Number(e.target.value);
+                          const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, predecessorRowNumber: value } : r));
+                          setDependencyDrafts(next);
+                          commitDependencyDrafts(next);
+                        }}
+                        className="w-36"
+                      >
+                        <option value="">Selecione…</option>
+                        {candidates.map((rowNumber) => {
+                          const candidate = allTasks.find((t) => t.rowNumber === rowNumber);
+                          return (
+                            <option key={rowNumber} value={rowNumber}>
+                              #{rowNumber} — {candidate?.name ?? ''}
+                            </option>
+                          );
+                        })}
+                      </Select>
+                      <Select
+                        value={row.tipo}
+                        onChange={(e) => {
+                          const tipo = e.target.value as DependencyType;
+                          const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, tipo } : r));
+                          setDependencyDrafts(next);
+                          commitDependencyDrafts(next);
+                        }}
+                        className="w-20"
+                      >
+                        {DEPENDENCY_TYPES.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            {tipo}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        type="number"
+                        value={row.folgaDias}
+                        title="Folga (dias úteis)"
+                        onChange={(e) => {
+                          const folgaDias = Number(e.target.value) || 0;
+                          const next = dependencyDrafts.map((r, i) => (i === index ? { ...r, folgaDias } : r));
+                          setDependencyDrafts(next);
+                          commitDependencyDrafts(next);
+                        }}
+                        className="w-16"
+                      />
+                      <span className="text-xs text-text-muted">du</span>
+                      <button
+                        type="button"
+                        onClick={() => removeDependencyDraft(index)}
+                        className="text-text-muted hover:text-status-delayed"
+                        aria-label="Remover predecessora"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {ruleDate && (
+                      <div
+                        className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs ${
+                          violated
+                            ? 'border-status-delayed/40 bg-status-delayed/10 text-status-delayed'
+                            : 'border-border bg-page text-text-muted'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          {violated && <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />}
+                          {violated ? 'Conflito' : 'Sugestão'}: pela regra, {campoLabel} deve ser a partir de{' '}
+                          {formatDatePtBr(ruleDate)}.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => applySuggestedDate(row.tipo, ruleDate)}
+                          className="shrink-0 font-semibold text-action hover:underline"
+                        >
+                          Aplicar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <Button variant="ghost" icon={<Plus className="h-3.5 w-3.5" />} onClick={addDependencyDraft}>
                 Adicionar predecessora
               </Button>
