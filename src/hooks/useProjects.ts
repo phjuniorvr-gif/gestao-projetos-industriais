@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchProjects,
-  insertReplanejamentos,
+  replanTaskAtomic,
   restoreProjectRemote,
   saveProjectTree,
   softDeleteProjectRemote,
+  updateTaskActual,
 } from '../services/projectsRepo';
 import type { Activity, Category, Project, ProjectView, Task, TaskDependency } from '../types';
 import {
-  buildReplanEntries,
   computeDateChanges,
   nextProjectCode,
   recomputeProject,
@@ -17,7 +17,6 @@ import {
   validateTaskDependencies,
 } from '../utils';
 import type { DependencyGraphNode, DependencyValidation, ReplanValidation } from '../utils';
-import { useAuth } from './useAuth';
 import { useHolidays } from './useHolidays';
 import { useReplanejamentos } from './useReplanejamentos';
 
@@ -66,7 +65,6 @@ export function useProjects() {
   const [loaded, setLoaded] = useState(false);
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { replanejamentos, loaded: replanejamentosLoaded, refetch: refetchReplanejamentos } = useReplanejamentos();
-  const { session } = useAuth();
 
   useEffect(() => {
     fetchProjects()
@@ -116,6 +114,17 @@ export function useProjects() {
     },
     [],
   );
+
+  /**
+   * Só o estado local (`rawProjects`) — sem `saveProjectTree` (Fase 5, Commit 2). Usada por
+   * `updateTaskActualDates`/`replanTask`, que têm seu próprio caminho de escrita remota estreito
+   * (`updateTaskActual`/`replanTaskAtomic`, só a tabela `tasks`); se essas duas chamassem
+   * `updateProject` normal, `saveProjectTree` reescreveria o projeto inteiro por cima — inclusive
+   * atividades e o delete+reinsert de dependências, que ninguém tocou nessas duas ações.
+   */
+  const updateProjectLocal = useCallback((projectId: string, updater: (project: Project) => Project) => {
+    setRawProjects((current) => current.map((p) => (p.id === projectId ? updater(p) : p)));
+  }, []);
 
   const createProject = useCallback(
     (input: NewProjectInput): Project => {
@@ -298,17 +307,41 @@ export function useProjects() {
   );
 
   /**
-   * Muda previsto e/ou linha de base de uma tarefa, com motivo obrigatório sempre que algo
-   * realmente mudou (Fase 2.5) — ao lado de `updateTask`, não substituindo: nome/categoria/
-   * responsável/real/predecessoras continuam sem motivo, `updateTask` continua servindo pra
-   * eles. Quem decide se motivo é obrigatório é a própria função (computeDateChanges +
+   * "Informar real" (Fase 5, Commit 2) — único caminho de escrita que um usuário sem privilégio
+   * de administrador pode alcançar depois do Commit 4: atualiza só `actual_start`/`actual_end`
+   * (`updateTaskActual`, `projectsRepo.ts`), nunca a árvore inteira do projeto.
+   */
+  const updateTaskActualDates = useCallback(
+    (projectId: string, taskId: string, patch: { actualStart?: string; actualEnd?: string }) => {
+      updateProjectLocal(projectId, (project) => ({
+        ...project,
+        activities: project.activities.map((a) => ({
+          ...a,
+          tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+        })),
+      }));
+      updateTaskActual(taskId, patch).catch((err) => console.error('Falha ao informar data real no Supabase', err));
+    },
+    [updateProjectLocal],
+  );
+
+  /**
+   * Muda o previsto de uma tarefa, com motivo obrigatório sempre que algo realmente mudou (Fase
+   * 2.5) — ao lado de `updateTask`, não substituindo: nome/categoria/responsável/real/
+   * predecessoras continuam sem motivo, `updateTask` continua servindo pra eles. Base não entra
+   * mais aqui desde a Fase 4 (travada pra todos, inclusive administrador — decisão revertida da
+   * spec original). Quem decide se motivo é obrigatório é a própria função (computeDateChanges +
    * validateReplanMotivo), não quem chama.
+   *
+   * Escrita remota via `replanTaskAtomic` (RPC `replanejar_tarefa`, Fase 5 Commit 2) — atualiza
+   * `tasks` e grava o log em `replanejamentos` na MESMA transação Postgres, ao contrário do par
+   * `updateTask`+`insertReplanejamentos` de antes (duas chamadas independentes, não atômicas).
    */
   const replanTask = useCallback(
     (
       projectId: string,
       taskId: string,
-      patch: Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>,
+      patch: Partial<Pick<Task, 'plannedStart' | 'plannedEnd'>>,
       motivo: string,
     ): ReplanValidation => {
       const project = rawProjects.find((p) => p.id === projectId);
@@ -320,20 +353,22 @@ export function useProjects() {
       const validation = validateReplanMotivo(changes, motivo);
       if (!validation.valid) return validation;
 
-      const quemUserId = session?.user?.id;
-      if (!quemUserId) return { valid: false, errors: ['Sessão expirada — faça login de novo antes de replanejar.'] };
+      const plannedStart = patch.plannedStart ?? oldTask.plannedStart;
+      const plannedEnd = patch.plannedEnd ?? oldTask.plannedEnd;
 
-      const entries = buildReplanEntries(oldTask, patch, taskId, quemUserId, motivo.trim(), new Date().toISOString());
-
-      updateTask(projectId, taskId, patch);
-      if (entries.length > 0) {
-        insertReplanejamentos(entries)
-          .then(refetchReplanejamentos)
-          .catch((err) => console.error('Falha ao gravar histórico de replanejamento no Supabase', err));
-      }
+      updateProjectLocal(projectId, (p) => ({
+        ...p,
+        activities: p.activities.map((a) => ({
+          ...a,
+          tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, plannedStart, plannedEnd } : t)),
+        })),
+      }));
+      replanTaskAtomic(taskId, plannedStart, plannedEnd, motivo.trim())
+        .then(refetchReplanejamentos)
+        .catch((err) => console.error('Falha ao replanejar tarefa no Supabase', err));
       return { valid: true, errors: [] };
     },
-    [rawProjects, updateTask, session, refetchReplanejamentos],
+    [rawProjects, updateProjectLocal, refetchReplanejamentos],
   );
 
   /** Remove a tarefa e limpa dependências de quem apontava pra ela (Fase 2.7) — antes disso
@@ -434,6 +469,7 @@ export function useProjects() {
     removeActivity,
     addTask,
     updateTask,
+    updateTaskActualDates,
     replanTask,
     removeTask,
     reorderTask,

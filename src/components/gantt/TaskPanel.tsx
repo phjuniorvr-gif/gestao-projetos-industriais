@@ -40,6 +40,10 @@ interface TaskPanelProps {
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   onSave: (taskId: string, patch: Partial<Omit<Task, 'id' | 'rowNumber' | 'activityId' | 'status'>>) => void;
+  /** Fase 5, Commit 2 — "informar real" tem caminho de escrita próprio, isolado do resto de
+   * `onSave` (que reescreve a árvore inteira do projeto). Só os dois campos "Início/Fim real"
+   * usam isto. */
+  onSaveActual: (taskId: string, patch: { actualStart?: string; actualEnd?: string }) => void;
   onSetPredecessors: (taskId: string, entries: DependencyEntry[]) => DependencyValidation;
   onReplan: (taskId: string, patch: ReplanPatch, motivo: string) => ReplanValidation;
   onDelete: (taskId: string) => void;
@@ -56,6 +60,7 @@ export function TaskPanel({
   onCreatePerson,
   onClose,
   onSave,
+  onSaveActual,
   onSetPredecessors,
   onReplan,
   onDelete,
@@ -271,7 +276,7 @@ export function TaskPanel({
               <Input
                 type="date"
                 defaultValue={task.actualStart ?? ''}
-                onBlur={(e) => onSave(task.id, { actualStart: e.target.value || undefined })}
+                onBlur={(e) => onSaveActual(task.id, { actualStart: e.target.value || undefined })}
                 className="w-full"
               />
             </FormField>
@@ -279,7 +284,7 @@ export function TaskPanel({
               <Input
                 type="date"
                 defaultValue={task.actualEnd ?? ''}
-                onBlur={(e) => onSave(task.id, { actualEnd: e.target.value || undefined })}
+                onBlur={(e) => onSaveActual(task.id, { actualEnd: e.target.value || undefined })}
                 className="w-full"
               />
             </FormField>

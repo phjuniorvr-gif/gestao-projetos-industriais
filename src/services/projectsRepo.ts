@@ -10,7 +10,6 @@ import type {
   Task,
   TaskDependency,
 } from '../types';
-import type { ReplanEntryInput } from '../utils/replan';
 
 interface ProjectRow {
   id: string;
@@ -277,24 +276,52 @@ export async function fetchReplanejamentos(): Promise<Replanejamento[]> {
   }));
 }
 
-/** Grava 1 ou mais linhas de replanejamento — chamado sempre depois de um `updateTask` que
- * mexeu em previsto/base (useProjects.ts, `replanTask`). Escrita separada de `saveProjectTree`
- * porque essa função já recebe a árvore com o patch aplicado, sem o valor antigo pra calcular
- * `de`. */
-export async function insertReplanejamentos(entries: ReplanEntryInput[]): Promise<void> {
-  if (entries.length === 0) return;
-  const { error } = await supabase.from('replanejamentos').insert(
-    entries.map((e) => ({
-      tarefa_id: e.tarefaId,
-      quando: e.quando,
-      quem_user_id: e.quemUserId,
-      campo: e.campo,
-      campo_data: e.campoData,
-      de: e.de,
-      para: e.para,
-      motivo: e.motivo,
-    })),
-  );
+/**
+ * "Informar real" (Fase 5, Commit 2) — único `update` de 1 linha, nunca toca `activities`/
+ * `dependencias`/outras colunas de `tasks`. Isto é o que torna essa ação possível pra quem não é
+ * administrador depois do Commit 4: qualquer gravação que passasse por `saveProjectTree` (todo
+ * o resto do app) reescreveria o projeto inteiro, incluindo o delete+reinsert de dependências —
+ * barrado por RLS pra quem só tem permissão de informar data real. Só as chaves presentes no
+ * patch entram no payload (cada campo tem seu próprio `onBlur` em `TaskPanel.tsx`, um por vez).
+ */
+/** Extraída da função remota só pra ser testável sem mockar o cliente Supabase (o projeto não
+ * tem infra de mock pra isso — mesma decisão de preferir função pura testável já registrada na
+ * Fase 3). Só as chaves presentes no patch entram — nunca as duas, nunca nenhuma coluna a mais. */
+export function buildTaskActualPayload(patch: { actualStart?: string; actualEnd?: string }): Record<string, string | null> {
+  const payload: Record<string, string | null> = {};
+  if ('actualStart' in patch) payload.actual_start = orNull(patch.actualStart);
+  if ('actualEnd' in patch) payload.actual_end = orNull(patch.actualEnd);
+  return payload;
+}
+
+export async function updateTaskActual(
+  taskId: string,
+  patch: { actualStart?: string; actualEnd?: string },
+): Promise<void> {
+  const { error } = await supabase.from('tasks').update(buildTaskActualPayload(patch)).eq('id', taskId);
+  if (error) throw error;
+}
+
+/**
+ * "Replanejar previsto" (Fase 5, Commit 2) — RPC pra `replanejar_tarefa()` (Postgres), que
+ * atualiza `tasks` e insere em `replanejamentos` na MESMA transação. Substitui o par
+ * `updateTask` + `insertReplanejamentos` (duas chamadas independentes, não atômicas — se uma
+ * falhasse depois da outra já ter ido, a tarefa mudava sem log, ou o log gravava sem a tarefa
+ * ter mudado de verdade). Sem `security definer` na função — corre com o papel de quem chama,
+ * então respeita o trigger/RLS de `tasks` e a RLS de `replanejamentos` normalmente (Commit 4).
+ */
+export async function replanTaskAtomic(
+  taskId: string,
+  plannedStart: string,
+  plannedEnd: string,
+  motivo: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('replanejar_tarefa', {
+    p_tarefa_id: taskId,
+    p_planned_start: plannedStart,
+    p_planned_end: plannedEnd,
+    p_motivo: motivo,
+  });
   if (error) throw error;
 }
 

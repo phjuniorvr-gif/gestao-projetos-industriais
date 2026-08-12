@@ -1,4 +1,4 @@
-import type { ReplanCampo, ReplanCampoData } from '../types';
+import type { ReplanCampo } from '../types';
 
 /**
  * Auditoria de replanejamento (Fase 2.5) — funções puras, arquivo separado de `status.ts`
@@ -8,9 +8,7 @@ import type { ReplanCampo, ReplanCampoData } from '../types';
 
 // Shape próprio, não `Pick<Task,...>` — em `Task`, `baseStart`/`baseEnd` são obrigatórios
 // (garantidos por projectsRepo.ts/useProjects.ts desde a Fase 2.5), mas essas funções aceitam
-// um shape mais permissivo de propósito: a guarda contra `de` ausente em `buildReplanEntries`
-// só faz sentido se o tipo admitir a ausência — defesa que sobrevive mesmo que o dado real
-// nunca chegue a testá-la.
+// um shape mais permissivo de propósito.
 interface DateFields {
   plannedStart: string;
   plannedEnd: string;
@@ -59,38 +57,7 @@ export function validateReplanMotivo(changes: DateChangeResult, motivo: string):
   return { valid: true, errors: [] };
 }
 
-export interface ReplanEntryInput {
-  tarefaId: string;
-  quando: string;
-  quemUserId: string;
-  campo: ReplanCampo;
-  campoData: ReplanCampoData;
-  de: string;
-  para: string;
-  motivo: string;
-}
-
-/** Monta 0 a 4 entradas de log — uma por data (início/fim de previsto/base) que realmente mudou.
- * `de` sempre vem do valor antigo, mesmo quando ausente no tipo (guarda: `oldTask` pode ter
- * `baseStart`/`baseEnd` undefined numa tarefa criada antes da Fase 2.5 ainda não migrada — nesse
- * caso não há "de" válido pra logar, e a entrada é descartada em vez de gravar um `de` mentiroso). */
-export function buildReplanEntries(
-  oldTask: DateFields,
-  patch: DatePatch,
-  tarefaId: string,
-  quemUserId: string,
-  motivo: string,
-  quando: string,
-): ReplanEntryInput[] {
-  const entries: ReplanEntryInput[] = [];
-  const push = (campo: ReplanCampo, campoData: ReplanCampoData, de: string | undefined, para: string | undefined) => {
-    if (de !== undefined && para !== undefined && para !== de) {
-      entries.push({ tarefaId, quando, quemUserId, campo, campoData, de, para, motivo });
-    }
-  };
-  push('previsto', 'inicio', oldTask.plannedStart, patch.plannedStart);
-  push('previsto', 'fim', oldTask.plannedEnd, patch.plannedEnd);
-  push('base', 'inicio', oldTask.baseStart, patch.baseStart);
-  push('base', 'fim', oldTask.baseEnd, patch.baseEnd);
-  return entries;
-}
+// buildReplanEntries/insertReplanejamentos (montar e gravar as linhas de log a partir do
+// client) foram removidas na Fase 5, Commit 2 — substituídas pela RPC `replanejar_tarefa()`
+// (Postgres), que faz o update de `tasks` e o insert em `replanejamentos` na mesma transação.
+// As duas chamadas independentes daqui não eram atômicas: uma podia ter sucesso sem a outra.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildReplanEntries, computeDateChanges, computeReplanCount, validateReplanMotivo } from './replan';
+import { computeDateChanges, computeReplanCount, validateReplanMotivo } from './replan';
 
 describe('computeReplanCount', () => {
   it('log vazio: 0', () => {
@@ -66,44 +66,5 @@ describe('validateReplanMotivo', () => {
 
   it('nada mudou: válido mesmo sem motivo', () => {
     expect(validateReplanMotivo({ previstoChanged: false, baseChanged: false }, '').valid).toBe(true);
-  });
-});
-
-describe('buildReplanEntries', () => {
-  const oldTask = { plannedStart: '2026-01-01', plannedEnd: '2026-01-10', baseStart: '2026-01-01', baseEnd: '2026-01-10' };
-  const quando = '2026-08-11T10:00:00Z';
-
-  it('patch vazio: 0 entradas', () => {
-    expect(buildReplanEntries(oldTask, {}, 't1', 'u1', 'motivo', quando)).toEqual([]);
-  });
-
-  it('valor igual ao antigo: 0 entradas, mesmo presente no patch', () => {
-    expect(buildReplanEntries(oldTask, { plannedStart: '2026-01-01' }, 't1', 'u1', 'motivo', quando)).toEqual([]);
-  });
-
-  it('1 campo de data muda: 1 entrada, com campo/campoData/de/para corretos', () => {
-    const entries = buildReplanEntries(oldTask, { plannedEnd: '2026-01-15' }, 't1', 'u1', 'atraso', quando);
-    expect(entries).toEqual([
-      { tarefaId: 't1', quando, quemUserId: 'u1', campo: 'previsto', campoData: 'fim', de: '2026-01-10', para: '2026-01-15', motivo: 'atraso' },
-    ]);
-  });
-
-  it('previsto e base mudam juntos: até 4 entradas', () => {
-    const entries = buildReplanEntries(
-      oldTask,
-      { plannedStart: '2026-01-02', plannedEnd: '2026-01-16', baseStart: '2026-01-03', baseEnd: '2026-01-17' },
-      't1',
-      'u1',
-      'replanejamento geral',
-      quando,
-    );
-    expect(entries).toHaveLength(4);
-    expect(entries.map((e) => `${e.campo}/${e.campoData}`).sort()).toEqual(['base/fim', 'base/inicio', 'previsto/fim', 'previsto/inicio']);
-  });
-
-  it('base ausente no oldTask (tarefa anterior à Fase 2.5, ainda não migrada): não grava "de" mentiroso', () => {
-    const withoutBase = { plannedStart: '2026-01-01', plannedEnd: '2026-01-10', baseStart: undefined, baseEnd: undefined };
-    const entries = buildReplanEntries(withoutBase, { baseStart: '2026-01-01' }, 't1', 'u1', 'motivo', quando);
-    expect(entries).toEqual([]);
   });
 });

@@ -34,6 +34,7 @@ export function ProjectSchedulePage() {
     replanejamentos,
     addTask,
     updateTask,
+    updateTaskActualDates,
     replanTask,
     removeTask,
     setTaskPredecessors,
@@ -371,6 +372,13 @@ export function ProjectSchedulePage() {
           );
           if (!owningProjectId) return;
           updateTask(owningProjectId, taskId, patch);
+        }}
+        onSaveActual={(taskId, patch) => {
+          const owningProjectId = activityIdToProjectId.get(
+            allTasks.find((t) => t.id === taskId)?.activityId ?? '',
+          );
+          if (!owningProjectId) return;
+          updateTaskActualDates(owningProjectId, taskId, patch);
         }}
         onSetPredecessors={(taskId, entries) => {
           const owningProjectId = activityIdToProjectId.get(
