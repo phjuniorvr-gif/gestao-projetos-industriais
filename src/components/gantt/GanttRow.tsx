@@ -22,6 +22,8 @@ interface GanttRowProps {
   columns: GanttColumn[];
   compact: boolean;
   onClick: () => void;
+  onHover: (task: TaskView, x: number, y: number) => void;
+  onHoverEnd: () => void;
 }
 
 const cellClass = 'h-[34px] overflow-hidden truncate px-2 py-0 text-center align-middle text-xs text-text-muted';
@@ -38,6 +40,8 @@ export function GanttRow({
   columns,
   compact,
   onClick,
+  onHover,
+  onHoverEnd,
 }: GanttRowProps) {
   const width = totalWidth(range, pxPerDay);
   const category = categories.find((c) => c.id === task.category);
@@ -123,7 +127,12 @@ export function GanttRow({
           lateCompletionDays={task.lateCompletionDays}
         />
       </td>
-      <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width, ...timelineBackground }}>
+      <td
+        className="relative h-[34px] px-4 py-0 align-middle"
+        style={{ width, ...timelineBackground }}
+        onMouseMove={(e) => onHover(task, e.clientX, e.clientY)}
+        onMouseLeave={onHoverEnd}
+      >
         <TodayLine range={range} pxPerDay={pxPerDay} />
         <GanttBars
           range={range}

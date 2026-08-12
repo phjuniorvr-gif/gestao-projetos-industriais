@@ -1,7 +1,17 @@
-import { Fragment, type CSSProperties, type RefObject } from 'react';
+import { Fragment, useState, type CSSProperties, type RefObject } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import type { ActivityView, CategoryEntry, Holiday, Person, ProjectView, TaskView } from '../../types';
-import { businessDaysBetween, formatDatePtBr, formatDuration, isDependencyEdgeViolated, todayISO } from '../../utils';
+import { STATUS_LABEL, type ActivityView, type CategoryEntry, type Holiday, type Person, type ProjectView, type TaskView } from '../../types';
+import {
+  businessDaysBetween,
+  computeDependencyRuleDate,
+  computeProgressRatio,
+  computeScheduleDeviationDays,
+  formatDatePtBr,
+  formatDuration,
+  formatPeriod,
+  isDependencyEdgeViolated,
+  todayISO,
+} from '../../utils';
 import {
   buildVisibleRowIndex,
   computeArrowGroups,
@@ -23,10 +33,39 @@ import {
 } from './ganttMath';
 import { GanttSummaryBar } from './GanttSummaryBar';
 import { GanttRow } from './GanttRow';
+import { GanttTooltip, TooltipRow, TooltipTitle } from './GanttTooltip';
 import { RowTypeBadge } from './RowTypeBadge';
 import { TodayLine } from './TodayLine';
 
 const ROW_HEIGHT = 34;
+
+type HoverTarget =
+  | { level: 'task'; task: TaskView }
+  | { level: 'activity'; activity: ActivityView; unit: string }
+  | { level: 'project'; project: ProjectView };
+
+interface TooltipRowData {
+  label: string;
+  value: string;
+  tone?: 'delayed';
+}
+
+interface TooltipDependencyRowData {
+  label: string;
+  conflict?: string;
+}
+
+interface TooltipContent {
+  title: string;
+  rows: TooltipRowData[];
+  dependencyRows: TooltipDependencyRowData[];
+}
+
+function realValue(actualStart?: string, actualEnd?: string): string {
+  if (actualEnd) return formatPeriod(actualStart, actualEnd);
+  if (actualStart) return `Em curso desde ${formatDatePtBr(actualStart)}`;
+  return 'Não iniciado';
+}
 
 interface GanttTableProps {
   projects: ProjectView[];
@@ -124,6 +163,7 @@ export function GanttTable({
   onAddActivity,
   onRemoveActivity,
 }: GanttTableProps) {
+  const [hover, setHover] = useState<{ target: HoverTarget; x: number; y: number } | null>(null);
   const pxPerDay = ZOOM_PX_PER_DAY[zoom];
   const today = todayISO();
   const range = calculatePortfolioRange(projects);
@@ -169,6 +209,80 @@ export function GanttTable({
     resolveVisibleDependencyEndpoint(taskId, taskToActivityId, activityToProjectId, collapsedActivityIds, collapsedProjectIds),
   );
   const bodyHeight = visibleRowIndex.size * ROW_HEIGHT;
+
+  // Fase 4, Commit 5 — tooltip: monta o conteúdo (não só a posição) aqui, porque é aqui que já
+  // existem os mapas de pessoas/feriados/tarefas-por-id que o cálculo precisa — GanttTooltip.tsx
+  // só recebe o resultado pronto e desenha. Reaproveita computeProgressRatio (novo, status.ts),
+  // computeScheduleDeviationDays/computeDependencyRuleDate/isDependencyEdgeViolated (já existentes)
+  // — nenhuma regra de negócio nova, só leitura do que já está calculado.
+  function buildTooltipContent(target: HoverTarget): TooltipContent {
+    if (target.level === 'task') {
+      const { task } = target;
+      const unit = unitByTaskId.get(task.id) ?? '';
+      // Mesma contagem do selo R{n} da linha (Fase 2.5: só campo='previsto') — "(R4)" ao lado do
+      // previsto mostra QUANTAS vezes ele já foi replanejado, não só que já mudou uma vez.
+      const replanSuffix = task.replanCount ? ` (R${task.replanCount})` : '';
+      const rows: TooltipRowData[] = [
+        { label: 'Base', value: formatPeriod(task.baseStart, task.baseEnd) },
+        { label: 'Previsto', value: formatPeriod(task.plannedStart, task.plannedEnd) + replanSuffix },
+        { label: 'Real', value: realValue(task.actualStart, task.actualEnd) },
+        { label: 'Avanço', value: STATUS_LABEL[task.status] },
+        { label: 'Responsável', value: people.find((p) => p.id === task.responsavelId)?.name ?? '—' },
+      ];
+      const deviation = computeScheduleDeviationDays(
+        { status: task.status, plannedEnd: task.plannedEnd, actualEnd: task.actualEnd, unit },
+        today,
+        holidays,
+      );
+      if (deviation > 0) rows.push({ label: 'Dias além do previsto', value: `${deviation}du`, tone: 'delayed' });
+
+      const dependencyRows: TooltipDependencyRowData[] = task.dependencies.map((dep) => {
+        const predecessor = tasksById.get(dep.predecessorId);
+        const label = `#${predecessor?.rowNumber ?? '?'} · ${dep.tipo}${dep.folgaDias >= 0 ? '+' : ''}${dep.folgaDias}`;
+        const violated = isDependencyEdgeViolated(dep, predecessor, task, holidays, unit);
+        if (!violated || !predecessor) return { label };
+        const ruleDate = computeDependencyRuleDate(dep, predecessor, holidays, unit);
+        const verb = dep.tipo === 'FF' || dep.tipo === 'SF' ? 'terminar' : 'começar';
+        return { label, conflict: `precisa ${verb} em ${formatDatePtBr(ruleDate)}` };
+      });
+
+      return { title: task.name, rows, dependencyRows };
+    }
+
+    if (target.level === 'activity') {
+      const { activity, unit } = target;
+      const rows: TooltipRowData[] = [
+        { label: 'Previsto', value: formatPeriod(activity.plannedStart, activity.plannedEnd) },
+        { label: 'Real', value: realValue(activity.actualStart, activity.actualEnd) },
+      ];
+      const ratio = computeProgressRatio(activity.tasks, holidays, unit);
+      rows.push({ label: 'Avanço', value: `${ratio.qtdOk}/${ratio.qtd} tarefas · ${ratio.duOk}/${ratio.du}du` });
+      const deviation = computeScheduleDeviationDays(
+        { status: activity.status, plannedEnd: activity.plannedEnd, actualEnd: activity.actualEnd, unit },
+        today,
+        holidays,
+      );
+      if (deviation > 0) rows.push({ label: 'Dias além do previsto', value: `${deviation}du`, tone: 'delayed' });
+      return { title: activity.name, rows, dependencyRows: [] };
+    }
+
+    const { project } = target;
+    const rows: TooltipRowData[] = [
+      { label: 'Previsto', value: formatPeriod(project.plannedStart, project.plannedEnd) },
+      { label: 'Real', value: realValue(project.actualStart, project.actualEnd) },
+    ];
+    const ratio = computeProgressRatio(project.activities.flatMap((a) => a.tasks), holidays, project.unit);
+    rows.push({ label: 'Avanço', value: `${ratio.qtdOk}/${ratio.qtd} tarefas · ${ratio.duOk}/${ratio.du}du` });
+    const deviation = computeScheduleDeviationDays(
+      { status: project.status, plannedEnd: project.plannedEnd, actualEnd: project.actualEnd, unit: project.unit },
+      today,
+      holidays,
+    );
+    if (deviation > 0) rows.push({ label: 'Dias além do previsto', value: `${deviation}du`, tone: 'delayed' });
+    return { title: `${project.code} — ${project.name}`, rows, dependencyRows: [] };
+  }
+
+  const tooltipContent = hover ? buildTooltipContent(hover.target) : null;
 
   // Fase 4: largura do painel esquerdo somada de uma lista única de colunas (ganttColumns.ts) —
   // nunca mais escrita à mão (era o bug que a spec avisa: LINHA_COL_WIDTH/ESTRUTURA_COL_WIDTH/
@@ -339,7 +453,12 @@ export function GanttTable({
                   >
                     <GanttProgressCell progress={project.progress} />
                   </td>
-                  <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width, ...timelineBackground }}>
+                  <td
+                    className="relative h-[34px] px-4 py-0 align-middle"
+                    style={{ width, ...timelineBackground }}
+                    onMouseMove={(e) => setHover({ target: { level: 'project', project }, x: e.clientX, y: e.clientY })}
+                    onMouseLeave={() => setHover(null)}
+                  >
                     <TodayLine range={range} pxPerDay={pxPerDay} />
                     <GanttSummaryBar
                       range={range}
@@ -444,7 +563,14 @@ export function GanttTable({
                           >
                             <GanttProgressCell progress={activity.progress} />
                           </td>
-                          <td className="relative h-[34px] px-4 py-0 align-middle" style={{ width, ...timelineBackground }}>
+                          <td
+                            className="relative h-[34px] px-4 py-0 align-middle"
+                            style={{ width, ...timelineBackground }}
+                            onMouseMove={(e) =>
+                              setHover({ target: { level: 'activity', activity, unit: project.unit }, x: e.clientX, y: e.clientY })
+                            }
+                            onMouseLeave={() => setHover(null)}
+                          >
                             <TodayLine range={range} pxPerDay={pxPerDay} />
                             <GanttSummaryBar
                               range={range}
@@ -473,6 +599,8 @@ export function GanttTable({
                               columns={columns}
                               compact={compact}
                               onClick={() => onOpenTask(task)}
+                              onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
+                              onHoverEnd={() => setHover(null)}
                             />
                           ))}
                       </Fragment>
@@ -537,6 +665,24 @@ export function GanttTable({
         {violatedEdgeCount} {violatedEdgeCount === 1 ? 'dependência violada' : 'dependências violadas'} (previsto em
         conflito com a regra da predecessora)
       </p>
+    )}
+    {hover && tooltipContent && (
+      <GanttTooltip x={hover.x} y={hover.y}>
+        <TooltipTitle>{tooltipContent.title}</TooltipTitle>
+        {tooltipContent.rows.map((row) => (
+          <TooltipRow key={row.label} label={row.label} value={row.value} tone={row.tone} />
+        ))}
+        {tooltipContent.dependencyRows.length > 0 && (
+          <div className="space-y-0.5 border-t border-border pt-1.5">
+            {tooltipContent.dependencyRows.map((dep, index) => (
+              <p key={index} className={`truncate ${dep.conflict ? 'text-status-delayed' : 'text-text-muted'}`}>
+                {dep.label}
+                {dep.conflict ? ` — ${dep.conflict}` : ''}
+              </p>
+            ))}
+          </div>
+        )}
+      </GanttTooltip>
     )}
     </div>
   );

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeLateCompletionDays,
   computeProgress,
+  computeProgressRatio,
   computeTaskStartDelayed,
   computeTaskStatus,
   isLateCompletion,
@@ -311,5 +312,22 @@ describe('computeProgress', () => {
       taskView({ status: 'planned', plannedStart: '2026-10-20', plannedEnd: '2026-10-20' }), // peso 1
     ];
     expect(computeProgress(tasks, [], 'Matriz')).toBe(99);
+  });
+});
+
+describe('computeProgressRatio', () => {
+  it('sem tarefas: tudo zero', () => {
+    expect(computeProgressRatio([], [], 'Matriz')).toEqual({ qtdOk: 0, qtd: 0, duOk: 0, du: 0 });
+  });
+
+  it('mesmo exemplo da spec usado em computeProgress: 2/5 tarefas, 22/114 dias úteis', () => {
+    const tasks = [
+      taskView({ status: 'completed', plannedStart: '2026-01-05', plannedEnd: '2026-01-16' }),
+      taskView({ status: 'completed', plannedStart: '2026-01-19', plannedEnd: '2026-02-03' }),
+      taskView({ status: 'planned', plannedStart: '2026-02-04', plannedEnd: '2026-03-13' }),
+      taskView({ status: 'planned', plannedStart: '2026-03-16', plannedEnd: '2026-04-24' }),
+      taskView({ status: 'planned', plannedStart: '2026-04-27', plannedEnd: '2026-06-18' }),
+    ];
+    expect(computeProgressRatio(tasks, [], 'Matriz')).toEqual({ qtdOk: 2, qtd: 5, duOk: 22, du: 114 });
   });
 });

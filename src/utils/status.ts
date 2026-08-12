@@ -162,6 +162,34 @@ export function computeProgress(tasks: TaskView[], holidays: Holiday[], unit: st
 }
 
 /**
+ * Razão bruta de avanço (Fase 4, Commit 5 — tooltip do Gantt): mesma máquina de
+ * `computeProgress`/`taskWeight`, mas devolve os números crus (qtd de tarefas e dias úteis,
+ * concluídas sobre total) em vez do `%` já pronto — o tooltip monta o texto "2/5 tarefas ·
+ * 22/114du" a partir daqui, não de um novo cálculo.
+ */
+export interface ProgressRatio {
+  qtdOk: number;
+  qtd: number;
+  duOk: number;
+  du: number;
+}
+
+export function computeProgressRatio(tasks: TaskView[], holidays: Holiday[], unit: string): ProgressRatio {
+  let qtdOk = 0;
+  let duOk = 0;
+  let du = 0;
+  for (const task of tasks) {
+    const weight = taskWeight(task, holidays, unit);
+    du += weight;
+    if (task.status === 'completed') {
+      qtdOk++;
+      duOk += weight;
+    }
+  }
+  return { qtdOk, qtd: tasks.length, duOk, du };
+}
+
+/**
  * Dias úteis de atraso na conclusão, por unidade (feriado municipal só conta pra quem é da
  * unidade certa — `businessDaysBetween`, Fase 2.6). `holidays === undefined` significa "ainda
  * não carregou" — retorna `undefined` de propósito (não `0`), pra quem exibe mostrar só o

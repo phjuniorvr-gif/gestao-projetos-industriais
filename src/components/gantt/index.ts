@@ -6,6 +6,7 @@ export * from './GanttProgressCell';
 export * from './GanttRow';
 export * from './GanttSummaryBar';
 export * from './GanttTable';
+export * from './GanttTooltip';
 export * from './RowTypeBadge';
 export * from './ScheduleLegend';
 export * from './TaskDependencyInput';
