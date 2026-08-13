@@ -9,6 +9,7 @@ import {
   computeScheduleDeviationDays,
   computeStatusDistribution,
   computeWorkload,
+  computeWorkloadWithProjects,
   computeWorstDeviation,
   sortProjectsByCriticality,
 } from './portfolio';
@@ -436,5 +437,83 @@ describe('computeWorkload', () => {
     ]);
     const workload = computeWorkload([project], people);
     expect(workload.map((w) => w.person.id)).toEqual(['maria', 'joao']);
+  });
+});
+
+describe('computeWorkloadWithProjects', () => {
+  const people: Person[] = [
+    { id: 'joao', name: 'João', active: true },
+    { id: 'maria', name: 'Maria', active: true },
+  ];
+
+  function projectWithTasks(id: string, name: string, tasks: Partial<TaskView>[]): ProjectView {
+    return baseProject({
+      id,
+      name,
+      activities: [
+        {
+          id: `${id}-a1`,
+          projectId: id,
+          name: 'Atividade',
+          tasks: tasks.map((t, i) => ({
+            id: `${id}-t${i}`,
+            rowNumber: i + 1,
+            activityId: `${id}-a1`,
+            name: `Tarefa ${i}`,
+            category: 'eletrica',
+            dependencies: [],
+            plannedStart: '2026-01-01',
+            plannedEnd: '2026-01-10',
+            baseStart: '2026-01-01',
+            baseEnd: '2026-01-10',
+            status: 'planned',
+            isBlocked: false,
+            isStartDelayed: false,
+            isLateCompletion: false,
+            hasDependencyViolation: false,
+            predecessorRowNumbers: [],
+            ...t,
+          })),
+          status: 'planned',
+          blockedCount: 0,
+          startDelayedCount: 0,
+          isLateCompletion: false,
+          progress: 0,
+        },
+      ],
+    });
+  }
+
+  it('agrupa tarefas em aberto por projeto, dentro de cada pessoa — 2 pessoas, 2 projetos, contagens exatas', () => {
+    const p1 = projectWithTasks('p1', 'Projeto 1', [
+      { responsavelId: 'joao', status: 'planned' },
+      { responsavelId: 'joao', status: 'delayed' },
+      { responsavelId: 'maria', status: 'planned' },
+    ]);
+    const p2 = projectWithTasks('p2', 'Projeto 2', [{ responsavelId: 'joao', status: 'planned' }]);
+
+    const result = computeWorkloadWithProjects([p1, p2], people);
+    expect(result).toHaveLength(2);
+
+    const joao = result.find((w) => w.person.id === 'joao')!;
+    expect(joao.taskCount).toBe(3);
+    expect(joao.openProjects).toEqual([
+      { project: p1, openTaskCount: 2 },
+      { project: p2, openTaskCount: 1 },
+    ]);
+
+    const maria = result.find((w) => w.person.id === 'maria')!;
+    expect(maria.taskCount).toBe(1);
+    expect(maria.openProjects).toEqual([{ project: p1, openTaskCount: 1 }]);
+  });
+
+  it('tarefa concluída não entra no agrupamento por projeto (mesma regra de computeWorkload)', () => {
+    const p1 = projectWithTasks('p1', 'Projeto 1', [
+      { responsavelId: 'joao', status: 'planned' },
+      { responsavelId: 'joao', status: 'completed' },
+    ]);
+    const result = computeWorkloadWithProjects([p1], people);
+    const joao = result.find((w) => w.person.id === 'joao')!;
+    expect(joao.openProjects).toEqual([{ project: p1, openTaskCount: 1 }]);
   });
 });

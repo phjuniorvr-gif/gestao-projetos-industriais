@@ -300,3 +300,38 @@ export function computeWorkload(projects: ProjectView[], people: Person[]): Work
 
   return Array.from(byId.values()).sort((a, b) => b.taskCount - a.taskCount);
 }
+
+export interface WorkloadWithProjects extends WorkloadEntry {
+  /** Projetos onde a pessoa tem ao menos 1 tarefa em aberto, ordenados por quem pesa mais. */
+  openProjects: { project: ProjectView; openTaskCount: number }[];
+}
+
+/**
+ * Mesma base de `computeWorkload` (reaproveitada, não recalculada) — acrescenta o agrupamento por
+ * projeto que a aba Equipe (Fase 6/mobile) precisa pro drill-down aninhado por pessoa.
+ */
+export function computeWorkloadWithProjects(projects: ProjectView[], people: Person[]): WorkloadWithProjects[] {
+  const workload = computeWorkload(projects, people);
+  const openTaskCountByPersonProject = new Map<string, Map<string, number>>();
+
+  for (const project of projects) {
+    for (const task of project.activities.flatMap((a) => a.tasks)) {
+      if (!task.responsavelId || task.status === 'completed') continue;
+      let perProject = openTaskCountByPersonProject.get(task.responsavelId);
+      if (!perProject) {
+        perProject = new Map();
+        openTaskCountByPersonProject.set(task.responsavelId, perProject);
+      }
+      perProject.set(project.id, (perProject.get(project.id) ?? 0) + 1);
+    }
+  }
+
+  return workload.map((entry) => {
+    const perProject = openTaskCountByPersonProject.get(entry.person.id) ?? new Map<string, number>();
+    const openProjects = projects
+      .filter((p) => perProject.has(p.id))
+      .map((p) => ({ project: p, openTaskCount: perProject.get(p.id)! }))
+      .sort((a, b) => b.openTaskCount - a.openTaskCount);
+    return { ...entry, openProjects };
+  });
+}
