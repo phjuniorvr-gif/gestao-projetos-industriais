@@ -8,3 +8,4 @@ export * from './usePeople';
 export * from './useAuth';
 export * from './usePerfil';
 export * from './useUndoToast';
+export * from './useIsMobile';

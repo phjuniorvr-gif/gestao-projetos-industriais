@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AppLayout, ProtectedRoute } from './components/layout';
+import { AppLayout, MobileLayout, ProtectedRoute } from './components/layout';
 import {
   ActivitiesPage,
   CategoriesPage,
@@ -11,20 +11,25 @@ import {
   ProjectsPage,
   SettingsPage,
 } from './pages';
+import { MobileDashboardPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage } from './pages/mobile';
+import { useIsMobile } from './hooks';
 
 export default function App() {
+  const isMobile = useIsMobile();
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
+          <Route element={isMobile ? <MobileLayout /> : <AppLayout />}>
             <Route index element={<Navigate to="/projetos" replace />} />
-            <Route path="projetos" element={<ProjectsPage />} />
+            <Route path="projetos" element={isMobile ? <MobileProjectsPage /> : <ProjectsPage />} />
             <Route path="novo-projeto" element={<NewProjectPage />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="cronograma" element={<ProjectSchedulePage />} />
+            <Route path="dashboard" element={isMobile ? <MobileDashboardPage /> : <DashboardPage />} />
+            <Route path="cronograma" element={isMobile ? <MobileSchedulePage /> : <ProjectSchedulePage />} />
             <Route path="projetos/:id/cronograma" element={<ProjectSchedulePage />} />
+            <Route path="equipe" element={isMobile ? <MobileTeamPage /> : <Navigate to="/dashboard" replace />} />
             <Route path="atividades" element={<ActivitiesPage />} />
             <Route path="categorias" element={<CategoriesPage />} />
             <Route path="excluidos" element={<DeletedProjectsPage />} />
