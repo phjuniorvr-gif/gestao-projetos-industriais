@@ -111,3 +111,7 @@ Linha de tabela: **34px de altura** vale pra linha de **dado simples** — uma i
 - **`StatusChipRow`** (`src/components/projects/StatusChipRow.tsx`) — chips de legenda+filtro extraídos de `ProjectsHealthStrip` (Fase 3) sem alterar o visual desktop; prop `size?: 'default' | 'touch'` garante 44px só onde é usado no mobile.
 - **Regra de 44px aplicada, não só documentada**: `min-h-11` em todo controle interativo da árvore mobile (`src/pages/mobile/`, `MobileLayout`/`MobileTabBar`, `BottomSheet`, `MobileProjectSheet`) — varredura literal confirmada no Commit 7 da Fase 6, registrada em `CLAUDE.md`.
 - **Barra de abas inferior** (`MobileTabBar`) — 4 itens fixos (Resumo/Projetos/Cronograma/Equipe), estado ativo por rota (não por clique local), badge numérico vermelho de atrasados só no ícone "Projetos", `env(safe-area-inset-bottom)` no padding pra não colidir com o home indicator do iPhone.
+
+## Entregues na Fase 7 — Parte B
+
+- **`PersonSelect` ganha `required?: boolean`** — padrão pra campo obrigatório que já teve valor: esconde a opção em branco quando `value` está preenchido (impede voltar pro estado "sem ninguém" numa edição), mas deixa a opção em branco visível enquanto o valor ainda não existe (criação) — quem bloqueia submeter vazio é a validação no salvar (`nameError`/`gerenteError`/`responsavelError`, mesmo padrão em texto), não o componente. Usado nos 4 pontos que selecionam pessoa: gerente (criação e edição de projeto) e responsável (tarefa no wizard, no painel de edição, e agora também no `AddTaskPanel`).
