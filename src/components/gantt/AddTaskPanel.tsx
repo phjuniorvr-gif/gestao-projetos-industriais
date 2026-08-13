@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
+import { Button, Card, FormField, Input, Select } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
-import { addBusinessDays, addDays, computeDependencyRuleDate, formatDatePtBr, todayISO, validateDateOrder } from '../../utils';
-import type { ActivityTemplate, Category, CategoryEntry, Holiday, Person, ProjectView } from '../../types';
+import { addBusinessDays, computeDependencyRuleDate, formatDatePtBr, todayISO, validateDateOrder } from '../../utils';
+import type { Category, CategoryEntry, Holiday, Person, ProjectView } from '../../types';
 
 interface AddTaskPanelProps {
   open: boolean;
@@ -12,22 +12,15 @@ interface AddTaskPanelProps {
    * comportamento de sempre. Ausente quando aberto pelo "＋ Novo item" do topo da página (Fase 4,
    * Commit 6) — aí os seletores de projeto e atividade aparecem, nessa ordem. */
   initialActivityId?: string;
-  catalog: ActivityTemplate[];
   categories: CategoryEntry[];
   people: Person[];
   holidays: Holiday[];
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
-  /** Fase 7 (Parte B) — responsável é obrigatório e é UM só, aplicado a todas as tarefas deste
-   * lote (o painel adiciona várias de uma vez a partir do catálogo; não tem campo por tarefa).
-   * `plannedStart`/`plannedEnd` também são um só par, é o período da primeira tarefa do lote —
-   * as demais (quando mais de uma é adicionada de uma vez) encadeiam uma após a outra usando essa
-   * mesma duração, quem monta a sequência é `onAdd`. `predecessorRowNumbers` (opcional) só se
-   * aplica à primeira tarefa do lote — as demais nascem sem predecessora, mesmo comportamento de
-   * hoje pra elas (ajustável depois, abrindo a tarefa). */
   onAdd: (
     activityId: string,
-    names: { name: string; category: Category }[],
+    name: string,
+    category: Category,
     responsavelId: string,
     plannedStart: string,
     plannedEnd: string,
@@ -47,7 +40,6 @@ export function AddTaskPanel({
   open,
   projects,
   initialActivityId,
-  catalog,
   categories,
   people,
   holidays,
@@ -57,9 +49,9 @@ export function AddTaskPanel({
 }: AddTaskPanelProps) {
   const [projectId, setProjectId] = useState('');
   const [activityId, setActivityId] = useState(initialActivityId ?? '');
+  const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [category, setCategory] = useState<Category>(categories[0]?.id ?? '');
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [customName, setCustomName] = useState('');
   const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
   const [responsavelError, setResponsavelError] = useState('');
   const [predecessorTaskId, setPredecessorTaskId] = useState('');
@@ -79,6 +71,8 @@ export function AddTaskPanel({
       setProjectId('');
       setActivityId('');
     }
+    setName('');
+    setNameError('');
     setResponsavelId(undefined);
     setResponsavelError('');
     setPredecessorTaskId('');
@@ -103,7 +97,7 @@ export function AddTaskPanel({
     if (!activity) return;
     const start = activity.tasks.at(-1)?.plannedEnd ?? activity.plannedStart ?? todayISO();
     setPlannedStart(start);
-    setPlannedEnd(addDays(start, 7));
+    setPlannedEnd(addBusinessDays(start, 6, holidays, project?.unit ?? ''));
     setDateError('');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só recalcula quando a atividade-alvo
     // muda, não a cada render (activity.tasks muda de referência a cada tarefa nova).
@@ -145,15 +139,15 @@ export function AddTaskPanel({
     // raciocínio dos outros efeitos.
   }, [scheduleMode, plannedStart, durationDays]);
 
-  const suggestions = useMemo(
-    () => catalog.find((entry) => entry.active && entry.name === activity?.name && entry.category === category),
-    [catalog, activity, category],
-  );
-
   if (!open) return null;
 
   function handleAdd() {
     if (!activityId) return;
+    if (!name.trim()) {
+      setNameError('Informe o nome da tarefa');
+      return;
+    }
+    setNameError('');
     if (!responsavelId) {
       setResponsavelError('Selecione um responsável');
       return;
@@ -165,16 +159,8 @@ export function AddTaskPanel({
       return;
     }
     setDateError('');
-    const fromSuggestions = (suggestions?.tasks ?? [])
-      .filter((t) => checked[t.id] !== false)
-      .map((t) => ({ name: t.name, category }));
-    const custom = customName.trim() ? [{ name: customName.trim(), category }] : [];
-    const names = [...fromSuggestions, ...custom];
-    if (names.length === 0) return;
     const predecessorRowNumbers = predecessorTask ? [predecessorTask.rowNumber] : undefined;
-    onAdd(activityId, names, responsavelId, plannedStart, plannedEnd, predecessorRowNumbers);
-    setChecked({});
-    setCustomName('');
+    onAdd(activityId, name.trim(), category, responsavelId, plannedStart, plannedEnd, predecessorRowNumbers);
     onClose();
   }
 
@@ -228,7 +214,17 @@ export function AddTaskPanel({
 
         {activity && (
           <>
-            <FormField label="Responsável" required error={responsavelError}>
+            <FormField label="Adicionar tarefa personalizada" required error={nameError}>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nome da tarefa"
+                className="w-full"
+                autoFocus={Boolean(initialActivityId)}
+              />
+            </FormField>
+
+            <FormField label="Responsável" required error={responsavelError} className="mt-4">
               <PersonSelect
                 value={responsavelId}
                 onChange={setResponsavelId}
@@ -329,43 +325,6 @@ export function AddTaskPanel({
                 </p>
               </div>
             )}
-
-            <div className="mt-4">
-              <p className="mb-2 text-xs font-medium text-text-muted">Tarefas sugeridas</p>
-              {suggestions ? (
-                <ul className="space-y-1.5">
-                  {suggestions.tasks.map((t) => (
-                    <li key={t.id}>
-                      <Checkbox
-                        label={t.name}
-                        checked={checked[t.id] !== false}
-                        onChange={(e) => setChecked((c) => ({ ...c, [t.id]: e.target.checked }))}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-text-muted">
-                  Nenhum modelo cadastrado para "{activity.name}" + "
-                  {categories.find((c) => c.id === category)?.label ?? category}" no catálogo.
-                </p>
-              )}
-            </div>
-
-            <FormField label="Adicionar tarefa personalizada" className="mt-4">
-              <Input
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                placeholder="Nome da tarefa"
-                className="w-full"
-              />
-            </FormField>
-
-            <p className="mt-3 text-xs text-text-muted">
-              Se mais de uma tarefa for adicionada de uma vez, cada uma começa após o fim da
-              anterior, usando essa mesma duração. Predecessoras podem ser ajustadas depois,
-              clicando na tarefa criada.
-            </p>
           </>
         )}
 

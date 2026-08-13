@@ -16,9 +16,9 @@ import {
   type GanttZoom,
 } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
-import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
+import { useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
-import { addDays, diffDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
+import { rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
   { value: 'dia', label: 'Dia' },
@@ -44,7 +44,6 @@ export function ProjectSchedulePage() {
     restoreActivityWithTasks,
   } = useProjects();
   const isAdmin = usePerfil();
-  const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { people, createPerson } = usePeople();
   const { holidays } = useHolidays();
@@ -456,34 +455,21 @@ export function ProjectSchedulePage() {
         open={taskPanelState.open}
         projects={ganttProjects}
         initialActivityId={taskPanelState.initialActivityId}
-        catalog={catalog}
         categories={categories}
         people={people}
         holidays={holidays}
         onCreatePerson={createPerson}
         onClose={() => setTaskPanelState({ open: false })}
-        onAdd={(activityId, names, responsavelId, taskPlannedStart, taskPlannedEnd, predecessorRowNumbers) => {
+        onAdd={(activityId, name, category, responsavelId, plannedStart, plannedEnd, predecessorRowNumbers) => {
           const projectId = activityIdToProjectId.get(activityId);
           if (!projectId) return;
-          // Duração vem do período escolhido no painel pra primeira tarefa; se mais de uma for
-          // adicionada de uma vez (sugestões do catálogo marcadas), as demais encadeiam com essa
-          // mesma duração, uma após o fim da anterior — mesmo comportamento de sempre, só que
-          // agora a duração é a que a pessoa escolheu, não um "7 dias" fixo escondido. A
-          // predecessora (se escolhida) só se aplica à primeira tarefa do lote.
-          const durationDays = diffDays(taskPlannedStart, taskPlannedEnd);
-          let cursor = taskPlannedStart;
-          names.forEach((item, index) => {
-            const start = cursor;
-            const end = addDays(start, durationDays);
-            addTask(projectId, activityId, {
-              name: item.name,
-              category: item.category,
-              responsavelId,
-              plannedStart: start,
-              plannedEnd: end,
-              predecessorRowNumbers: index === 0 ? predecessorRowNumbers : undefined,
-            });
-            cursor = end;
+          addTask(projectId, activityId, {
+            name,
+            category,
+            responsavelId,
+            plannedStart,
+            plannedEnd,
+            predecessorRowNumbers,
           });
         }}
       />
