@@ -71,7 +71,7 @@ Estou refatorando com o Claude Code seguindo a especificação em `referencia/PR
 - Rótulo "sem tarefas" quando atividade não tem tarefa — decisão de exibição adiada.
 - Marco (losango) no Gantt: fora de escopo da Fase 4, precisa de campo `isMilestone` novo + decisão de produto (medido: 12/66 tarefas reais têm duração de 1 dia, então "duração zero" não seria a regra certa de inferência).
 - Gerenciar papel (`perfis.papel`) é manual via SQL Editor — sem tela no app. Se a lista de usuários crescer, vale uma tela simples de administração (fora de escopo da Fase 5, não pedida).
-- Usuário de teste da Fase 5 (`dorival.junior@colormaq.com.br`) continua no banco, sem `perfis` — decidir se apaga ou promove quando alguém de verdade precisar desse acesso.
+- Usuário de teste da Fase 5 (`dorival.junior@colormaq.com.br`, papel `usuario`) fica ativo de propósito — não é descartável, serve pra validar gating não-admin. Enxerga todos os dados (SELECT é aberto a qualquer autenticado, só escrita é restrita) — ver CLAUDE.md.
 
 ## Como trabalhamos
 
