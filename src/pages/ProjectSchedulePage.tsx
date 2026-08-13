@@ -226,32 +226,26 @@ export function ProjectSchedulePage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-text">{title}</h1>
-            <p className="mt-1.5 text-sm text-text-muted">
-              Somente as tarefas recebem número. As dependências são informadas pelo número da tarefa predecessora.
-            </p>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <ScheduleLegend />
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterSelect
-                label="Categoria"
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                options={categories.map((c) => ({ value: c.id, label: c.label }))}
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterSelect
+              label="Categoria"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={categories.map((c) => ({ value: c.id, label: c.label }))}
+            />
+            {!project && projectsToShow.length > 0 && (
+              <ProjectFilters
+                filters={filters}
+                units={units}
+                years={years}
+                onChange={(next) => {
+                  setFilters(next);
+                  if (next === EMPTY_FILTERS) setCategoryFilter('');
+                }}
               />
-              {!project && projectsToShow.length > 0 && (
-                <ProjectFilters
-                  filters={filters}
-                  units={units}
-                  years={years}
-                  onChange={(next) => {
-                    setFilters(next);
-                    if (next === EMPTY_FILTERS) setCategoryFilter('');
-                  }}
-                />
-              )}
-            </div>
+            )}
           </div>
         </div>
 
@@ -368,6 +362,8 @@ export function ProjectSchedulePage() {
           description="Use o botão “+ Tarefa” em cada atividade abaixo para começar a montar o cronograma."
         />
       ) : null}
+
+      {ganttProjects.length > 0 && <ScheduleLegend />}
 
       {ganttProjects.length > 0 && (
         <Card className="space-y-4 p-0">
