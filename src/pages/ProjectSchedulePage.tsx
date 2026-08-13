@@ -18,7 +18,7 @@ import {
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
 import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
-import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
+import { addDays, diffDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
   { value: 'dia', label: 'Dia' },
@@ -461,15 +461,18 @@ export function ProjectSchedulePage() {
         people={people}
         onCreatePerson={createPerson}
         onClose={() => setTaskPanelState({ open: false })}
-        onAdd={(activityId, names, responsavelId) => {
+        onAdd={(activityId, names, responsavelId, taskPlannedStart, taskPlannedEnd) => {
           const projectId = activityIdToProjectId.get(activityId);
-          const activity = ganttProjects.flatMap((p) => p.activities).find((a) => a.id === activityId);
-          if (!projectId || !activity) return;
-          const lastTask = activity.tasks.at(-1);
-          let cursor = lastTask?.plannedEnd ?? activity.plannedStart ?? todayISO();
+          if (!projectId) return;
+          // Duração vem do período escolhido no painel pra primeira tarefa; se mais de uma for
+          // adicionada de uma vez (sugestões do catálogo marcadas), as demais encadeiam com essa
+          // mesma duração, uma após o fim da anterior — mesmo comportamento de sempre, só que
+          // agora a duração é a que a pessoa escolheu, não um "7 dias" fixo escondido.
+          const durationDays = diffDays(taskPlannedStart, taskPlannedEnd);
+          let cursor = taskPlannedStart;
           for (const item of names) {
             const start = cursor;
-            const end = addDays(start, 7);
+            const end = addDays(start, durationDays);
             addTask(projectId, activityId, {
               name: item.name,
               category: item.category,

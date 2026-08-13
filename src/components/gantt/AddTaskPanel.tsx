@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
+import { addDays, todayISO, validateDateOrder } from '../../utils';
 import type { ActivityTemplate, Category, CategoryEntry, Person, ProjectView } from '../../types';
 
 interface AddTaskPanelProps {
@@ -17,8 +18,17 @@ interface AddTaskPanelProps {
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   /** Fase 7 (Parte B) — responsável é obrigatório e é UM só, aplicado a todas as tarefas deste
-   * lote (o painel adiciona várias de uma vez a partir do catálogo; não tem campo por tarefa). */
-  onAdd: (activityId: string, names: { name: string; category: Category }[], responsavelId: string) => void;
+   * lote (o painel adiciona várias de uma vez a partir do catálogo; não tem campo por tarefa).
+   * `plannedStart`/`plannedEnd` também são um só par, é o período da primeira tarefa do lote —
+   * as demais (quando mais de uma é adicionada de uma vez) encadeiam uma após a outra usando essa
+   * mesma duração, quem monta a sequência é `onAdd`. */
+  onAdd: (
+    activityId: string,
+    names: { name: string; category: Category }[],
+    responsavelId: string,
+    plannedStart: string,
+    plannedEnd: string,
+  ) => void;
 }
 
 function findActivity(projects: ProjectView[], activityId: string) {
@@ -47,6 +57,9 @@ export function AddTaskPanel({
   const [customName, setCustomName] = useState('');
   const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
   const [responsavelError, setResponsavelError] = useState('');
+  const [plannedStart, setPlannedStart] = useState('');
+  const [plannedEnd, setPlannedEnd] = useState('');
+  const [dateError, setDateError] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +84,20 @@ export function AddTaskPanel({
   const project = projects.find((p) => p.id === projectId);
   const activity = activityId ? findActivity(projects, activityId)?.activity : undefined;
 
+  // Sugestão de período: começa depois da última tarefa da atividade (ou do início previsto da
+  // atividade, ou hoje), 7 dias corridos de duração — mesmo default que já existia calculado
+  // silenciosamente em ProjectSchedulePage.tsx, só que agora visível e editável antes de
+  // adicionar, em vez de só ajustável depois abrindo a tarefa criada.
+  useEffect(() => {
+    if (!activity) return;
+    const start = activity.tasks.at(-1)?.plannedEnd ?? activity.plannedStart ?? todayISO();
+    setPlannedStart(start);
+    setPlannedEnd(addDays(start, 7));
+    setDateError('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só recalcula quando a atividade-alvo
+    // muda, não a cada render (activity.tasks muda de referência a cada tarefa nova).
+  }, [activity?.id]);
+
   const suggestions = useMemo(
     () => catalog.find((entry) => entry.active && entry.name === activity?.name && entry.category === category),
     [catalog, activity, category],
@@ -85,13 +112,19 @@ export function AddTaskPanel({
       return;
     }
     setResponsavelError('');
+    const orderCheck = validateDateOrder(plannedStart, plannedEnd);
+    if (!orderCheck.valid) {
+      setDateError(orderCheck.errors[0]);
+      return;
+    }
+    setDateError('');
     const fromSuggestions = (suggestions?.tasks ?? [])
       .filter((t) => checked[t.id] !== false)
       .map((t) => ({ name: t.name, category }));
     const custom = customName.trim() ? [{ name: customName.trim(), category }] : [];
     const names = [...fromSuggestions, ...custom];
     if (names.length === 0) return;
-    onAdd(activityId, names, responsavelId);
+    onAdd(activityId, names, responsavelId, plannedStart, plannedEnd);
     setChecked({});
     setCustomName('');
     onClose();
@@ -168,6 +201,25 @@ export function AddTaskPanel({
               </Select>
             </FormField>
 
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <FormField label="Início previsto" required>
+                <Input
+                  type="date"
+                  value={plannedStart}
+                  onChange={(e) => setPlannedStart(e.target.value)}
+                  className="w-full"
+                />
+              </FormField>
+              <FormField label="Fim previsto" required error={dateError}>
+                <Input
+                  type="date"
+                  value={plannedEnd}
+                  onChange={(e) => setPlannedEnd(e.target.value)}
+                  className="w-full"
+                />
+              </FormField>
+            </div>
+
             <div className="mt-4">
               <p className="mb-2 text-xs font-medium text-text-muted">Tarefas sugeridas</p>
               {suggestions ? (
@@ -200,7 +252,9 @@ export function AddTaskPanel({
             </FormField>
 
             <p className="mt-3 text-xs text-text-muted">
-              As datas e as predecessoras podem ser ajustadas depois, clicando na tarefa criada.
+              Se mais de uma tarefa for adicionada de uma vez, cada uma começa após o fim da
+              anterior, usando essa mesma duração. Predecessoras podem ser ajustadas depois,
+              clicando na tarefa criada.
             </p>
           </>
         )}
