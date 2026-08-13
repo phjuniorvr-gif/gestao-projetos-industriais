@@ -1,17 +1,25 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MobileProjectSheet, ProjectCard, StatusChipRow } from '../../components/projects';
 import { EmptyState, Input, UndoToast } from '../../components/ui';
 import { useHolidays, usePeople, useProjects, useUndoToast } from '../../hooks';
 import { computeStatusDistribution, sortProjectsByCriticality } from '../../utils';
-import type { ProjectStatus } from '../../types';
+import { STATUS_LABEL, type ProjectStatus } from '../../types';
+
+function readStatusParam(value: string | null): ProjectStatus | null {
+  return value && (Object.keys(STATUS_LABEL) as ProjectStatus[]).includes(value as ProjectStatus)
+    ? (value as ProjectStatus)
+    : null;
+}
 
 export function MobileProjectsPage() {
+  const [searchParams] = useSearchParams();
   const { projects, today, updateTaskActualDates } = useProjects();
   const { people } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [search, setSearch] = useState('');
-  const [activeStatus, setActiveStatus] = useState<ProjectStatus | null>(null);
+  const [activeStatus, setActiveStatus] = useState<ProjectStatus | null>(() => readStatusParam(searchParams.get('status')));
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
 
   const safeHolidays = holidaysLoaded ? holidays : [];
