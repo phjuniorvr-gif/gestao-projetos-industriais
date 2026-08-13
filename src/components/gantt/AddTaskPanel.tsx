@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
-import type { ActivityTemplate, Category, CategoryEntry, ProjectView } from '../../types';
+import { PersonSelect } from '../shared/PersonSelect';
+import type { ActivityTemplate, Category, CategoryEntry, Person, ProjectView } from '../../types';
 
 interface AddTaskPanelProps {
   open: boolean;
@@ -12,8 +13,12 @@ interface AddTaskPanelProps {
   initialActivityId?: string;
   catalog: ActivityTemplate[];
   categories: CategoryEntry[];
+  people: Person[];
+  onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
-  onAdd: (activityId: string, names: { name: string; category: Category }[]) => void;
+  /** Fase 7 (Parte B) — responsável é obrigatório e é UM só, aplicado a todas as tarefas deste
+   * lote (o painel adiciona várias de uma vez a partir do catálogo; não tem campo por tarefa). */
+  onAdd: (activityId: string, names: { name: string; category: Category }[], responsavelId: string) => void;
 }
 
 function findActivity(projects: ProjectView[], activityId: string) {
@@ -24,12 +29,24 @@ function findActivity(projects: ProjectView[], activityId: string) {
   return null;
 }
 
-export function AddTaskPanel({ open, projects, initialActivityId, catalog, categories, onClose, onAdd }: AddTaskPanelProps) {
+export function AddTaskPanel({
+  open,
+  projects,
+  initialActivityId,
+  catalog,
+  categories,
+  people,
+  onCreatePerson,
+  onClose,
+  onAdd,
+}: AddTaskPanelProps) {
   const [projectId, setProjectId] = useState('');
   const [activityId, setActivityId] = useState(initialActivityId ?? '');
   const [category, setCategory] = useState<Category>(categories[0]?.id ?? '');
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [customName, setCustomName] = useState('');
+  const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
+  const [responsavelError, setResponsavelError] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -41,6 +58,8 @@ export function AddTaskPanel({ open, projects, initialActivityId, catalog, categ
       setProjectId('');
       setActivityId('');
     }
+    setResponsavelId(undefined);
+    setResponsavelError('');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reseta quando o painel abre/muda
     // de alvo, não a cada render (projects muda de referência o tempo todo).
   }, [open, initialActivityId]);
@@ -61,13 +80,18 @@ export function AddTaskPanel({ open, projects, initialActivityId, catalog, categ
 
   function handleAdd() {
     if (!activityId) return;
+    if (!responsavelId) {
+      setResponsavelError('Selecione um responsável');
+      return;
+    }
+    setResponsavelError('');
     const fromSuggestions = (suggestions?.tasks ?? [])
       .filter((t) => checked[t.id] !== false)
       .map((t) => ({ name: t.name, category }));
     const custom = customName.trim() ? [{ name: customName.trim(), category }] : [];
     const names = [...fromSuggestions, ...custom];
     if (names.length === 0) return;
-    onAdd(activityId, names);
+    onAdd(activityId, names, responsavelId);
     setChecked({});
     setCustomName('');
     onClose();
@@ -123,7 +147,18 @@ export function AddTaskPanel({ open, projects, initialActivityId, catalog, categ
 
         {activity && (
           <>
-            <FormField label="Categoria" required>
+            <FormField label="Responsável" required error={responsavelError}>
+              <PersonSelect
+                value={responsavelId}
+                onChange={setResponsavelId}
+                people={people}
+                onCreatePerson={onCreatePerson}
+                placeholder="Selecionar…"
+                required
+              />
+            </FormField>
+
+            <FormField label="Categoria" required className="mt-4">
               <Select value={category} onChange={(e) => setCategory(e.target.value as Category)} className="w-full">
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>

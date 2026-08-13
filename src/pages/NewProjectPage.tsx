@@ -26,6 +26,7 @@ export function NewProjectPage() {
   const [unit, setUnit] = useState(UNIT_OPTIONS[0]);
   const [gerenteId, setGerenteId] = useState<string | undefined>(undefined);
   const [nameError, setNameError] = useState('');
+  const [gerenteError, setGerenteError] = useState('');
 
   const [scheduleStart, setScheduleStart] = useState(todayISO());
   const [draftActivities, setDraftActivities] = useState<DraftActivity[]>([]);
@@ -39,6 +40,11 @@ export function NewProjectPage() {
       return;
     }
     setNameError('');
+    if (!gerenteId) {
+      setGerenteError('Selecione um gerente para o projeto');
+      return;
+    }
+    setGerenteError('');
     setStep(1);
   }
 
@@ -109,6 +115,10 @@ export function NewProjectPage() {
       const task = flatTasks[index];
       if (task.durationDays < 1) {
         setAdvanceError(`A tarefa da linha ${line} precisa ter duração de pelo menos 1 dia.`);
+        return;
+      }
+      if (!task.responsavelId) {
+        setAdvanceError(`A tarefa da linha ${line} precisa de um responsável.`);
         return;
       }
       for (const predecessor of task.predecessorRowNumbers) {
@@ -206,13 +216,14 @@ export function NewProjectPage() {
               </Select>
             </FormField>
 
-            <FormField label="Gerente do projeto">
+            <FormField label="Gerente do projeto" required error={gerenteError}>
               <PersonSelect
                 value={gerenteId}
                 onChange={setGerenteId}
                 people={people}
                 onCreatePerson={createPerson}
-                placeholder="Sem gerente"
+                placeholder="Selecionar…"
+                required
               />
             </FormField>
 

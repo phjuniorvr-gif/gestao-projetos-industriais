@@ -283,8 +283,9 @@ export function TaskPanel({
               onChange={(id) => onSave(task.id, { responsavelId: id })}
               people={people}
               onCreatePerson={onCreatePerson}
-              placeholder="Sem responsável"
+              placeholder="Selecionar…"
               disabled={locked}
+              required
             />
           </FormField>
 

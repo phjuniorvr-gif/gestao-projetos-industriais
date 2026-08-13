@@ -119,7 +119,8 @@ export function SelectedActivitiesList({
                               onChange={(id) => onChangeResponsavel(activity.key, task.key, id)}
                               people={people}
                               onCreatePerson={onCreatePerson}
-                              placeholder="Sem responsável"
+                              placeholder="Selecionar…"
+                              required
                             />
                           </td>
                           <td className="px-3 py-2">

@@ -458,8 +458,10 @@ export function ProjectSchedulePage() {
         initialActivityId={taskPanelState.initialActivityId}
         catalog={catalog}
         categories={categories}
+        people={people}
+        onCreatePerson={createPerson}
         onClose={() => setTaskPanelState({ open: false })}
-        onAdd={(activityId, names) => {
+        onAdd={(activityId, names, responsavelId) => {
           const projectId = activityIdToProjectId.get(activityId);
           const activity = ganttProjects.flatMap((p) => p.activities).find((a) => a.id === activityId);
           if (!projectId || !activity) return;
@@ -471,6 +473,7 @@ export function ProjectSchedulePage() {
             addTask(projectId, activityId, {
               name: item.name,
               category: item.category,
+              responsavelId,
               plannedStart: start,
               plannedEnd: end,
             });
