@@ -5,10 +5,12 @@ import {
   computeTaskBlockedByDependencies,
   computeTaskDependencyViolated,
   countViolatedDependencyEdges,
+  hasCycle,
   validateTaskDependencies,
 } from './dependencies';
 import type { DependencyType, Task, TaskDependency } from '../types';
 import type { DependencyGraphNode } from './dependencies';
+import { supabase } from '../services/supabaseClient';
 
 // Funções puras (Fase 2.7) — sem Supabase. Datas de teste caem numa semana cheia sem feriado
 // (seg 2026-08-03 a sex 2026-08-14, fim de semana em 08-08/09) pra manter a aritmética de dias
@@ -279,5 +281,108 @@ describe('computeTaskBlockedByDependencies', () => {
     const dep: TaskDependency = { predecessorId: 'inexistente', tipo: 'FS', folgaDias: 0 };
     const task = successor(dep);
     expect(computeTaskBlockedByDependencies(task, tasksByIdWith({}), '2026-08-05', [], 'matriz')).toBe(false);
+  });
+});
+
+// Compara haveria_ciclo() (SQL, migration add_anti_ciclo_trigger_dependencias) contra hasCycle()
+// (TS) pro mesmo grafo — mesmo remédio já usado pra pascoa()/feriados_nacionais() na Fase 2.6
+// (dates.test.ts), pra duas implementações da mesma regra não divergirem sem ninguém perceber.
+// haveria_ciclo() é liberada pra `anon` (grant na própria migration) justamente pra este teste
+// rodar sem autenticar. Cada caso: um grafo-base (sem ciclo) + uma aresta candidata (no depende
+// de predecessor); TS calcula com hasCycle() sobre o grafo hipotético (aresta já incluída), SQL
+// calcula com haveria_ciclo() sobre o grafo-base + a aresta candidata como parâmetros separados.
+describe('anti-ciclo de dependências — SQL vs TS', () => {
+  interface Edge {
+    no: string;
+    predecessor: string;
+  }
+
+  function hypotheticalHasCycle(baseEdges: Edge[], no: string, predecessor: string): boolean {
+    const nodeIds = new Set(baseEdges.flatMap((e) => [e.no, e.predecessor]));
+    nodeIds.add(no);
+    nodeIds.add(predecessor);
+    const rowNumberById = new Map(Array.from(nodeIds).map((id, i) => [id, i + 1]));
+    const nodes: DependencyGraphNode[] = Array.from(nodeIds).map((id) => ({
+      rowNumber: rowNumberById.get(id)!,
+      predecessorRowNumbers: baseEdges
+        .filter((e) => e.no === id)
+        .map((e) => rowNumberById.get(e.predecessor)!),
+    }));
+    return hasCycle(
+      nodes.map((n) =>
+        n.rowNumber === rowNumberById.get(no)
+          ? { ...n, predecessorRowNumbers: [...n.predecessorRowNumbers, rowNumberById.get(predecessor)!] }
+          : n,
+      ),
+    );
+  }
+
+  async function sqlHasCycle(baseEdges: Edge[], no: string, predecessor: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('haveria_ciclo', {
+      p_no: no,
+      p_predecessor: predecessor,
+      p_arestas: baseEdges,
+    });
+    if (error) throw error;
+    return data as boolean;
+  }
+
+  const cases: { name: string; baseEdges: Edge[]; no: string; predecessor: string; expected: boolean }[] = [
+    {
+      name: 'cadeia sem ciclo — candidata não fecha nada',
+      baseEdges: [
+        { no: '2', predecessor: '1' },
+        { no: '3', predecessor: '2' },
+      ],
+      no: '4',
+      predecessor: '1',
+      expected: false,
+    },
+    {
+      name: 'auto-referência — tarefa não pode depender dela mesma',
+      baseEdges: [],
+      no: '1',
+      predecessor: '1',
+      expected: true,
+    },
+    {
+      name: 'triângulo — candidata fecha ciclo de 3 nós',
+      baseEdges: [
+        { no: '2', predecessor: '1' },
+        { no: '3', predecessor: '2' },
+      ],
+      no: '1',
+      predecessor: '3',
+      expected: true,
+    },
+    {
+      name: 'ciclo de 5 nós — candidata fecha a cadeia inteira',
+      baseEdges: [
+        { no: '2', predecessor: '1' },
+        { no: '3', predecessor: '2' },
+        { no: '4', predecessor: '3' },
+        { no: '5', predecessor: '4' },
+      ],
+      no: '1',
+      predecessor: '5',
+      expected: true,
+    },
+    {
+      name: 'diamante sem ciclo — candidata só adiciona aresta redundante',
+      baseEdges: [
+        { no: '2', predecessor: '1' },
+        { no: '3', predecessor: '1' },
+        { no: '4', predecessor: '2' },
+        { no: '4', predecessor: '3' },
+      ],
+      no: '4',
+      predecessor: '1',
+      expected: false,
+    },
+  ];
+
+  it.each(cases)('$name — TS e SQL concordam (esperado: $expected)', async ({ baseEdges, no, predecessor, expected }) => {
+    expect(hypotheticalHasCycle(baseEdges, no, predecessor)).toBe(expected);
+    await expect(sqlHasCycle(baseEdges, no, predecessor)).resolves.toBe(expected);
   });
 });
