@@ -10,6 +10,7 @@ import {
 import type { Activity, Category, Project, ProjectView, Task, TaskDependency } from '../types';
 import {
   computeDateChanges,
+  computeDatesFromDuration,
   nextProjectCode,
   recomputeProject,
   todayISO,
@@ -53,6 +54,17 @@ export interface NewTaskInput {
   plannedStart: string;
   plannedEnd: string;
   predecessorRowNumbers?: number[];
+}
+
+/** Tarefa de um lote adicionado via `addActivityWithTasks` (catálogo, atividade já existente).
+ * `predecessorRowNumbers` é posicional dentro do próprio lote (1-based, índice em `tasks`), igual
+ * ao `DurationTaskInput` do wizard — não é o `rowNumber` global do projeto. */
+export interface NewActivityTaskInput {
+  name: string;
+  category: Category;
+  responsavelId: string;
+  durationDays: number;
+  predecessorRowNumbers: number[];
 }
 
 /** Tira a atividade do projeto: renumera as tarefas sobreviventes (rowNumber compactado) e limpa
@@ -247,6 +259,64 @@ export function useProjects() {
       }));
     },
     [updateProject],
+  );
+
+  /** Cria a atividade já com um lote de tarefas (fluxo "Selecionar do catálogo" do
+   * `AddActivityDialog`) — diferente de `addActivity` + N `addTask`, que exigiriam o id da
+   * atividade de volta entre uma chamada e outra; aqui a árvore inteira é montada e persistida
+   * numa passada só, mesmo raciocínio de `createProject`. `startISO` é o início da primeira
+   * tarefa sem predecessor no lote (hoje, no caller) — tarefas do catálogo não têm predecessora
+   * entre si (mesma convenção de `ActivitySourceForm`), então todas caem no mesmo dia.
+   *
+   * Ids gerados FORA do updater (não dentro do callback passado a `updateProject`): em
+   * StrictMode (dev), React invoca o callback de `setRawProjects` duas vezes de propósito pra
+   * flagar updaters impuros — gerar `uid()` novo a cada invocação fazia as duas execuções
+   * criarem atividades com ids diferentes, e a segunda gravação no Supabase apagava a atividade
+   * da primeira (`saveProjectTree` deleta o que não está na lista atual) bem no meio da gravação
+   * das tarefas da primeira, violando a FK `tasks_activity_id_fkey`. Com os ids fixos antes de
+   * entrar no updater, as duas invocações produzem exatamente o mesmo resultado (idempotente). */
+  const addActivityWithTasks = useCallback(
+    (projectId: string, name: string, taskInputs: NewActivityTaskInput[], startISO: string) => {
+      const activityId = uid();
+      const taskIds = taskInputs.map(() => uid());
+      updateProject(projectId, (project) => {
+        const allRowNumbers = project.activities.flatMap((a) => a.tasks).map((t) => t.rowNumber);
+        let nextRowNumber = allRowNumbers.length > 0 ? Math.max(...allRowNumbers) + 1 : 1;
+
+        const durationInputs = taskInputs.map((t, index) => ({
+          key: String(index),
+          durationDays: t.durationDays,
+          predecessorRowNumbers: t.predecessorRowNumbers,
+        }));
+        const dates = computeDatesFromDuration(durationInputs, startISO, holidays, project.unit);
+
+        const tasks: Task[] = taskInputs.map((t, index) => {
+          const period = dates.get(String(index))!;
+          const task: Task = {
+            id: taskIds[index],
+            rowNumber: nextRowNumber,
+            activityId,
+            name: t.name,
+            category: t.category,
+            responsavelId: t.responsavelId,
+            dependencies: [],
+            plannedStart: period.plannedStart,
+            plannedEnd: period.plannedEnd,
+            // Linha de base (Fase 2.5): seed = previsto no instante de criação.
+            baseStart: period.plannedStart,
+            baseEnd: period.plannedEnd,
+          };
+          nextRowNumber += 1;
+          return task;
+        });
+
+        return {
+          ...project,
+          activities: [...project.activities, { id: activityId, projectId, name, tasks }],
+        };
+      });
+    },
+    [updateProject, holidays],
   );
 
   /** Remove a atividade e todas as suas tarefas, renumerando o restante do projeto e removendo
@@ -508,6 +578,7 @@ export function useProjects() {
     restoreProject,
     updateProjectInfo,
     addActivity,
+    addActivityWithTasks,
     removeActivity,
     removeActivityWithTasks,
     restoreActivityWithTasks,

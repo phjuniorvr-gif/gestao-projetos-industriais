@@ -7,10 +7,15 @@ function uid(): string {
   return crypto.randomUUID();
 }
 
+export interface CatalogEntryTaskInput {
+  name: string;
+  durationDays: number;
+}
+
 export interface CatalogEntryInput {
   name: string;
   category: Category;
-  tasks: string[];
+  tasks: CatalogEntryTaskInput[];
   active: boolean;
 }
 
@@ -29,7 +34,7 @@ export function useCatalog() {
       name: input.name,
       category: input.category,
       active: input.active,
-      tasks: input.tasks.map((name) => ({ id: uid(), name })),
+      tasks: input.tasks.map((t) => ({ id: uid(), name: t.name, durationDays: t.durationDays })),
     };
     setCatalog((current) => [...current, entry]);
     saveTemplate(entry).catch((err) => console.error('Falha ao salvar item do catálogo no Supabase', err));
@@ -44,7 +49,7 @@ export function useCatalog() {
               name: input.name,
               category: input.category,
               active: input.active,
-              tasks: input.tasks.map((name) => ({ id: uid(), name })),
+              tasks: input.tasks.map((t) => ({ id: uid(), name: t.name, durationDays: t.durationDays })),
             }
           : entry,
       );

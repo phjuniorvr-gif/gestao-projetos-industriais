@@ -13,6 +13,7 @@ interface TaskTemplateRow {
   activity_template_id: string;
   name: string;
   position: number;
+  duration_days: number;
 }
 
 export async function fetchCatalog(): Promise<ActivityTemplate[]> {
@@ -26,7 +27,7 @@ export async function fetchCatalog(): Promise<ActivityTemplate[]> {
   const tasksByTemplate = new Map<string, TaskTemplate[]>();
   for (const row of (taskRows ?? []) as TaskTemplateRow[]) {
     const list = tasksByTemplate.get(row.activity_template_id) ?? [];
-    list.push({ id: row.id, name: row.name });
+    list.push({ id: row.id, name: row.name, durationDays: row.duration_days });
     tasksByTemplate.set(row.activity_template_id, list);
   }
 
@@ -59,6 +60,7 @@ export async function saveTemplate(entry: ActivityTemplate): Promise<void> {
         activity_template_id: entry.id,
         name: task.name,
         position: index,
+        duration_days: task.durationDays,
       })),
     );
     if (insertError) throw insertError;

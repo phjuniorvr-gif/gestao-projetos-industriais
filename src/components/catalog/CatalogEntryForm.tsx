@@ -13,14 +13,21 @@ interface CatalogEntryFormProps {
   onCancel: () => void;
 }
 
+interface TaskRow {
+  name: string;
+  durationDays: number;
+}
+
 export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, onCancel }: CatalogEntryFormProps) {
   const [name, setName] = useState(entry?.name ?? '');
   const [category, setCategory] = useState<Category>(entry?.category ?? defaultCategory ?? categories[0]?.id ?? '');
-  const [tasks, setTasks] = useState<string[]>(entry?.tasks.map((t) => t.name) ?? ['']);
+  const [tasks, setTasks] = useState<TaskRow[]>(
+    entry?.tasks.map((t) => ({ name: t.name, durationDays: t.durationDays })) ?? [{ name: '', durationDays: 1 }],
+  );
   const [active, setActive] = useState(entry?.active ?? true);
 
-  function updateTask(index: number, value: string) {
-    setTasks((current) => current.map((t, i) => (i === index ? value : t)));
+  function updateTask(index: number, patch: Partial<TaskRow>) {
+    setTasks((current) => current.map((t, i) => (i === index ? { ...t, ...patch } : t)));
   }
 
   function removeTask(index: number) {
@@ -28,7 +35,9 @@ export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, o
   }
 
   function handleSave() {
-    const cleanTasks = tasks.map((t) => t.trim()).filter(Boolean);
+    const cleanTasks = tasks
+      .map((t) => ({ name: t.name.trim(), durationDays: Math.max(1, t.durationDays) }))
+      .filter((t) => t.name);
     if (!name.trim() || cleanTasks.length === 0) return;
     onSave({ name: name.trim(), category, tasks: cleanTasks, active });
   }
@@ -56,7 +65,20 @@ export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, o
         <div className="space-y-2">
           {tasks.map((task, index) => (
             <div key={index} className="flex items-center gap-2">
-              <Input value={task} onChange={(e) => updateTask(index, e.target.value)} className="flex-1" />
+              <Input
+                value={task.name}
+                onChange={(e) => updateTask(index, { name: e.target.value })}
+                placeholder="Nome da tarefa"
+                className="flex-1"
+              />
+              <Input
+                type="number"
+                min={1}
+                value={task.durationDays}
+                onChange={(e) => updateTask(index, { durationDays: Math.max(1, Number(e.target.value) || 1) })}
+                className="w-20"
+              />
+              <span className="text-xs text-text-muted">du</span>
               <button
                 type="button"
                 onClick={() => removeTask(index)}
@@ -68,7 +90,12 @@ export function CatalogEntryForm({ entry, categories, defaultCategory, onSave, o
             </div>
           ))}
         </div>
-        <Button variant="ghost" icon={<Plus className="h-4 w-4" />} className="mt-2" onClick={() => setTasks((t) => [...t, ''])}>
+        <Button
+          variant="ghost"
+          icon={<Plus className="h-4 w-4" />}
+          className="mt-2"
+          onClick={() => setTasks((t) => [...t, { name: '', durationDays: 1 }])}
+        >
           Adicionar tarefa
         </Button>
       </div>

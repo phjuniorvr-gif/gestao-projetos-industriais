@@ -69,7 +69,7 @@ export function ActivitySourceForm({ catalog, categories, onAddActivity }: Activ
         key: uid(),
         name: t.name,
         category: currentTemplate.category,
-        durationDays: 1,
+        durationDays: t.durationDays,
         predecessorRowNumbers: [],
       })),
     });

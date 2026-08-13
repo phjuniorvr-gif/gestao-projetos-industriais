@@ -16,7 +16,7 @@ import {
   type GanttZoom,
 } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
-import { useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
 import { rollUpDates, rollUpStatus, todayISO } from '../utils';
 
@@ -39,12 +39,14 @@ export function ProjectSchedulePage() {
     removeTask,
     setTaskPredecessors,
     addActivity,
+    addActivityWithTasks,
     removeActivity,
     removeActivityWithTasks,
     restoreActivityWithTasks,
   } = useProjects();
   const isAdmin = usePerfil();
   const { categories } = useCategories();
+  const { catalog } = useCatalog();
   const { people, createPerson } = usePeople();
   const { holidays } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
@@ -444,9 +446,17 @@ export function ProjectSchedulePage() {
         open={activityDialog.open}
         projects={ganttProjects}
         initialProjectId={activityDialog.initialProjectId}
+        catalog={catalog}
+        categories={categories}
+        people={people}
+        onCreatePerson={createPerson}
         onCancel={() => setActivityDialog({ open: false })}
         onAdd={(projectId, name) => {
           addActivity(projectId, name);
+          setActivityDialog({ open: false });
+        }}
+        onAddFromCatalog={(projectId, name, tasks) => {
+          addActivityWithTasks(projectId, name, tasks, todayISO());
           setActivityDialog({ open: false });
         }}
       />

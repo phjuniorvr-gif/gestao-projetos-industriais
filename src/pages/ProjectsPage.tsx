@@ -14,8 +14,8 @@ import {
   type ProjectFiltersState,
 } from '../components/projects';
 import { Button, UndoToast } from '../components/ui';
-import { useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
-import { sortProjectsByCriticality } from '../utils';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
+import { sortProjectsByCriticality, todayISO } from '../utils';
 import { STATUS_LABEL, type ProjectStatus, type ProjectView } from '../types';
 
 export function ProjectsPage() {
@@ -24,6 +24,7 @@ export function ProjectsPage() {
     projects,
     today,
     addActivity,
+    addActivityWithTasks,
     createProject,
     removeProject,
     restoreProject,
@@ -31,6 +32,8 @@ export function ProjectsPage() {
     updateTaskActualDates,
   } = useProjects();
   const { people, createPerson } = usePeople();
+  const { catalog } = useCatalog();
+  const { categories } = useCategories();
   const isAdmin = usePerfil();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
@@ -182,8 +185,16 @@ export function ProjectsPage() {
         open={Boolean(addingActivityTo)}
         projects={projects}
         initialProjectId={addingActivityTo?.id}
+        catalog={catalog}
+        categories={categories}
+        people={people}
+        onCreatePerson={createPerson}
         onAdd={(projectId, name) => {
           addActivity(projectId, name);
+          setAddingActivityToId(null);
+        }}
+        onAddFromCatalog={(projectId, name, tasks) => {
+          addActivityWithTasks(projectId, name, tasks, todayISO());
           setAddingActivityToId(null);
         }}
         onCancel={() => setAddingActivityToId(null)}

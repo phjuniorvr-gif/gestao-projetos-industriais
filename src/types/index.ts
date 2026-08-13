@@ -188,6 +188,7 @@ export interface ProjectView extends Omit<Project, 'activities'> {
 export interface TaskTemplate {
   id: string;
   name: string;
+  durationDays: number;
 }
 
 export interface ActivityTemplate {
