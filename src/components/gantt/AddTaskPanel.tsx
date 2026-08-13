@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
-import { addBusinessDays, addDays, computeDependencyRuleDate, formatPeriod, todayISO, validateDateOrder } from '../../utils';
+import { addBusinessDays, addDays, computeDependencyRuleDate, formatDatePtBr, todayISO, validateDateOrder } from '../../utils';
 import type { ActivityTemplate, Category, CategoryEntry, Holiday, Person, ProjectView } from '../../types';
 
 interface AddTaskPanelProps {
@@ -115,21 +115,35 @@ export function AddTaskPanel({
   const predecessorCandidates = useMemo(() => project?.activities.flatMap((a) => a.tasks) ?? [], [project]);
   const predecessorTask = predecessorCandidates.find((t) => t.id === predecessorTaskId);
 
-  // Modo "Duração": data base é a regra FS+0 a partir da predecessora escolhida (mesma conta de
-  // computeDependencyRuleDate, Fase 2.7), ou o mesmo default de sempre quando não há predecessora
-  // — e o fim é a base + duração em dias ÚTEIS (regra de ouro: duração sempre em dias úteis,
-  // mesmo padrão de computeDatesFromDuration no assistente de novo projeto).
+  // Modo "Duração", COM predecessora: início trava na regra FS+0 (mesma conta de
+  // computeDependencyRuleDate, Fase 2.7) — não dá pra digitar, mostra o 1º dia útil depois do
+  // fim da predecessora. Só recalcula quando a predecessora muda (não poderia depender de
+  // `plannedStart` — é ele quem está sendo travado aqui).
   useEffect(() => {
-    if (scheduleMode !== 'duration' || !activity || !project) return;
-    const base = predecessorTask
-      ? computeDependencyRuleDate({ tipo: 'FS', folgaDias: 0 }, predecessorTask, holidays, project.unit)
-      : (activity.tasks.at(-1)?.plannedEnd ?? activity.plannedStart ?? todayISO());
-    setPlannedStart(base);
-    setPlannedEnd(addBusinessDays(base, Math.max(1, durationDays) - 1, holidays, project.unit));
-    setDateError('');
+    if (scheduleMode !== 'duration' || !predecessorTask || !project) return;
+    setPlannedStart(computeDependencyRuleDate({ tipo: 'FS', folgaDias: 0 }, predecessorTask, holidays, project.unit));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- holidays/project não entram: mesmo
     // raciocínio dos outros efeitos deste arquivo, só o que a pessoa efetivamente mudou importa.
-  }, [scheduleMode, predecessorTaskId, durationDays, activity?.id]);
+  }, [scheduleMode, predecessorTaskId]);
+
+  // Modo "Duração", SEM predecessora: início é sugerido (mesmo default de sempre) mas continua
+  // editável — a pessoa pode trocar a data de qualquer jeito, e a duração conta a partir dela.
+  useEffect(() => {
+    if (scheduleMode !== 'duration' || predecessorTask || !activity) return;
+    setPlannedStart(activity.tasks.at(-1)?.plannedEnd ?? activity.plannedStart ?? todayISO());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando entra no modo Duração sem
+    // predecessora ou muda de atividade — não a cada render.
+  }, [scheduleMode, Boolean(predecessorTask), activity?.id]);
+
+  // Fim previsto é sempre calculado (início + duração em dias ÚTEIS — regra de ouro, mesma
+  // unidade de computeDatesFromDuration no assistente de novo projeto), nos dois casos acima.
+  useEffect(() => {
+    if (scheduleMode !== 'duration' || !project) return;
+    setPlannedEnd(addBusinessDays(plannedStart, Math.max(1, durationDays) - 1, holidays, project.unit));
+    setDateError('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- holidays/project não entram, mesmo
+    // raciocínio dos outros efeitos.
+  }, [scheduleMode, plannedStart, durationDays]);
 
   const suggestions = useMemo(
     () => catalog.find((entry) => entry.active && entry.name === activity?.name && entry.category === category),
@@ -288,20 +302,30 @@ export function AddTaskPanel({
               </div>
             ) : (
               <div className="mt-3 space-y-2">
-                <FormField label="Duração (dias úteis)" required error={dateError}>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={durationDays}
-                    onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 1))}
-                    className="w-full"
-                  />
-                </FormField>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField label="Início previsto">
+                    <Input
+                      type="date"
+                      value={plannedStart}
+                      onChange={(e) => setPlannedStart(e.target.value)}
+                      disabled={Boolean(predecessorTask)}
+                      title={predecessorTask ? 'Calculado a partir da predecessora escolhida.' : undefined}
+                      className="w-full"
+                    />
+                  </FormField>
+                  <FormField label="Duração (dias úteis)" required error={dateError}>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={durationDays}
+                      onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full"
+                    />
+                  </FormField>
+                </div>
                 <p className="text-xs text-text-muted">
-                  {predecessorTask
-                    ? `Começa no 1º dia útil depois do fim da tarefa #${predecessorTask.rowNumber}: `
-                    : 'Período calculado: '}
-                  {formatPeriod(plannedStart, plannedEnd)}
+                  {predecessorTask && `Início = 1º dia útil depois do fim da tarefa #${predecessorTask.rowNumber}. `}
+                  Fim previsto: {formatDatePtBr(plannedEnd)}
                 </p>
               </div>
             )}
