@@ -55,6 +55,34 @@ export interface NewTaskInput {
   predecessorRowNumbers?: number[];
 }
 
+/** Tira a atividade do projeto: renumera as tarefas sobreviventes (rowNumber compactado) e limpa
+ * as entradas de `dependencies` das tarefas sobreviventes que apontavam pra alguma tarefa
+ * removida como predecessora — extraída de `removeActivity` (Fase 2.7) pra ser reaproveitada
+ * também por `removeActivityWithTasks` (Fase 7, Parte A). */
+function removeActivityFromProject(project: Project, activityId: string): Project {
+  const activityToRemove = project.activities.find((a) => a.id === activityId);
+  if (!activityToRemove) return project;
+
+  const removedTaskIds = new Set(activityToRemove.tasks.map((t) => t.id));
+  const remainingActivities = project.activities.filter((a) => a.id !== activityId);
+  const remainingTasksSorted = remainingActivities.flatMap((a) => a.tasks).sort((a, b) => a.rowNumber - b.rowNumber);
+
+  const rowNumberMap = new Map<number, number>();
+  remainingTasksSorted.forEach((task, index) => rowNumberMap.set(task.rowNumber, index + 1));
+
+  return {
+    ...project,
+    activities: remainingActivities.map((a) => ({
+      ...a,
+      tasks: a.tasks.map((task) => ({
+        ...task,
+        rowNumber: rowNumberMap.get(task.rowNumber)!,
+        dependencies: task.dependencies.filter((d) => !removedTaskIds.has(d.predecessorId)),
+      })),
+    })),
+  };
+}
+
 /**
  * `rawProjects` (estado) é a forma persistida — nunca tem status. `projects` (retornado) é
  * derivado via `useMemo` + `recomputeProject`, uma vez só, num lugar só — nem o repo nem os
@@ -227,31 +255,40 @@ export function useProjects() {
    * (id não muda quando o número de linha muda). */
   const removeActivity = useCallback(
     (projectId: string, activityId: string) => {
+      updateProject(projectId, (project) => removeActivityFromProject(project, activityId));
+    },
+    [updateProject],
+  );
+
+  /**
+   * Fase 7 (Parte A) — implementa a decisão registrada no CLAUDE.md desde antes da Fase 2
+   * ("exclusão de atividade com tarefas fica bloqueada por padrão, admin tem ação explícita +
+   * Desfazer de 6s"), nunca construída até agora. Diferente de `removeActivity` (usado só quando
+   * a atividade não tem tarefa — sem necessidade de desfazer), esta função devolve o `Project`
+   * INTEIRO de antes da remoção (não só a atividade) — é o que torna o desfazer completo possível
+   * sem reconstruir manualmente `rowNumber`s renumerados e as entradas de `dependencies` que
+   * `removeActivityFromProject` já limpa nas tarefas sobreviventes (ver correção de plano: um
+   * snapshot só da atividade perderia essas arestas). `null` se o projeto não existir (defensivo).
+   */
+  const removeActivityWithTasks = useCallback(
+    (projectId: string, activityId: string): Project | null => {
+      let previousProject: Project | null = null;
       updateProject(projectId, (project) => {
-        const activityToRemove = project.activities.find((a) => a.id === activityId);
-        if (!activityToRemove) return project;
-
-        const removedTaskIds = new Set(activityToRemove.tasks.map((t) => t.id));
-        const remainingActivities = project.activities.filter((a) => a.id !== activityId);
-        const remainingTasksSorted = remainingActivities
-          .flatMap((a) => a.tasks)
-          .sort((a, b) => a.rowNumber - b.rowNumber);
-
-        const rowNumberMap = new Map<number, number>();
-        remainingTasksSorted.forEach((task, index) => rowNumberMap.set(task.rowNumber, index + 1));
-
-        return {
-          ...project,
-          activities: remainingActivities.map((a) => ({
-            ...a,
-            tasks: a.tasks.map((task) => ({
-              ...task,
-              rowNumber: rowNumberMap.get(task.rowNumber)!,
-              dependencies: task.dependencies.filter((d) => !removedTaskIds.has(d.predecessorId)),
-            })),
-          })),
-        };
+        previousProject = project;
+        return removeActivityFromProject(project, activityId);
       });
+      return previousProject;
+    },
+    [updateProject],
+  );
+
+  /** Desfazer de `removeActivityWithTasks` — substitui o projeto inteiro pelo snapshot de antes
+   * da remoção (reinsere a atividade, as tarefas com `rowNumber`s originais, e as entradas de
+   * `dependencies` que tinham sido limpas nas tarefas sobreviventes), via o mesmo caminho de
+   * escrita normal (`updateProject` → `saveProjectTree`). */
+  const restoreActivityWithTasks = useCallback(
+    (projectId: string, previousProject: Project) => {
+      updateProject(projectId, () => previousProject);
     },
     [updateProject],
   );
@@ -467,6 +504,8 @@ export function useProjects() {
     updateProjectInfo,
     addActivity,
     removeActivity,
+    removeActivityWithTasks,
+    restoreActivityWithTasks,
     addTask,
     updateTask,
     updateTaskActualDates,

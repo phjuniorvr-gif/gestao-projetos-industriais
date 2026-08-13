@@ -89,7 +89,13 @@ interface GanttTableProps {
   onOpenTask: (task: TaskView) => void;
   onAddTask: (activity: ActivityView) => void;
   onAddActivity: (project: ProjectView) => void;
+  /** Atividade SEM tarefas — abre `ConfirmDialog` (baixo risco, comportamento de sempre). */
   onRemoveActivity: (activity: ActivityView) => void;
+  /** Fase 7 (Parte A) — atividade COM tarefas: dispara na hora, sem `ConfirmDialog` (mesmo
+   * padrão de exclusão sem confirmação prévia da Fase 3), com Desfazer de 6s por conta de quem
+   * chama. Implementa a decisão já registrada no CLAUDE.md desde antes da Fase 2, nunca
+   * construída até agora — o botão sempre cascateava direto. */
+  onRemoveActivityWithTasks: (activity: ActivityView) => void;
 }
 
 interface HeaderTick {
@@ -165,6 +171,7 @@ export function GanttTable({
   onAddTask,
   onAddActivity,
   onRemoveActivity,
+  onRemoveActivityWithTasks,
 }: GanttTableProps) {
   // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
   const locked = isAdmin !== true;
@@ -519,9 +526,22 @@ export function GanttTable({
                               {editMode && (
                                 <button
                                   type="button"
-                                  onClick={() => onRemoveActivity(activity)}
+                                  onClick={() =>
+                                    activity.tasks.length > 0
+                                      ? onRemoveActivityWithTasks(activity)
+                                      : onRemoveActivity(activity)
+                                  }
                                   className="shrink-0 text-text-muted hover:text-status-delayed"
-                                  aria-label="Excluir atividade"
+                                  aria-label={
+                                    activity.tasks.length > 0
+                                      ? `Excluir atividade e suas ${activity.tasks.length} tarefas`
+                                      : 'Excluir atividade'
+                                  }
+                                  title={
+                                    activity.tasks.length > 0
+                                      ? `Excluir atividade e suas ${activity.tasks.length} tarefas`
+                                      : undefined
+                                  }
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>

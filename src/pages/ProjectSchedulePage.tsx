@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, ListPlus, Maximize2, Minimize2, Pencil } from 'lucide-react';
-import { Button, Card, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
+import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
 import {
   AddActivityDialog,
   AddTaskPanel,
@@ -16,7 +16,7 @@ import {
   type GanttZoom,
 } from '../components/gantt';
 import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
-import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects } from '../hooks';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
 import { addDays, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
@@ -40,12 +40,15 @@ export function ProjectSchedulePage() {
     setTaskPredecessors,
     addActivity,
     removeActivity,
+    removeActivityWithTasks,
+    restoreActivityWithTasks,
   } = useProjects();
   const isAdmin = usePerfil();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { people, createPerson } = usePeople();
   const { holidays } = useHolidays();
+  const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [categoryFilter, setCategoryFilter] = useState('');
 
@@ -197,6 +200,21 @@ export function ProjectSchedulePage() {
   const selectedTaskDependentCount = liveSelectedTask
     ? allPortfolioTasks.filter((t) => t.dependencies.some((d) => d.predecessorId === liveSelectedTask.id)).length
     : 0;
+
+  /** Fase 7 (Parte A) — dispara na hora (sem ConfirmDialog, mesmo padrão de exclusão sem
+   * confirmação prévia da Fase 3) + Desfazer de 6s restaurando o projeto inteiro de antes
+   * (atividade, tarefas com rowNumbers originais, e as dependencies que tinham sido limpas nas
+   * tarefas sobreviventes — ver `removeActivityWithTasks`). */
+  function handleRemoveActivityWithTasks(activity: ActivityView) {
+    const owningProjectId = activityIdToProjectId.get(activity.id);
+    if (!owningProjectId) return;
+    const previousProject = removeActivityWithTasks(owningProjectId, activity.id);
+    if (!previousProject) return;
+    const taskCount = activity.tasks.length;
+    show(`"${activity.name}" e ${taskCount === 1 ? 'sua tarefa foram excluídas' : `suas ${taskCount} tarefas foram excluídas`}`, () => {
+      restoreActivityWithTasks(owningProjectId, previousProject);
+    });
+  }
 
   const project = id ? projectsToShow[0] : undefined;
   const title = project ? `${project.code} — ${project.name}` : 'Cronograma de Projetos';
@@ -371,6 +389,7 @@ export function ProjectSchedulePage() {
               onAddTask={(activity) => setTaskPanelState({ open: true, initialActivityId: activity.id })}
               onAddActivity={(project) => setActivityDialog({ open: true, initialProjectId: project.id })}
               onRemoveActivity={setDeletingActivity}
+              onRemoveActivityWithTasks={handleRemoveActivityWithTasks}
             />
           </div>
         </Card>
@@ -491,6 +510,8 @@ export function ProjectSchedulePage() {
           setDeletingTask(null);
         }}
       />
+
+      <UndoToast toast={toast} onDismiss={dismiss} />
     </div>
   );
 }
