@@ -11,3 +11,4 @@ export * from './FormField';
 export * from './ConfirmDialog';
 export * from './UndoToast';
 export * from './LockBadge';
+export * from './BottomSheet';

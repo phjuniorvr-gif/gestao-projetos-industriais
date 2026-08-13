@@ -8,6 +8,8 @@ interface MiniGanttProps {
   actualEnd?: string;
   status: ProjectStatus;
   today: string;
+  /** `compact` (Fase 6/mobile): 22px, sem linhas-guia de 25/50/75% nem linha de datas embaixo. */
+  size?: 'default' | 'compact';
 }
 
 function formatShort(dateISO: string): string {
@@ -20,7 +22,17 @@ function formatShort(dateISO: string): string {
  * outras linhas, diferente do Gantt grande de `ganttMath.ts`/`GanttBars.tsx`, feito pra uma tela
  * inteira com scroll horizontal). Reusado na tabela de Projetos e no painel de detalhe (Fase 3).
  */
-export function MiniGantt({ plannedStart, plannedEnd, actualStart, actualEnd, status, today }: MiniGanttProps) {
+export function MiniGantt({
+  plannedStart,
+  plannedEnd,
+  actualStart,
+  actualEnd,
+  status,
+  today,
+  size = 'default',
+}: MiniGanttProps) {
+  const compact = size === 'compact';
+
   if (!plannedStart || !plannedEnd) {
     return <span className="text-xs italic text-text-muted">Sem tarefas</span>;
   }
@@ -41,29 +53,45 @@ export function MiniGantt({ plannedStart, plannedEnd, actualStart, actualEnd, st
     realRect && realEnd && realEnd > plannedEnd ? { left: leftPct(plannedEnd), width: widthPct(plannedEnd, realEnd) } : null;
   const todayPct = today >= plannedStart && today <= rangeEnd ? leftPct(today) : null;
 
+  const barHeight = compact ? 7 : 9;
+  const realTop = compact ? 10 : 13;
+
   return (
     <div className="w-full min-w-[160px]">
-      <div className="relative h-[26px]">
-        {[25, 50, 75].map((q) => (
-          <div key={q} className="absolute top-0 h-full border-l border-dashed border-border-2" style={{ left: `${q}%` }} />
-        ))}
+      <div className={`relative ${compact ? 'h-[22px]' : 'h-[26px]'}`}>
+        {!compact &&
+          [25, 50, 75].map((q) => (
+            <div key={q} className="absolute top-0 h-full border-l border-dashed border-border-2" style={{ left: `${q}%` }} />
+          ))}
         <div
-          className="absolute top-0 h-[9px] rounded-sm border border-dashed border-action/60 bg-white"
-          style={{ left: `${plannedRect.left}%`, width: `${plannedRect.width}%` }}
+          className="absolute top-0 rounded-sm border border-dashed border-action/60 bg-white"
+          style={{ left: `${plannedRect.left}%`, width: `${plannedRect.width}%`, height: `${barHeight}px` }}
           title={`Previsto: ${formatShort(plannedStart)} – ${formatShort(plannedEnd)}`}
         />
         {realRect ? (
           <div
-            className="absolute top-[13px] h-[9px] rounded-sm"
-            style={{ left: `${realRect.left}%`, width: `${realRect.width}%`, backgroundColor: STATUS_COLOR[status] }}
+            className="absolute rounded-sm"
+            style={{
+              left: `${realRect.left}%`,
+              width: `${realRect.width}%`,
+              top: `${realTop}px`,
+              height: `${barHeight}px`,
+              backgroundColor: STATUS_COLOR[status],
+            }}
           />
         ) : (
-          <span className="absolute top-[13px] text-[10px] italic text-text-muted">Não iniciado</span>
+          !compact && <span className="absolute top-[13px] text-[10px] italic text-text-muted">Não iniciado</span>
         )}
         {overrunRect && (
           <div
-            className="absolute top-[13px] h-[9px] rounded-sm"
-            style={{ left: `${overrunRect.left}%`, width: `${overrunRect.width}%`, backgroundColor: STATUS_COLOR.delayed }}
+            className="absolute rounded-sm"
+            style={{
+              left: `${overrunRect.left}%`,
+              width: `${overrunRect.width}%`,
+              top: `${realTop}px`,
+              height: `${barHeight}px`,
+              backgroundColor: STATUS_COLOR.delayed,
+            }}
           />
         )}
         {todayPct !== null && (
@@ -72,10 +100,12 @@ export function MiniGantt({ plannedStart, plannedEnd, actualStart, actualEnd, st
           </div>
         )}
       </div>
-      <div className="mt-1 flex justify-between font-mono text-[10px] text-text-muted2">
-        <span>{formatShort(plannedStart)}</span>
-        <span>{formatShort(plannedEnd)}</span>
-      </div>
+      {!compact && (
+        <div className="mt-1 flex justify-between font-mono text-[10px] text-text-muted2">
+          <span>{formatShort(plannedStart)}</span>
+          <span>{formatShort(plannedEnd)}</span>
+        </div>
+      )}
     </div>
   );
 }
