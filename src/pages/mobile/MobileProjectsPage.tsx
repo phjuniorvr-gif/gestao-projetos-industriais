@@ -60,6 +60,7 @@ export function MobileProjectsPage() {
         distribution={distribution}
         activeStatus={activeStatus}
         onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
+        size="touch"
       />
 
       {sorted.length === 0 ? (

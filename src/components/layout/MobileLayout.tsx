@@ -37,7 +37,11 @@ export function MobileLayout() {
         <Outlet />
       </main>
 
-      <MobileTabBar />
+      {/* key=pathname: useProjects() não tem store compartilhado (nenhuma página do app tem —
+          cada uma busca fresco no mount, mesmo padrão de ProjectsPage/DashboardPage). Sem isso,
+          MobileTabBar (dentro do layout persistente, nunca desmonta ao trocar de aba) buscaria só
+          uma vez por sessão e o badge de atrasados nunca atualizaria depois de uma ação. */}
+      <MobileTabBar key={pathname} />
     </div>
   );
 }

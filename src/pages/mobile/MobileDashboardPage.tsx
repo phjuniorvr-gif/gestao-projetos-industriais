@@ -42,6 +42,7 @@ export function MobileDashboardPage() {
         distribution={distribution}
         activeStatus={null}
         onToggleStatus={(status) => navigate(`/projetos?status=${status}`)}
+        size="touch"
       />
 
       <Card className="p-4">
