@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../components/ui';
 import { getSettings as getStoredSettings, setSettings as persistSettings } from '../services/localSettings';
@@ -29,7 +30,8 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const { categories } = useCategories();
-  const { people, updatePerson } = usePeople();
+  const { people, createPerson, updatePerson } = usePeople();
+  const [newPersonName, setNewPersonName] = useState('');
 
   useEffect(() => {
     setSettings(getStoredSettings(DEFAULT_SETTINGS));
@@ -61,6 +63,13 @@ export function SettingsPage() {
         ? current.enabledStatuses.filter((s) => s !== status)
         : [...current.enabledStatuses, status],
     }));
+  }
+
+  function handleAddPerson() {
+    const name = newPersonName.trim();
+    if (!name) return;
+    createPerson(name);
+    setNewPersonName('');
   }
 
   function handleSave() {
@@ -161,6 +170,21 @@ export function SettingsPage() {
             histórico continua vinculado.
           </p>
         </div>
+        <div className="flex gap-2">
+          <Input
+            value={newPersonName}
+            onChange={(e) => setNewPersonName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddPerson();
+            }}
+            placeholder="Nome da nova pessoa"
+            className="flex-1"
+          />
+          <Button variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={handleAddPerson}>
+            Adicionar
+          </Button>
+        </div>
+
         <div className="space-y-2">
           {people.map((p) => (
             <div key={p.id} className="flex items-center gap-3">
