@@ -10,6 +10,7 @@ import {
   diffDays,
   formatDatePtBr,
   formatPeriod,
+  validateDateOrder,
 } from '../../utils';
 import type { DependencyValidation, ReplanValidation } from '../../utils';
 
@@ -80,6 +81,9 @@ export function TaskPanel({
   const [draftPlannedEnd, setDraftPlannedEnd] = useState('');
   const [motivo, setMotivo] = useState('');
   const [replanErrors, setReplanErrors] = useState<string[]>([]);
+  const [draftActualStart, setDraftActualStart] = useState('');
+  const [draftActualEnd, setDraftActualEnd] = useState('');
+  const [actualErrors, setActualErrors] = useState<string[]>([]);
 
   // Rascunho reseta sempre que a tarefa selecionada muda — o painel não desmonta ao trocar de
   // tarefa (só ao fechar), então sem isso o rascunho da tarefa anterior vazaria pra próxima.
@@ -89,6 +93,9 @@ export function TaskPanel({
     setDraftPlannedEnd(task.plannedEnd);
     setMotivo('');
     setReplanErrors([]);
+    setDraftActualStart(task.actualStart ?? '');
+    setDraftActualEnd(task.actualEnd ?? '');
+    setActualErrors([]);
     const idToRowNumber = new Map(allTasks.map((t) => [t.id, t.rowNumber]));
     setDependencyDrafts(
       task.dependencies.map((d) => ({
@@ -118,6 +125,11 @@ export function TaskPanel({
 
   function handleConfirmReplan() {
     if (!task) return;
+    const orderCheck = validateDateOrder(draftPlannedStart, draftPlannedEnd);
+    if (!orderCheck.valid) {
+      setReplanErrors(orderCheck.errors);
+      return;
+    }
     const patch: ReplanPatch = {};
     if (draftPlannedStart !== task.plannedStart) patch.plannedStart = draftPlannedStart;
     if (draftPlannedEnd !== task.plannedEnd) patch.plannedEnd = draftPlannedEnd;
@@ -127,6 +139,39 @@ export function TaskPanel({
       setReplanErrors([]);
     } else {
       setReplanErrors(result.errors);
+    }
+  }
+
+  /** Fase 7 (Parte A) — "Início/Fim real" viraram controlados (eram `defaultValue`+`onBlur`
+   * direto) pra poder comparar o par antes de gravar; só o campo que de fato mudou vai no patch
+   * (mesmo formato que `onSaveActual` já espera), o outro fica de fora. */
+  function handleBlurActualStart() {
+    if (!task) return;
+    if (draftActualStart && draftActualEnd) {
+      const check = validateDateOrder(draftActualStart, draftActualEnd);
+      if (!check.valid) {
+        setActualErrors(check.errors);
+        return;
+      }
+    }
+    setActualErrors([]);
+    if (draftActualStart !== (task.actualStart ?? '')) {
+      onSaveActual(task.id, { actualStart: draftActualStart || undefined });
+    }
+  }
+
+  function handleBlurActualEnd() {
+    if (!task) return;
+    if (draftActualStart && draftActualEnd) {
+      const check = validateDateOrder(draftActualStart, draftActualEnd);
+      if (!check.valid) {
+        setActualErrors(check.errors);
+        return;
+      }
+    }
+    setActualErrors([]);
+    if (draftActualEnd !== (task.actualEnd ?? '')) {
+      onSaveActual(task.id, { actualEnd: draftActualEnd || undefined });
     }
   }
 
@@ -291,16 +336,18 @@ export function TaskPanel({
             <FormField label="Início real">
               <Input
                 type="date"
-                defaultValue={task.actualStart ?? ''}
-                onBlur={(e) => onSaveActual(task.id, { actualStart: e.target.value || undefined })}
+                value={draftActualStart}
+                onChange={(e) => setDraftActualStart(e.target.value)}
+                onBlur={handleBlurActualStart}
                 className="w-full"
               />
             </FormField>
-            <FormField label="Fim real">
+            <FormField label="Fim real" error={actualErrors[0]}>
               <Input
                 type="date"
-                defaultValue={task.actualEnd ?? ''}
-                onBlur={(e) => onSaveActual(task.id, { actualEnd: e.target.value || undefined })}
+                value={draftActualEnd}
+                onChange={(e) => setDraftActualEnd(e.target.value)}
+                onBlur={handleBlurActualEnd}
                 className="w-full"
               />
             </FormField>

@@ -57,6 +57,16 @@ export function validateReplanMotivo(changes: DateChangeResult, motivo: string):
   return { valid: true, errors: [] };
 }
 
+/** Fase 7 (Parte A) — fim não pode ficar antes do início (previsto ou real, mesma regra pros
+ * dois pares de data). Início = fim é permitido (tarefa de 1 dia, medido na Fase 4: 18% das
+ * tarefas reais têm essa duração). */
+export function validateDateOrder(start: string, end: string): ReplanValidation {
+  if (start && end && end < start) {
+    return { valid: false, errors: ['A data de fim não pode ser anterior à data de início.'] };
+  }
+  return { valid: true, errors: [] };
+}
+
 // buildReplanEntries/insertReplanejamentos (montar e gravar as linhas de log a partir do
 // client) foram removidas na Fase 5, Commit 2 — substituídas pela RPC `replanejar_tarefa()`
 // (Postgres), que faz o update de `tasks` e o insert em `replanejamentos` na mesma transação.
