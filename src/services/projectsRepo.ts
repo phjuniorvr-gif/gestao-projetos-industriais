@@ -309,18 +309,26 @@ export async function updateTaskActual(
  * falhasse depois da outra já ter ido, a tarefa mudava sem log, ou o log gravava sem a tarefa
  * ter mudado de verdade). Sem `security definer` na função — corre com o papel de quem chama,
  * então respeita o trigger/RLS de `tasks` e a RLS de `replanejamentos` normalmente (Commit 4).
+ *
+ * `baseStart`/`baseEnd` (pós-Fase 7 — reabertura da edição de base, admin-only) são opcionais:
+ * `undefined` mantém o valor atual da base intacto (a RPC usa `coalesce`), só grava quando
+ * alguém de fato editou a base no painel.
  */
 export async function replanTaskAtomic(
   taskId: string,
   plannedStart: string,
   plannedEnd: string,
   motivo: string,
+  baseStart?: string,
+  baseEnd?: string,
 ): Promise<void> {
   const { error } = await supabase.rpc('replanejar_tarefa', {
     p_tarefa_id: taskId,
     p_planned_start: plannedStart,
     p_planned_end: plannedEnd,
     p_motivo: motivo,
+    p_base_start: baseStart ?? null,
+    p_base_end: baseEnd ?? null,
   });
   if (error) throw error;
 }

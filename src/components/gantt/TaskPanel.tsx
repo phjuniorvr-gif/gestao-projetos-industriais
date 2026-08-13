@@ -9,16 +9,15 @@ import {
   computeDependencyRuleDate,
   diffDays,
   formatDatePtBr,
-  formatPeriod,
   validateDateOrder,
 } from '../../utils';
 import type { DependencyValidation, ReplanValidation } from '../../utils';
 
-// Base não é editável por aqui — congelada na criação da tarefa (Fase 2.5) e só existe pra dar
-// sentido ao indicador de atraso; deixá-la editável abriria a mesma âncora que devia ser fixa pra
-// mudar em silêncio junto do previsto. `replanejamentos.campo='base'`/`replanTask` continuam
-// aceitando base no tipo (infra do banco não muda), só este painel parou de oferecer o caminho.
-type ReplanPatch = Partial<Pick<Task, 'plannedStart' | 'plannedEnd'>>;
+// Base voltou a ser editável (Fase 7+, a pedido do usuário — reabre a trava da Fase 4/5) —
+// só administrador (mesmo `locked` dos outros campos admin-only), motivo obrigatório junto do
+// previsto quando os dois mudam na mesma confirmação. O servidor (RPC replanejar_tarefa) também
+// barra não-administrador, não é só a UI que trava.
+type ReplanPatch = Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>;
 
 interface DependencyEntry {
   predecessorRowNumber: number;
@@ -87,6 +86,8 @@ export function TaskPanel({
   const [dependencyErrors, setDependencyErrors] = useState<string[]>([]);
   const [draftPlannedStart, setDraftPlannedStart] = useState('');
   const [draftPlannedEnd, setDraftPlannedEnd] = useState('');
+  const [draftBaseStart, setDraftBaseStart] = useState('');
+  const [draftBaseEnd, setDraftBaseEnd] = useState('');
   const [motivo, setMotivo] = useState('');
   const [replanErrors, setReplanErrors] = useState<string[]>([]);
   const [draftActualStart, setDraftActualStart] = useState('');
@@ -99,6 +100,8 @@ export function TaskPanel({
     if (!task) return;
     setDraftPlannedStart(task.plannedStart);
     setDraftPlannedEnd(task.plannedEnd);
+    setDraftBaseStart(task.baseStart);
+    setDraftBaseEnd(task.baseEnd);
     setMotivo('');
     setReplanErrors([]);
     setDraftActualStart(task.actualStart ?? '');
@@ -121,26 +124,39 @@ export function TaskPanel({
 
   if (!task) return null;
 
-  const hasReplanChanges = draftPlannedStart !== task.plannedStart || draftPlannedEnd !== task.plannedEnd;
+  const hasReplanChanges =
+    draftPlannedStart !== task.plannedStart ||
+    draftPlannedEnd !== task.plannedEnd ||
+    draftBaseStart !== task.baseStart ||
+    draftBaseEnd !== task.baseEnd;
 
   function resetReplanDraft() {
     if (!task) return;
     setDraftPlannedStart(task.plannedStart);
     setDraftPlannedEnd(task.plannedEnd);
+    setDraftBaseStart(task.baseStart);
+    setDraftBaseEnd(task.baseEnd);
     setMotivo('');
     setReplanErrors([]);
   }
 
   function handleConfirmReplan() {
     if (!task) return;
-    const orderCheck = validateDateOrder(draftPlannedStart, draftPlannedEnd);
-    if (!orderCheck.valid) {
-      setReplanErrors(orderCheck.errors);
+    const plannedOrderCheck = validateDateOrder(draftPlannedStart, draftPlannedEnd);
+    if (!plannedOrderCheck.valid) {
+      setReplanErrors(plannedOrderCheck.errors);
+      return;
+    }
+    const baseOrderCheck = validateDateOrder(draftBaseStart, draftBaseEnd);
+    if (!baseOrderCheck.valid) {
+      setReplanErrors(baseOrderCheck.errors);
       return;
     }
     const patch: ReplanPatch = {};
     if (draftPlannedStart !== task.plannedStart) patch.plannedStart = draftPlannedStart;
     if (draftPlannedEnd !== task.plannedEnd) patch.plannedEnd = draftPlannedEnd;
+    if (draftBaseStart !== task.baseStart) patch.baseStart = draftBaseStart;
+    if (draftBaseEnd !== task.baseEnd) patch.baseEnd = draftBaseEnd;
     const result = onReplan(task.id, patch, motivo);
     if (result.valid) {
       setMotivo('');
@@ -310,14 +326,26 @@ export function TaskPanel({
             </FormField>
           </div>
 
-          <FormField label="Linha de base">
-            {/* Só leitura — congelada na criação da tarefa (Fase 2.5), não muda por aqui. É a
-                âncora que dá sentido ao indicador de atraso; editável, deixaria de significar
-                alguma coisa. */}
-            <p className="rounded-[7px] border border-border bg-page px-3 py-2 text-sm text-text-muted">
-              {formatPeriod(task.baseStart, task.baseEnd)}
-            </p>
-          </FormField>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label={<>Início base {locked && <LockBadge />}</>}>
+              <Input
+                type="date"
+                value={draftBaseStart}
+                onChange={(e) => setDraftBaseStart(e.target.value)}
+                disabled={locked}
+                className="w-full"
+              />
+            </FormField>
+            <FormField label={<>Fim base {locked && <LockBadge />}</>}>
+              <Input
+                type="date"
+                value={draftBaseEnd}
+                onChange={(e) => setDraftBaseEnd(e.target.value)}
+                disabled={locked}
+                className="w-full"
+              />
+            </FormField>
+          </div>
 
           {hasReplanChanges && (
             <div className="space-y-2 rounded-md border border-action/30 bg-action/5 p-3">

@@ -378,7 +378,7 @@ export function useProjects() {
     (
       projectId: string,
       taskId: string,
-      patch: Partial<Pick<Task, 'plannedStart' | 'plannedEnd'>>,
+      patch: Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>,
       motivo: string,
     ): ReplanValidation => {
       const project = rawProjects.find((p) => p.id === projectId);
@@ -392,15 +392,20 @@ export function useProjects() {
 
       const plannedStart = patch.plannedStart ?? oldTask.plannedStart;
       const plannedEnd = patch.plannedEnd ?? oldTask.plannedEnd;
+      const baseStart = patch.baseStart ?? oldTask.baseStart;
+      const baseEnd = patch.baseEnd ?? oldTask.baseEnd;
 
       updateProjectLocal(projectId, (p) => ({
         ...p,
         activities: p.activities.map((a) => ({
           ...a,
-          tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, plannedStart, plannedEnd } : t)),
+          tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, plannedStart, plannedEnd, baseStart, baseEnd } : t)),
         })),
       }));
-      replanTaskAtomic(taskId, plannedStart, plannedEnd, motivo.trim())
+      // baseStart/baseEnd só são enviados quando de fato mudaram — patch.baseStart/baseEnd
+      // continuam undefined nos replans comuns (só previsto), a RPC mantém a base intacta nesse
+      // caso (coalesce contra o valor atual).
+      replanTaskAtomic(taskId, plannedStart, plannedEnd, motivo.trim(), patch.baseStart, patch.baseEnd)
         .then(refetchReplanejamentos)
         .catch((err) => console.error('Falha ao replanejar tarefa no Supabase', err));
       return { valid: true, errors: [] };
