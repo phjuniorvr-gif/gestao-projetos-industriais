@@ -2,6 +2,7 @@ import type { Holiday, ProjectStatus, ProjectView } from '../../types';
 import { STATUS_COLOR, STATUS_LABEL } from '../../types';
 import { computeStatusDistribution, computeWorstDeviation } from '../../utils/portfolio';
 import { Card } from '../ui';
+import { StatusChipRow } from './StatusChipRow';
 
 interface ProjectsHealthStripProps {
   /** Portfólio inteiro, sem filtro de busca/unidade/ano — a faixa é o termômetro geral da área. */
@@ -53,24 +54,7 @@ export function ProjectsHealthStrip({ projects, today, holidays, activeStatus, o
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {distribution.map((d) => (
-            <button
-              key={d.status}
-              type="button"
-              onClick={() => onToggleStatus(d.status)}
-              aria-pressed={activeStatus === d.status}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                activeStatus === d.status
-                  ? 'border-sidebar bg-sidebar text-white'
-                  : 'border-border bg-white text-text-muted hover:border-text-muted2'
-              }`}
-            >
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR[d.status] }} />
-              {STATUS_LABEL[d.status]} · {d.count}
-            </button>
-          ))}
-        </div>
+        <StatusChipRow distribution={distribution} activeStatus={activeStatus} onToggleStatus={onToggleStatus} />
       </div>
     </Card>
   );

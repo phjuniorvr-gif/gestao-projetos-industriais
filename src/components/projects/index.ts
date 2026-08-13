@@ -9,7 +9,8 @@ export * from './InlineTaskProgressEdit';
 export * from './ProjectActionsMenu';
 export * from './AttentionPanel';
 export * from './WorkloadPanel';
-// ProjectCard não é mais usado em ProjectsPage.tsx (Fase 3 trocou por tabela), mas fica
-// exportado — reservado pra Fase 6 (Mobile), cujo protótipo usa card, não tabela.
+// ProjectCard: reescrito na Fase 6 (Mobile) — empilhado, consumido pelas páginas mobile.
 export * from './ProjectCard';
 export * from './DeletedProjectCard';
+export * from './StatusChipRow';
+export * from './MobileProjectSheet';
