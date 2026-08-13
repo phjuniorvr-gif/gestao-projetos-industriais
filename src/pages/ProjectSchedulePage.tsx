@@ -459,18 +459,20 @@ export function ProjectSchedulePage() {
         catalog={catalog}
         categories={categories}
         people={people}
+        holidays={holidays}
         onCreatePerson={createPerson}
         onClose={() => setTaskPanelState({ open: false })}
-        onAdd={(activityId, names, responsavelId, taskPlannedStart, taskPlannedEnd) => {
+        onAdd={(activityId, names, responsavelId, taskPlannedStart, taskPlannedEnd, predecessorRowNumbers) => {
           const projectId = activityIdToProjectId.get(activityId);
           if (!projectId) return;
           // Duração vem do período escolhido no painel pra primeira tarefa; se mais de uma for
           // adicionada de uma vez (sugestões do catálogo marcadas), as demais encadeiam com essa
           // mesma duração, uma após o fim da anterior — mesmo comportamento de sempre, só que
-          // agora a duração é a que a pessoa escolheu, não um "7 dias" fixo escondido.
+          // agora a duração é a que a pessoa escolheu, não um "7 dias" fixo escondido. A
+          // predecessora (se escolhida) só se aplica à primeira tarefa do lote.
           const durationDays = diffDays(taskPlannedStart, taskPlannedEnd);
           let cursor = taskPlannedStart;
-          for (const item of names) {
+          names.forEach((item, index) => {
             const start = cursor;
             const end = addDays(start, durationDays);
             addTask(projectId, activityId, {
@@ -479,9 +481,10 @@ export function ProjectSchedulePage() {
               responsavelId,
               plannedStart: start,
               plannedEnd: end,
+              predecessorRowNumbers: index === 0 ? predecessorRowNumbers : undefined,
             });
             cursor = end;
-          }
+          });
         }}
       />
 

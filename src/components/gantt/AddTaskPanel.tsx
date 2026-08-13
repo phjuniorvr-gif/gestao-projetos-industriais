@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
-import { addDays, todayISO, validateDateOrder } from '../../utils';
-import type { ActivityTemplate, Category, CategoryEntry, Person, ProjectView } from '../../types';
+import { addBusinessDays, addDays, computeDependencyRuleDate, formatPeriod, todayISO, validateDateOrder } from '../../utils';
+import type { ActivityTemplate, Category, CategoryEntry, Holiday, Person, ProjectView } from '../../types';
 
 interface AddTaskPanelProps {
   open: boolean;
@@ -15,19 +15,23 @@ interface AddTaskPanelProps {
   catalog: ActivityTemplate[];
   categories: CategoryEntry[];
   people: Person[];
+  holidays: Holiday[];
   onCreatePerson: (name: string) => Promise<Person>;
   onClose: () => void;
   /** Fase 7 (Parte B) — responsável é obrigatório e é UM só, aplicado a todas as tarefas deste
    * lote (o painel adiciona várias de uma vez a partir do catálogo; não tem campo por tarefa).
    * `plannedStart`/`plannedEnd` também são um só par, é o período da primeira tarefa do lote —
    * as demais (quando mais de uma é adicionada de uma vez) encadeiam uma após a outra usando essa
-   * mesma duração, quem monta a sequência é `onAdd`. */
+   * mesma duração, quem monta a sequência é `onAdd`. `predecessorRowNumbers` (opcional) só se
+   * aplica à primeira tarefa do lote — as demais nascem sem predecessora, mesmo comportamento de
+   * hoje pra elas (ajustável depois, abrindo a tarefa). */
   onAdd: (
     activityId: string,
     names: { name: string; category: Category }[],
     responsavelId: string,
     plannedStart: string,
     plannedEnd: string,
+    predecessorRowNumbers?: number[],
   ) => void;
 }
 
@@ -46,6 +50,7 @@ export function AddTaskPanel({
   catalog,
   categories,
   people,
+  holidays,
   onCreatePerson,
   onClose,
   onAdd,
@@ -57,6 +62,9 @@ export function AddTaskPanel({
   const [customName, setCustomName] = useState('');
   const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
   const [responsavelError, setResponsavelError] = useState('');
+  const [predecessorTaskId, setPredecessorTaskId] = useState('');
+  const [scheduleMode, setScheduleMode] = useState<'dates' | 'duration'>('dates');
+  const [durationDays, setDurationDays] = useState(1);
   const [plannedStart, setPlannedStart] = useState('');
   const [plannedEnd, setPlannedEnd] = useState('');
   const [dateError, setDateError] = useState('');
@@ -73,6 +81,9 @@ export function AddTaskPanel({
     }
     setResponsavelId(undefined);
     setResponsavelError('');
+    setPredecessorTaskId('');
+    setScheduleMode('dates');
+    setDurationDays(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reseta quando o painel abre/muda
     // de alvo, não a cada render (projects muda de referência o tempo todo).
   }, [open, initialActivityId]);
@@ -97,6 +108,28 @@ export function AddTaskPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só recalcula quando a atividade-alvo
     // muda, não a cada render (activity.tasks muda de referência a cada tarefa nova).
   }, [activity?.id]);
+
+  // Candidatas a predecessora: qualquer tarefa do MESMO projeto (não só da atividade que está
+  // recebendo a nova tarefa — dependência entre atividades diferentes é normal, Fase 2.7). Sem
+  // risco de ciclo aqui: a tarefa ainda não existe, nada pode depender dela ainda.
+  const predecessorCandidates = useMemo(() => project?.activities.flatMap((a) => a.tasks) ?? [], [project]);
+  const predecessorTask = predecessorCandidates.find((t) => t.id === predecessorTaskId);
+
+  // Modo "Duração": data base é a regra FS+0 a partir da predecessora escolhida (mesma conta de
+  // computeDependencyRuleDate, Fase 2.7), ou o mesmo default de sempre quando não há predecessora
+  // — e o fim é a base + duração em dias ÚTEIS (regra de ouro: duração sempre em dias úteis,
+  // mesmo padrão de computeDatesFromDuration no assistente de novo projeto).
+  useEffect(() => {
+    if (scheduleMode !== 'duration' || !activity || !project) return;
+    const base = predecessorTask
+      ? computeDependencyRuleDate({ tipo: 'FS', folgaDias: 0 }, predecessorTask, holidays, project.unit)
+      : (activity.tasks.at(-1)?.plannedEnd ?? activity.plannedStart ?? todayISO());
+    setPlannedStart(base);
+    setPlannedEnd(addBusinessDays(base, Math.max(1, durationDays) - 1, holidays, project.unit));
+    setDateError('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- holidays/project não entram: mesmo
+    // raciocínio dos outros efeitos deste arquivo, só o que a pessoa efetivamente mudou importa.
+  }, [scheduleMode, predecessorTaskId, durationDays, activity?.id]);
 
   const suggestions = useMemo(
     () => catalog.find((entry) => entry.active && entry.name === activity?.name && entry.category === category),
@@ -124,7 +157,8 @@ export function AddTaskPanel({
     const custom = customName.trim() ? [{ name: customName.trim(), category }] : [];
     const names = [...fromSuggestions, ...custom];
     if (names.length === 0) return;
-    onAdd(activityId, names, responsavelId, plannedStart, plannedEnd);
+    const predecessorRowNumbers = predecessorTask ? [predecessorTask.rowNumber] : undefined;
+    onAdd(activityId, names, responsavelId, plannedStart, plannedEnd, predecessorRowNumbers);
     setChecked({});
     setCustomName('');
     onClose();
@@ -201,24 +235,76 @@ export function AddTaskPanel({
               </Select>
             </FormField>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <FormField label="Início previsto" required>
-                <Input
-                  type="date"
-                  value={plannedStart}
-                  onChange={(e) => setPlannedStart(e.target.value)}
-                  className="w-full"
-                />
-              </FormField>
-              <FormField label="Fim previsto" required error={dateError}>
-                <Input
-                  type="date"
-                  value={plannedEnd}
-                  onChange={(e) => setPlannedEnd(e.target.value)}
-                  className="w-full"
-                />
-              </FormField>
+            <FormField label="Predecessora" className="mt-4">
+              <Select value={predecessorTaskId} onChange={(e) => setPredecessorTaskId(e.target.value)} className="w-full">
+                <option value="">Nenhuma</option>
+                {predecessorCandidates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    #{t.rowNumber} — {t.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+
+            <div className="mt-4 flex items-center rounded-[9px] border border-border bg-page p-0.5">
+              <button
+                type="button"
+                onClick={() => setScheduleMode('dates')}
+                className={`flex-1 rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  scheduleMode === 'dates' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                }`}
+              >
+                Datas exatas
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleMode('duration')}
+                className={`flex-1 rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  scheduleMode === 'duration' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                }`}
+              >
+                Duração
+              </button>
             </div>
+
+            {scheduleMode === 'dates' ? (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <FormField label="Início previsto" required>
+                  <Input
+                    type="date"
+                    value={plannedStart}
+                    onChange={(e) => setPlannedStart(e.target.value)}
+                    className="w-full"
+                  />
+                </FormField>
+                <FormField label="Fim previsto" required error={dateError}>
+                  <Input
+                    type="date"
+                    value={plannedEnd}
+                    onChange={(e) => setPlannedEnd(e.target.value)}
+                    className="w-full"
+                  />
+                </FormField>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <FormField label="Duração (dias úteis)" required error={dateError}>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={durationDays}
+                    onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-full"
+                  />
+                </FormField>
+                <p className="text-xs text-text-muted">
+                  {predecessorTask
+                    ? `Começa no 1º dia útil depois do fim da tarefa #${predecessorTask.rowNumber}: `
+                    : 'Período calculado: '}
+                  {formatPeriod(plannedStart, plannedEnd)}
+                </p>
+              </div>
+            )}
 
             <div className="mt-4">
               <p className="mb-2 text-xs font-medium text-text-muted">Tarefas sugeridas</p>
