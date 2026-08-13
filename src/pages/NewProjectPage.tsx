@@ -9,7 +9,7 @@ import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjec
 import { computeDatesFromDuration, nextProjectCode, todayISO } from '../utils';
 import type { NewActivityInput } from '../hooks';
 
-const UNIT_OPTIONS = ['Matriz', 'MEC', 'Feira', 'Amélia'];
+export const UNIT_OPTIONS = ['Matriz', 'MEC', 'Feira', 'Amélia'];
 
 export function NewProjectPage() {
   const navigate = useNavigate();

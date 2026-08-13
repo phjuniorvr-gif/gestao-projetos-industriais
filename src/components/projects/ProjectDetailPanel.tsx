@@ -5,10 +5,11 @@ import type { Holiday, Person, Project, ProjectView, Task } from '../../types';
 import { STATUS_COLOR } from '../../types';
 import { businessDaysBetween, formatDatePtBr, formatPeriod } from '../../utils';
 import { computeActivityTeam, computeExpectedProgress, computeScheduleDeviationDays } from '../../utils/portfolio';
-import { Button, FormField, Input, LockBadge, Textarea } from '../ui';
+import { Button, FormField, Input, LockBadge, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import { InlineTaskProgressEdit } from './InlineTaskProgressEdit';
 import { MiniGantt } from './MiniGantt';
+import { UNIT_OPTIONS } from '../../pages/NewProjectPage';
 
 interface ProjectDetailPanelProps {
   project: ProjectView | null;
@@ -56,6 +57,7 @@ export function ProjectDetailPanel({
   const [editingId, setEditingId] = useState(false);
   const [progressPopoverOpen, setProgressPopoverOpen] = useState(false);
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
   const [gerenteId, setGerenteId] = useState<string | undefined>();
@@ -64,6 +66,7 @@ export function ProjectDetailPanel({
     if (!project) return;
     setEditingId(false);
     setName(project.name);
+    setNameError('');
     setDescription(project.description ?? '');
     setUnit(project.unit);
     setGerenteId(project.gerenteId);
@@ -90,8 +93,12 @@ export function ProjectDetailPanel({
   const expected = computeExpectedProgress(allTasks, today, holidays, project.unit);
 
   function handleSaveIdentificacao() {
-    if (!name.trim()) return;
-    onSave({ name: name.trim(), description: description.trim() || undefined, unit: unit.trim(), gerenteId });
+    if (!name.trim()) {
+      setNameError('Informe o nome do projeto');
+      return;
+    }
+    setNameError('');
+    onSave({ name: name.trim(), description: description.trim() || undefined, unit, gerenteId });
     setEditingId(false);
   }
 
@@ -134,14 +141,20 @@ export function ProjectDetailPanel({
             </div>
             {editingId ? (
               <div className="space-y-3">
-                <FormField label="Nome do projeto" required>
+                <FormField label="Nome do projeto" required error={nameError}>
                   <Input value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
                 </FormField>
                 <FormField label="Descrição / observação">
                   <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full" />
                 </FormField>
                 <FormField label="Unidade">
-                  <Input value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full" />
+                  <Select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full">
+                    {UNIT_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
                 </FormField>
                 <FormField label="Gerente do projeto">
                   <PersonSelect
