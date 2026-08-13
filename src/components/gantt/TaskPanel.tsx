@@ -50,6 +50,13 @@ interface TaskPanelProps {
   onSaveActual: (taskId: string, patch: { actualStart?: string; actualEnd?: string }) => void;
   onSetPredecessors: (taskId: string, entries: DependencyEntry[]) => DependencyValidation;
   onReplan: (taskId: string, patch: ReplanPatch, motivo: string) => ReplanValidation;
+  /** Fase 7 (Parte A) — quantas tarefas (em qualquer projeto do portfólio, não só as visíveis na
+   * rota atual) têm esta tarefa como predecessora. > 0 trava a exclusão (spec: "não excluir
+   * tarefa que seja predecessora de outra"). Calculado pelo pai porque só ele tem acesso ao
+   * portfólio inteiro sem o filtro de rota que `allTasks` já carrega aqui. */
+  dependentCount: number;
+  /** Só PEDE a exclusão — quem decide bloquear (dependentCount > 0) ou confirmar antes de
+   * remover de verdade é quem chama (`ProjectSchedulePage.tsx`, `ConfirmDialog` próprio). */
   onDelete: (taskId: string) => void;
 }
 
@@ -68,6 +75,7 @@ export function TaskPanel({
   onSaveActual,
   onSetPredecessors,
   onReplan,
+  dependentCount,
   onDelete,
 }: TaskPanelProps) {
   // `undefined` (carregando) conta como travado — nunca libera por engano antes de saber o
@@ -510,8 +518,14 @@ export function TaskPanel({
               onDelete(task.id);
               onClose();
             }}
-            disabled={locked}
-            title={locked ? 'Somente administrador pode excluir tarefa.' : undefined}
+            disabled={locked || dependentCount > 0}
+            title={
+              locked
+                ? 'Somente administrador pode excluir tarefa.'
+                : dependentCount > 0
+                  ? `Não é possível excluir: ${dependentCount} ${dependentCount === 1 ? 'tarefa depende' : 'tarefas dependem'} desta como predecessora.`
+                  : undefined
+            }
           >
             Excluir tarefa
           </Button>

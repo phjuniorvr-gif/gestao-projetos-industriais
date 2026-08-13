@@ -89,6 +89,7 @@ export function ProjectSchedulePage() {
   const [activityDialog, setActivityDialog] = useState<{ open: boolean; initialProjectId?: string }>({ open: false });
   const [taskPanelState, setTaskPanelState] = useState<{ open: boolean; initialActivityId?: string }>({ open: false });
   const [deletingActivity, setDeletingActivity] = useState<ActivityView | null>(null);
+  const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
 
   const ganttProjects = useMemo(() => {
     if (!categoryFilter) return visibleProjects;
@@ -108,6 +109,15 @@ export function ProjectSchedulePage() {
   }, [visibleProjects, categoryFilter]);
 
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
+
+  // Fase 7 (Parte A) — portfólio inteiro, SEM o filtro de rota que `allTasks` carrega (essa
+  // página também renderiza um projeto só, via /projetos/:id/cronograma). A contagem de
+  // dependentes de uma tarefa (pra bloquear exclusão) precisa enxergar tarefas de qualquer
+  // projeto, não só do que está sendo exibido agora — subcontaria se alguma dependência
+  // apontasse de fora do projeto aberto (medido em 2026-08-13: 0 hoje, mas nada no código impede
+  // de passar a existir, já que computeCandidatePredecessors recebe o mesmo `allTasks` sem
+  // filtrar por projeto quando a rota é /cronograma inteiro).
+  const allPortfolioTasks = useMemo(() => projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [projects]);
 
   const activityIdToProjectId = useMemo(
     () => new Map(ganttProjects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
@@ -183,6 +193,10 @@ export function ProjectSchedulePage() {
 
   // mantém "selectedTask" sincronizada com o estado mais atual do projeto após edições
   const liveSelectedTask = selectedTask ? (allTasks.find((t) => t.id === selectedTask.id) ?? null) : null;
+
+  const selectedTaskDependentCount = liveSelectedTask
+    ? allPortfolioTasks.filter((t) => t.dependencies.some((d) => d.predecessorId === liveSelectedTask.id)).length
+    : 0;
 
   const project = id ? projectsToShow[0] : undefined;
   const title = project ? `${project.code} — ${project.name}` : 'Cronograma de Projetos';
@@ -401,11 +415,10 @@ export function ProjectSchedulePage() {
           if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
           return replanTask(owningProjectId, taskId, patch, motivo);
         }}
+        dependentCount={selectedTaskDependentCount}
         onDelete={(taskId) => {
-          const owningProjectId = activityIdToProjectId.get(
-            allTasks.find((t) => t.id === taskId)?.activityId ?? '',
-          );
-          if (owningProjectId) removeTask(owningProjectId, taskId);
+          const task = allTasks.find((t) => t.id === taskId);
+          if (task) setDeletingTask(task);
         }}
       />
 
@@ -462,6 +475,20 @@ export function ProjectSchedulePage() {
           const owningProjectId = deletingActivity ? activityIdToProjectId.get(deletingActivity.id) : undefined;
           if (deletingActivity && owningProjectId) removeActivity(owningProjectId, deletingActivity.id);
           setDeletingActivity(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletingTask)}
+        title="Excluir tarefa"
+        message={deletingTask ? `Tem certeza que deseja excluir "${deletingTask.name}"?` : ''}
+        confirmLabel="Excluir"
+        danger
+        onCancel={() => setDeletingTask(null)}
+        onConfirm={() => {
+          const owningProjectId = deletingTask ? activityIdToProjectId.get(deletingTask.activityId) : undefined;
+          if (deletingTask && owningProjectId) removeTask(owningProjectId, deletingTask.id);
+          setDeletingTask(null);
         }}
       />
     </div>
