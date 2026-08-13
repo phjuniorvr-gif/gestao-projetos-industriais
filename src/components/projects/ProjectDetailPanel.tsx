@@ -61,7 +61,6 @@ export function ProjectDetailPanel({
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
   const [gerenteId, setGerenteId] = useState<string | undefined>();
-  const [gerenteError, setGerenteError] = useState('');
 
   useEffect(() => {
     if (!project) return;
@@ -71,7 +70,6 @@ export function ProjectDetailPanel({
     setDescription(project.description ?? '');
     setUnit(project.unit);
     setGerenteId(project.gerenteId);
-    setGerenteError('');
   }, [project]);
 
   useEffect(() => {
@@ -100,11 +98,6 @@ export function ProjectDetailPanel({
       return;
     }
     setNameError('');
-    if (!gerenteId) {
-      setGerenteError('Selecione um gerente para o projeto');
-      return;
-    }
-    setGerenteError('');
     onSave({ name: name.trim(), description: description.trim() || undefined, unit, gerenteId });
     setEditingId(false);
   }
@@ -163,14 +156,13 @@ export function ProjectDetailPanel({
                     ))}
                   </Select>
                 </FormField>
-                <FormField label="Gerente do projeto" required error={gerenteError}>
+                <FormField label="Gerente do projeto">
                   <PersonSelect
                     value={gerenteId}
                     onChange={setGerenteId}
                     people={people}
                     onCreatePerson={onCreatePerson}
-                    placeholder="Selecionar…"
-                    required
+                    placeholder="Sem gerente"
                   />
                 </FormField>
                 <div className="flex justify-end gap-2">
