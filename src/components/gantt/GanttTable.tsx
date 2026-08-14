@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type RefObje
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { STATUS_LABEL, type ActivityView, type CategoryEntry, type Holiday, type Person, type ProjectView, type TaskView } from '../../types';
 import {
+  addDays,
   businessDaysBetween,
   computeDependencyRuleDate,
   computeProgressRatio,
@@ -201,7 +202,23 @@ export function GanttTable({
   const [hover, setHover] = useState<{ target: HoverTarget; x: number; y: number } | null>(null);
   const pxPerDay = ZOOM_PX_PER_DAY[zoom];
   const today = todayISO();
-  const range = calculatePortfolioRange(projects);
+  // Fase 4: largura do painel esquerdo somada de uma lista única de colunas (ganttColumns.ts) —
+  // nunca mais escrita à mão (era o bug que a spec avisa: LINHA_COL_WIDTH/ESTRUTURA_COL_WIDTH/
+  // STATUS_COL_LEFT hardcoded, cada um separado, sem garantia de bater com o que é renderizado).
+  // Calculado aqui em cima (não mais perto do render) porque o intervalo de datas, logo abaixo,
+  // agora depende de `leftWidth` pra decidir se precisa esticar.
+  const columns = getGanttColumns(!compact);
+  const leftWidth = getGanttLeftWidth(columns);
+  const lastColumnKey = columns[columns.length - 1].key;
+  // Com Gantt: se o intervalo natural (baseado só nas tarefas) render uma timeline mais estreita
+  // que o espaço disponível, o vão sobrando vira dias/semanas/meses REAIS a mais no fim do
+  // intervalo (não uma célula em branco sem data — pedido do usuário depois de ver a 1ª versão) —
+  // sem tocar em `pxPerDay` (constante por zoom, Fase 4: "pixels-por-dia explícitos, não
+  // proporcional" — mudar isso desalinharia as barras da grade de dias).
+  const baseRange = calculatePortfolioRange(projects);
+  const baseWidth = totalWidth(baseRange, pxPerDay);
+  const extraDays = showGantt ? Math.max(0, Math.floor((containerWidth - (leftWidth + baseWidth)) / pxPerDay)) : 0;
+  const range = extraDays > 0 ? { start: baseRange.start, end: addDays(baseRange.end, extraDays) } : baseRange;
   const width = totalWidth(range, pxPerDay);
   const monthTicks = getMonthTicks(range);
   const yearTicks = getYearTicks(range);
@@ -319,13 +336,11 @@ export function GanttTable({
 
   const tooltipContent = hover ? buildTooltipContent(hover.target) : null;
 
-  // Fase 4: largura do painel esquerdo somada de uma lista única de colunas (ganttColumns.ts) —
-  // nunca mais escrita à mão (era o bug que a spec avisa: LINHA_COL_WIDTH/ESTRUTURA_COL_WIDTH/
-  // STATUS_COL_LEFT hardcoded, cada um separado, sem garantia de bater com o que é renderizado).
-  const columns = getGanttColumns(!compact);
-  const leftWidth = getGanttLeftWidth(columns);
-  const lastColumnKey = columns[columns.length - 1].key;
   const fillerWidth = showGantt ? 0 : Math.max(0, containerWidth - leftWidth);
+  // Com Gantt: `range`/`width` já foram estendidos acima (mais dias reais) pra cobrir a maior
+  // parte do vão — isso aqui é só o resto fracionário (menos de 1 dia de largura, arredondamento
+  // de `Math.floor`), preenchido com uma célula sem data em vez de mais um dia pela metade.
+  const ganttFillerWidth = showGantt ? Math.max(0, containerWidth - (leftWidth + width)) : 0;
   // Sem Gantt: a sobra de espaço (fillerWidth) não fica isolada numa coluna em branco no fim —
   // a pedido do usuário, é dividida entre Categoria/Responsável/datas/Duração/Avanço (tudo menos
   // Linha/Estrutura, que têm tamanho pensado pro conteúdo — número de linha e nome da tarefa).
@@ -399,7 +414,7 @@ export function GanttTable({
           fonte única das colunas, nunca dois números que podem divergir. */}
       <table
         className="table-fixed border-collapse text-sm"
-        style={{ width: showGantt ? leftWidth + width : leftWidth + fillerWidth }}
+        style={{ width: showGantt ? leftWidth + width + ganttFillerWidth : leftWidth + fillerWidth }}
       >
         <thead className="sticky top-0 z-30 border-b border-border">
           {showGantt ? (
@@ -439,6 +454,9 @@ export function GanttTable({
                     ))}
                   </div>
                 </th>
+                {levelIndex === 0 && (
+                  <th className={timelineThClass} rowSpan={headerLevels.length} style={{ width: ganttFillerWidth }} />
+                )}
               </tr>
             ))
           ) : (
@@ -533,26 +551,29 @@ export function GanttTable({
                   <td className={`${frozenTdClass} text-center border-r border-border`} style={columnStyle('avanco')}>
                     <GanttProgressCell progress={project.progress} />
                   </td>
-                  {showGantt ? (
-                    <td
-                      className="relative h-[34px] px-4 py-0 align-middle"
-                      style={{ width, ...timelineBackground }}
-                      onMouseMove={(e) => setHover({ target: { level: 'project', project }, x: e.clientX, y: e.clientY })}
-                      onMouseLeave={() => setHover(null)}
-                    >
-                      <TodayLine range={range} pxPerDay={pxPerDay} />
-                      <GanttSummaryBar
-                        range={range}
-                        pxPerDay={pxPerDay}
-                        status={project.status}
-                        plannedStart={project.plannedStart}
-                        plannedEnd={project.plannedEnd}
-                        actualStart={project.actualStart}
-                        actualEnd={project.actualEnd}
-                        progress={project.progress}
-                      />
-                    </td>
-                  ) : null}
+                  {showGantt && (
+                    <>
+                      <td
+                        className="relative h-[34px] px-4 py-0 align-middle"
+                        style={{ width, ...timelineBackground }}
+                        onMouseMove={(e) => setHover({ target: { level: 'project', project }, x: e.clientX, y: e.clientY })}
+                        onMouseLeave={() => setHover(null)}
+                      >
+                        <TodayLine range={range} pxPerDay={pxPerDay} />
+                        <GanttSummaryBar
+                          range={range}
+                          pxPerDay={pxPerDay}
+                          status={project.status}
+                          plannedStart={project.plannedStart}
+                          plannedEnd={project.plannedEnd}
+                          actualStart={project.actualStart}
+                          actualEnd={project.actualEnd}
+                          progress={project.progress}
+                        />
+                      </td>
+                      <td className="h-[34px]" style={{ width: ganttFillerWidth }} />
+                    </>
+                  )}
                 </tr>
 
                 {!projectCollapsed &&
@@ -658,28 +679,31 @@ export function GanttTable({
                           <td className={`${frozenTdClass} text-center border-r border-border`} style={columnStyle('avanco')}>
                             <GanttProgressCell progress={activity.progress} />
                           </td>
-                          {showGantt ? (
-                            <td
-                              className="relative h-[34px] px-4 py-0 align-middle"
-                              style={{ width, ...timelineBackground }}
-                              onMouseMove={(e) =>
-                                setHover({ target: { level: 'activity', activity, unit: project.unit }, x: e.clientX, y: e.clientY })
-                              }
-                              onMouseLeave={() => setHover(null)}
-                            >
-                              <TodayLine range={range} pxPerDay={pxPerDay} />
-                              <GanttSummaryBar
-                                range={range}
-                                pxPerDay={pxPerDay}
-                                status={activity.status}
-                                plannedStart={activity.plannedStart}
-                                plannedEnd={activity.plannedEnd}
-                                actualStart={activity.actualStart}
-                                actualEnd={activity.actualEnd}
-                                progress={activity.progress}
-                              />
-                            </td>
-                          ) : null}
+                          {showGantt && (
+                            <>
+                              <td
+                                className="relative h-[34px] px-4 py-0 align-middle"
+                                style={{ width, ...timelineBackground }}
+                                onMouseMove={(e) =>
+                                  setHover({ target: { level: 'activity', activity, unit: project.unit }, x: e.clientX, y: e.clientY })
+                                }
+                                onMouseLeave={() => setHover(null)}
+                              >
+                                <TodayLine range={range} pxPerDay={pxPerDay} />
+                                <GanttSummaryBar
+                                  range={range}
+                                  pxPerDay={pxPerDay}
+                                  status={activity.status}
+                                  plannedStart={activity.plannedStart}
+                                  plannedEnd={activity.plannedEnd}
+                                  actualStart={activity.actualStart}
+                                  actualEnd={activity.actualEnd}
+                                  progress={activity.progress}
+                                />
+                              </td>
+                              <td className="h-[34px]" style={{ width: ganttFillerWidth }} />
+                            </>
+                          )}
                         </tr>
                         {!collapsed &&
                           activity.tasks.map((task) => (
@@ -696,6 +720,7 @@ export function GanttTable({
                               columns={displayColumns}
                               compact={compact}
                               showGantt={showGantt}
+                              ganttFillerWidth={ganttFillerWidth}
                               onClick={() => onOpenTask(task)}
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}

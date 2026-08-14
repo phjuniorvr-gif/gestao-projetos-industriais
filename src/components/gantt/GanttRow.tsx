@@ -25,6 +25,11 @@ interface GanttRowProps {
    * barras/timeline desta linha. Independente de `compact` (que só decide quantas colunas
    * aparecem); ver comentário equivalente em `GanttTable.tsx`. */
   showGantt: boolean;
+  /** Preenchimento depois da última data — quando o intervalo (mais o zoom) renderiza uma
+   * timeline mais estreita que o card, evita um vão em branco à direita. Medido em
+   * `GanttTable.tsx` via `ResizeObserver`; 0 quando a timeline já cobre (ou excede) a largura
+   * disponível, caso em que a tabela simplesmente rola horizontalmente como sempre. */
+  ganttFillerWidth: number;
   onClick: () => void;
   onHover: (task: TaskView, x: number, y: number) => void;
   onHoverEnd: () => void;
@@ -44,6 +49,7 @@ export function GanttRow({
   columns,
   compact,
   showGantt,
+  ganttFillerWidth,
   onClick,
   onHover,
   onHoverEnd,
@@ -132,27 +138,30 @@ export function GanttRow({
           lateCompletionDays={task.lateCompletionDays}
         />
       </td>
-      {showGantt ? (
-        <td
-          className="relative h-[34px] px-4 py-0 align-middle"
-          style={{ width, ...timelineBackground }}
-          onMouseMove={(e) => onHover(task, e.clientX, e.clientY)}
-          onMouseLeave={onHoverEnd}
-        >
-          <TodayLine range={range} pxPerDay={pxPerDay} />
-          <GanttBars
-            range={range}
-            pxPerDay={pxPerDay}
-            status={task.status}
-            plannedStart={task.plannedStart}
-            plannedEnd={task.plannedEnd}
-            baseStart={task.baseStart}
-            baseEnd={task.baseEnd}
-            actualStart={task.actualStart}
-            actualEnd={task.actualEnd}
-          />
-        </td>
-      ) : null}
+      {showGantt && (
+        <>
+          <td
+            className="relative h-[34px] px-4 py-0 align-middle"
+            style={{ width, ...timelineBackground }}
+            onMouseMove={(e) => onHover(task, e.clientX, e.clientY)}
+            onMouseLeave={onHoverEnd}
+          >
+            <TodayLine range={range} pxPerDay={pxPerDay} />
+            <GanttBars
+              range={range}
+              pxPerDay={pxPerDay}
+              status={task.status}
+              plannedStart={task.plannedStart}
+              plannedEnd={task.plannedEnd}
+              baseStart={task.baseStart}
+              baseEnd={task.baseEnd}
+              actualStart={task.actualStart}
+              actualEnd={task.actualEnd}
+            />
+          </td>
+          <td className="h-[34px]" style={{ width: ganttFillerWidth }} />
+        </>
+      )}
     </tr>
   );
 }
