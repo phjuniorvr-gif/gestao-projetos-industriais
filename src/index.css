@@ -32,7 +32,7 @@
   --color-border: #e4e8ee;
   --color-border-2: #eef1f5;
 
-  /* azul vivo — ação, foco, seleção e status "em andamento" (design.md) */
+  /* azul vivo — ação, foco e seleção (design.md) */
   --color-action: #2563eb;
   --color-action-2: #60a5fa;
 
@@ -40,7 +40,7 @@
   --color-status-done: #15803d;
   --color-status-delayed: #c2410c;
   --color-status-delayed-bg: #fff1e9;
-  --color-status-progress: #2563eb;
+  --color-status-progress: #ca8a04;
   --color-status-planned: #7c3aed;
 }
 

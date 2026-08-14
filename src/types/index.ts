@@ -13,7 +13,7 @@ export const STATUS_LABEL: Record<ProjectStatus, string> = {
 
 export const STATUS_COLOR: Record<ProjectStatus, string> = {
   planned: '#7C3AED',
-  in_progress: '#2563EB',
+  in_progress: '#CA8A04',
   delayed: '#C2410C',
   completed: '#15803D',
 };

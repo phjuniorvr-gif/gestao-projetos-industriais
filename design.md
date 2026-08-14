@@ -17,11 +17,11 @@ Os nomes de token abaixo são os que já existiam no app antes da Fase 1 — só
 | `page` | `bg-page` | `#f6f7f9` | Fundo da página |
 | `card` | `bg-card` | `#ffffff` | Fundo de card/painel |
 | `sidebar` / `sidebar-dark` | `bg-sidebar` / `bg-sidebar-dark` | `#0d2a4f` / `#123a63` | Menu lateral — azul institucional escuro (`--navy`/`--navy2` do spec), não azul vivo |
-| `action` | `bg-action` / `text-action` | `#2563eb` | Azul vivo — ação, foco, seleção e status "em andamento" (`--brand`) |
+| `action` | `bg-action` / `text-action` | `#2563eb` | Azul vivo — ação, foco e seleção (`--brand`) |
 | `action-2` | `bg-action-2` | `#60a5fa` | Azul vivo claro (`--brand2`), para preenchimento/realce sutil |
-| `status-delayed` | `bg-status-delayed` / `text-status-delayed` | `#c2410c` | **A única cor fora da família azul.** Serve tanto para status "Atrasado" quanto para alerta/erro genérico (validação, exclusão, campo obrigatório) — é assim que o spec define essa cor: "existe só para atraso e alerta" |
+| `status-delayed` | `bg-status-delayed` / `text-status-delayed` | `#c2410c` | Serve tanto para status "Atrasado" quanto para alerta/erro genérico (validação, exclusão, campo obrigatório) — é assim que o spec define essa cor: "existe só para atraso e alerta" |
 | `status-delayed-bg` | `bg-status-delayed-bg` | `#fff1e9` | Fundo do chip de atraso |
-| `status-progress` | `bg-status-progress` | `#2563eb` | Status "Em andamento" — mesmo azul de `action`, de propósito (spec: nunca trocar os dois azuis entre si, mas "em andamento" É o azul vivo) |
+| `status-progress` | `bg-status-progress` | `#ca8a04` | Status "Em andamento" — amarelo/mostarda, a pedido do usuário (Fase 1 original ligava esse status ao mesmo azul de `action`, de propósito; decisão revertida) |
 | `status-done` | `bg-status-done` | `#15803d` | Status "Concluído" |
 | `status-planned` | `bg-status-planned` | `#7c3aed` | Status "Planejado" |
 | `status-idle` | `bg-status-idle` | `#a3a3a3` | Cinza neutro — hoje ainda ligado ao status "À iniciar", que sai do modelo na Fase 2 |
@@ -29,8 +29,8 @@ Os nomes de token abaixo são os que já existiam no app antes da Fase 1 — só
 ### Regras de uso — obrigatórias
 
 - A interface é **neutra**. Cor saturada só aparece em status e alerta.
-- **Dois azuis, funções separadas**: `sidebar`/`sidebar-dark` é navegação; `action` é ação/foco/seleção/"em andamento". Nunca um pelo outro.
-- **Laranja (`status-delayed`) é a única exceção** à família azul — cobre atraso E alerta (erro de validação, exclusão, campo obrigatório). Não existe uma terceira cor "de perigo" separada.
+- **Dois azuis, funções separadas**: `sidebar`/`sidebar-dark` é navegação; `action` é ação/foco/seleção. Nunca um pelo outro.
+- **Laranja (`status-delayed`) cobre atraso E alerta** (erro de validação, exclusão, campo obrigatório). Não existe uma terceira cor "de perigo" separada. `status-progress` (amarelo/mostarda) é a outra cor fora da família azul, exclusiva do status "Em andamento".
 - **Proibido**: barra colorida decorativa no topo de card, listra lateral sem significado, quadrado colorido que não carrega informação, linha de destaque embaixo de título, sombra decorativa (separação é por borda de 1px).
 - **Regra de contraste do `text-muted2` (`#94a3b8`)**: contraste ~2,8:1 sobre branco, abaixo do mínimo de 4,5:1 do WCAG AA para texto pequeno. Uso permitido: **ícone, borda, placeholder**. Texto que precisa ser lido usa sempre `text-muted` (`#64748b`), que passa no contraste.
 
