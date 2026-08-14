@@ -22,6 +22,7 @@ import {
 } from './dependencyArrows';
 import { getColumnRect, getGanttColumns, getGanttLeftWidth, type GanttColumn, type GanttColumnKey } from './ganttColumns';
 import { GanttProgressCell } from './GanttProgressCell';
+import { LabelColumn, LABEL_COLUMN_WIDTH } from './LabelColumn';
 import {
   calculatePortfolioRange,
   getDayTicks,
@@ -210,6 +211,11 @@ export function GanttTable({
   const columns = getGanttColumns(!compact);
   const leftWidth = getGanttLeftWidth(columns);
   const lastColumnKey = columns[columns.length - 1].key;
+  // Coluna "Prev"/"Real" (LabelColumn.tsx) — só existe com Gantt visível, entre o painel de
+  // colunas e a área de timeline. `totalLeftWidth` é onde a timeline de fato começa; `leftWidth`
+  // sozinho continua servindo pro `left` sticky das colunas de dado (Linha..Avanço), que não
+  // mudou de posição.
+  const totalLeftWidth = leftWidth + (showGantt ? LABEL_COLUMN_WIDTH : 0);
   // Com Gantt: se o intervalo natural (baseado só nas tarefas) render uma timeline mais estreita
   // que o espaço disponível, o vão sobrando vira dias/semanas/meses REAIS a mais no fim do
   // intervalo (não uma célula em branco sem data — pedido do usuário depois de ver a 1ª versão) —
@@ -217,7 +223,7 @@ export function GanttTable({
   // proporcional" — mudar isso desalinharia as barras da grade de dias).
   const baseRange = calculatePortfolioRange(projects);
   const baseWidth = totalWidth(baseRange, pxPerDay);
-  const extraDays = showGantt ? Math.max(0, Math.floor((containerWidth - (leftWidth + baseWidth)) / pxPerDay)) : 0;
+  const extraDays = showGantt ? Math.max(0, Math.floor((containerWidth - (totalLeftWidth + baseWidth)) / pxPerDay)) : 0;
   const range = extraDays > 0 ? { start: baseRange.start, end: addDays(baseRange.end, extraDays) } : baseRange;
   const width = totalWidth(range, pxPerDay);
   const monthTicks = getMonthTicks(range);
@@ -340,7 +346,7 @@ export function GanttTable({
   // Com Gantt: `range`/`width` já foram estendidos acima (mais dias reais) pra cobrir a maior
   // parte do vão — isso aqui é só o resto fracionário (menos de 1 dia de largura, arredondamento
   // de `Math.floor`), preenchido com uma célula sem data em vez de mais um dia pela metade.
-  const ganttFillerWidth = showGantt ? Math.max(0, containerWidth - (leftWidth + width)) : 0;
+  const ganttFillerWidth = showGantt ? Math.max(0, containerWidth - (totalLeftWidth + width)) : 0;
   // Sem Gantt: a sobra de espaço (fillerWidth) não fica isolada numa coluna em branco no fim —
   // a pedido do usuário, é dividida entre Categoria/Responsável/datas/Duração/Avanço (tudo menos
   // Linha/Estrutura, que têm tamanho pensado pro conteúdo — número de linha e nome da tarefa).
@@ -414,7 +420,7 @@ export function GanttTable({
           fonte única das colunas, nunca dois números que podem divergir. */}
       <table
         className="table-fixed border-collapse text-sm"
-        style={{ width: showGantt ? leftWidth + width + ganttFillerWidth : leftWidth + fillerWidth }}
+        style={{ width: showGantt ? totalLeftWidth + width + ganttFillerWidth : leftWidth + fillerWidth }}
       >
         <thead className="sticky top-0 z-30 border-b border-border">
           {showGantt ? (
@@ -431,6 +437,13 @@ export function GanttTable({
                       {column.label}
                     </th>
                   ))}
+                {levelIndex === 0 && (
+                  <th
+                    rowSpan={headerLevels.length}
+                    className={`${thClass} border-r border-border text-center`}
+                    style={{ left: leftWidth, width: LABEL_COLUMN_WIDTH }}
+                  />
+                )}
                 <th
                   className={`relative ${timelineThClass} ${levelIndex === headerLevels.length - 1 ? '' : 'border-b border-border/70'}`}
                   style={{ width, height: HEADER_ROW_HEIGHT }}
@@ -553,6 +566,7 @@ export function GanttTable({
                   </td>
                   {showGantt && (
                     <>
+                      <LabelColumn left={leftWidth} showReal={Boolean(project.actualStart)} realTop={18} />
                       <td
                         className="relative h-[34px] px-4 py-0 align-middle"
                         style={{ width, ...timelineBackground }}
@@ -681,6 +695,7 @@ export function GanttTable({
                           </td>
                           {showGantt && (
                             <>
+                              <LabelColumn left={leftWidth} showReal={Boolean(activity.actualStart)} realTop={18} />
                               <td
                                 className="relative h-[34px] px-4 py-0 align-middle"
                                 style={{ width, ...timelineBackground }}
@@ -721,6 +736,7 @@ export function GanttTable({
                               compact={compact}
                               showGantt={showGantt}
                               ganttFillerWidth={ganttFillerWidth}
+                              leftWidth={leftWidth}
                               onClick={() => onOpenTask(task)}
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}
@@ -736,15 +752,16 @@ export function GanttTable({
       </table>
       {/* Overlay de setas: um SVG só, por cima da tabela inteira, não uma por linha — precisa
           cruzar múltiplas linhas (predecessora numa atividade, sucessora noutra). Alinhado à
-          mesma origem de coordenadas das barras: `left: leftWidth` pousa exatamente onde a
-          coluna de timeline dos `<td>` começa (posicionamento absoluto ignora o padding do
-          ancestral, mesma lógica de `GanttBars`/`TodayLine`), `top` pula só a altura do
-          cabeçalho. `pointer-events-none` — a seta nunca deve capturar clique. Só existe com o
-          Gantt visível — sem barra/timeline não há o que uma seta de dependência apontar para. */}
+          mesma origem de coordenadas das barras: `left: totalLeftWidth` pousa exatamente onde a
+          coluna de timeline dos `<td>` começa — depois da coluna "Prev"/"Real" agora, não mais
+          logo depois de Avanço (posicionamento absoluto ignora o padding do ancestral, mesma
+          lógica de `GanttBars`/`TodayLine`), `top` pula só a altura do cabeçalho.
+          `pointer-events-none` — a seta nunca deve capturar clique. Só existe com o Gantt
+          visível — sem barra/timeline não há o que uma seta de dependência apontar para. */}
       {showGantt && (
         <svg
           className="pointer-events-none absolute z-10"
-          style={{ left: leftWidth, top: HEADER_ROW_HEIGHT * headerLevels.length }}
+          style={{ left: totalLeftWidth, top: HEADER_ROW_HEIGHT * headerLevels.length }}
           width={width}
           height={bodyHeight}
         >

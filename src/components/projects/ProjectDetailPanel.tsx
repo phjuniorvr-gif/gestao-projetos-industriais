@@ -191,6 +191,7 @@ export function ProjectDetailPanel({
               actualStart={project.actualStart}
               actualEnd={project.actualEnd}
               status={project.status}
+              isLateCompletion={project.isLateCompletion}
               today={today}
             />
             <div className="mt-2 space-y-0.5 text-xs text-text-muted">

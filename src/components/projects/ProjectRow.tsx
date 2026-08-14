@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Holiday, Person, ProjectView, Task } from '../../types';
-import { STATUS_COLOR } from '../../types';
 import { computeExpectedProgress, computeProjectTeam, computeScheduleDeviationDays } from '../../utils/portfolio';
 import { StatusBadge } from '../shared/StatusBadge';
 import { InlineTaskProgressEdit } from './InlineTaskProgressEdit';
@@ -27,7 +26,9 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
 }
 
-/** Linha da tabela de Projetos (Fase 3) — 6 colunas fixas via `PROJECTS_GRID_COLS`. */
+/** Linha da tabela de Projetos (Fase 3) — 5 colunas fixas via `PROJECTS_GRID_COLS` (era 6; "Avanço
+ * real x previsto" tirada por enquanto, a pedido do usuário — o popover de informar real
+ * continua acessível pelo menu "⋯", ver `ProjectActionsMenu`/`InlineTaskProgressEdit`). */
 export function ProjectRow({
   project,
   people,
@@ -116,49 +117,9 @@ export function ProjectRow({
         actualStart={project.actualStart}
         actualEnd={project.actualEnd}
         status={project.status}
+        isLateCompletion={project.isLateCompletion}
         today={today}
       />
-
-      <div className="relative">
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-mono text-sm font-semibold text-text">{project.progress}%</span>
-          <span className="text-[11px] text-text-muted2">prev. {expected}%</span>
-        </div>
-        <div className="relative mt-1 h-1.5 w-full rounded-full bg-page">
-          <div
-            className="h-1.5 rounded-full"
-            style={{ width: `${project.progress}%`, backgroundColor: STATUS_COLOR[project.status] }}
-          />
-          <div className="absolute top-0 h-1.5 w-px bg-text-ink2" style={{ left: `${expected}%` }} />
-        </div>
-        <p className="mt-0.5 text-[10px] text-text-muted2">
-          {allTasks.length === 0
-            ? 'sem tarefas'
-            : gap > 0
-              ? `${gap} p.p. abaixo do previsto`
-              : gap < 0
-                ? `${-gap} p.p. acima do previsto`
-                : 'em dia com o previsto'}
-        </p>
-        {allTasks.some((t) => t.status !== 'completed') && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setProgressPopoverOpen((o) => !o);
-            }}
-            className="mt-0.5 text-[10px] font-medium text-action hover:underline"
-          >
-            Atualizar avanço
-          </button>
-        )}
-        <InlineTaskProgressEdit
-          project={project}
-          open={progressPopoverOpen}
-          onClose={() => setProgressPopoverOpen(false)}
-          onConfirm={(taskId, patch) => onUpdateTask(project.id, taskId, patch)}
-        />
-      </div>
 
       <div className="text-right">
         {project.status === 'delayed' ? (
@@ -176,7 +137,7 @@ export function ProjectRow({
         )}
       </div>
 
-      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+      <div className="relative flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
         <ProjectActionsMenu
           activityCount={project.activities.length}
           isAdmin={isAdmin}
@@ -185,6 +146,12 @@ export function ProjectRow({
           onUpdateProgress={() => setProgressPopoverOpen(true)}
           onDuplicate={() => onDuplicate(project)}
           onDelete={() => onDelete(project)}
+        />
+        <InlineTaskProgressEdit
+          project={project}
+          open={progressPopoverOpen}
+          onClose={() => setProgressPopoverOpen(false)}
+          onConfirm={(taskId, patch) => onUpdateTask(project.id, taskId, patch)}
         />
       </div>
     </div>

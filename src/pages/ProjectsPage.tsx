@@ -38,6 +38,9 @@ export function ProjectsPage() {
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
+  // Ordenação padrão continua por criticidade (sortProjectsByCriticality) — clicar no cabeçalho
+  // "Projeto" (ProjectsTable.tsx) alterna pra A-Z/Z-A; um terceiro clique volta pra criticidade.
+  const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
   // Guarda só o id, não o ProjectView capturado no clique — o painel precisa refletir o projeto
   // sempre atualizado (ex.: depois de salvar Identificação ou adicionar atividade, sem fechar),
   // não uma foto congelada de quando a linha foi clicada.
@@ -111,10 +114,13 @@ export function ProjectsPage() {
     [projects, filters, people],
   );
 
-  const sorted = useMemo(
-    () => sortProjectsByCriticality(filtered, today, safeHolidays),
-    [filtered, today, safeHolidays],
-  );
+  const sorted = useMemo(() => {
+    if (nameSort) {
+      const ranked = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+      return nameSort === 'desc' ? ranked.reverse() : ranked;
+    }
+    return sortProjectsByCriticality(filtered, today, safeHolidays);
+  }, [filtered, today, safeHolidays, nameSort]);
 
   return (
     <div className="space-y-6">
@@ -154,6 +160,8 @@ export function ProjectsPage() {
           today={today}
           holidays={safeHolidays}
           isAdmin={isAdmin}
+          nameSort={nameSort}
+          onToggleNameSort={() => setNameSort((s) => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))}
           onEdit={(project) => setEditingId(project.id)}
           onDelete={handleDelete}
           onUpdateTask={updateTaskActualDates}

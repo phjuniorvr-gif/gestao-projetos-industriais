@@ -8,6 +8,8 @@ import { computeTaskBarSegments, type DateRange } from './ganttMath';
 // abaixo dos dois (tracejada quando o previsto já não bate mais com ela). O conector simples de
 // predecessora que existia aqui (Commit 2) foi removido no Commit 4 — virou seta de verdade por
 // tipo de dependência, desenhada uma vez para a tabela inteira em GanttTable.tsx, não por linha.
+// A legenda "Prev"/"Real" das barras é uma coluna própria (GanttTable.tsx/GanttRow.tsx, "labelCol"),
+// não desenhada aqui.
 interface GanttBarsProps {
   range: DateRange;
   pxPerDay: number;

@@ -2,12 +2,14 @@ import { STATUS_COLOR, type ProjectStatus } from '../../types';
 import { todayISO } from '../../utils';
 import { barRect, type DateRange } from './ganttMath';
 
-// Fase 4 — barra-resumo de projeto/atividade: cor por status (navy neutro em planejado/andamento,
-// vermelho quando atrasado, verde quando concluído — pedido do usuário no checkpoint visual) +
-// preenchimento claro do avanço derivado + pontas em cunha. Real fica embaixo, igual à tarefa —
-// mesmo pedido: não esconder o real atrás só do resumo, e o trecho do Real que passa do previsto
-// fica vermelho sólido (mesmo tratamento de excesso da tarefa, ver GanttBars.tsx). Sem linha de
-// base aqui — projeto/atividade não têm linha de base própria.
+// Fase 4 — barra-resumo de projeto/atividade: cor por status. Cinza em qualquer status que não
+// seja atraso (era navy, depois verde pra "concluído" — os dois trocados por cinza a pedido do
+// usuário: "concluído" já aparece pelo selo/badge da linha, não precisa repetir na cor da barra),
+// vermelho quando atrasado — esse continua sendo o único alerta na própria barra. + preenchimento
+// claro do avanço derivado + pontas em cunha. Real fica embaixo, igual à tarefa — mesmo pedido:
+// não esconder o real atrás só do resumo, e o trecho do Real que passa do previsto fica vermelho
+// sólido (mesmo tratamento de excesso da tarefa, ver GanttBars.tsx). Sem linha de base aqui —
+// projeto/atividade não têm linha de base própria.
 interface GanttSummaryBarProps {
   range: DateRange;
   pxPerDay: number;
@@ -19,12 +21,10 @@ interface GanttSummaryBarProps {
   progress: number;
 }
 
-const NAVY = '#0D2A4F';
+const NEUTRAL_GRAY = '#64748B';
 
 function summaryColor(status: ProjectStatus): string {
-  if (status === 'delayed') return STATUS_COLOR.delayed;
-  if (status === 'completed') return STATUS_COLOR.completed;
-  return NAVY;
+  return status === 'delayed' ? STATUS_COLOR.delayed : NEUTRAL_GRAY;
 }
 
 export function GanttSummaryBar({
@@ -59,8 +59,13 @@ export function GanttSummaryBar({
           className="absolute -bottom-1 right-0 h-0 w-0 border-x-4 border-x-transparent border-t-[5px]"
           style={{ borderTopColor: color }}
         />
+        {/* Preenchimento de avanço: branco semitransparente por cima da própria cor da barra (não
+            mais um azul fixo, `bg-action-2`) — com avanço alto, o azul cobria a barra inteira e
+            escondia a cor de status por baixo (cinza/vermelho/verde), virando a única cor
+            visível. Assim o preenchimento sempre clareia a cor que já está ali, nunca introduz
+            azul numa barra que não é "Real". */}
         {progress > 0 && (
-          <span className="absolute inset-y-0 left-0 rounded-l-[2px] bg-action-2" style={{ width: `${progress}%` }} />
+          <span className="absolute inset-y-0 left-0 rounded-l-[2px] bg-white/35" style={{ width: `${progress}%` }} />
         )}
       </div>
       {real && <div className="absolute top-[18px] h-[7px] rounded-md bg-action" style={{ left: real.left, width: real.width }} />}

@@ -7,6 +7,7 @@ import { StatusBadge } from '../shared/StatusBadge';
 import { getColumnRect, type GanttColumn } from './ganttColumns';
 import { totalWidth, type DateRange } from './ganttMath';
 import { GanttBars } from './GanttBars';
+import { LabelColumn } from './LabelColumn';
 import { RowTypeBadge } from './RowTypeBadge';
 import { TodayLine } from './TodayLine';
 
@@ -30,6 +31,8 @@ interface GanttRowProps {
    * `GanttTable.tsx` via `ResizeObserver`; 0 quando a timeline já cobre (ou excede) a largura
    * disponível, caso em que a tabela simplesmente rola horizontalmente como sempre. */
   ganttFillerWidth: number;
+  /** Ver `BarLabel.tsx` — repassado direto pra `GanttBars`. */
+  leftWidth: number;
   onClick: () => void;
   onHover: (task: TaskView, x: number, y: number) => void;
   onHoverEnd: () => void;
@@ -50,6 +53,7 @@ export function GanttRow({
   compact,
   showGantt,
   ganttFillerWidth,
+  leftWidth,
   onClick,
   onHover,
   onHoverEnd,
@@ -140,6 +144,7 @@ export function GanttRow({
       </td>
       {showGantt && (
         <>
+          <LabelColumn left={leftWidth} showReal={Boolean(task.actualStart)} realTop={16} />
           <td
             className="relative h-[34px] px-4 py-0 align-middle"
             style={{ width, ...timelineBackground }}

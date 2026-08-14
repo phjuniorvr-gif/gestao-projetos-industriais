@@ -1,12 +1,27 @@
 import { STATUS_COLOR, type ProjectStatus } from '../../types';
 import { diffDays } from '../../utils';
 
+// Cinza neutro pro contorno do previsto (era azul, `border-action/60` — trocado a pedido do
+// usuário, mesmo raciocínio do resumo do Gantt grande em GanttSummaryBar.tsx: só o real segue a
+// cor de status). O real (linha de baixo) continua acompanhando o status normalmente.
+const NEUTRAL_GRAY = '#64748B';
+
+/** Hachurado (listras diagonais) quando concluído com atraso — mesma cor verde de sempre, só
+ * marcado visualmente como "chegou, mas atrasado" sem precisar de uma cor nova. */
+function realBarBackground(status: ProjectStatus, isLateCompletion: boolean): string {
+  const color = STATUS_COLOR[status];
+  if (status !== 'completed' || !isLateCompletion) return color;
+  return `repeating-linear-gradient(45deg, ${color} 0 3px, #ffffff 3px 6px)`;
+}
+
 interface MiniGanttProps {
   plannedStart?: string;
   plannedEnd?: string;
   actualStart?: string;
   actualEnd?: string;
   status: ProjectStatus;
+  /** Concluído com atraso — vira listrado em vez de sólido no real (ver `realBarBackground`). */
+  isLateCompletion?: boolean;
   today: string;
   /** `compact` (Fase 6/mobile): 22px, sem linhas-guia de 25/50/75% nem linha de datas embaixo. */
   size?: 'default' | 'compact';
@@ -28,6 +43,7 @@ export function MiniGantt({
   actualStart,
   actualEnd,
   status,
+  isLateCompletion = false,
   today,
   size = 'default',
 }: MiniGanttProps) {
@@ -64,8 +80,14 @@ export function MiniGantt({
             <div key={q} className="absolute top-0 h-full border-l border-dashed border-border-2" style={{ left: `${q}%` }} />
           ))}
         <div
-          className="absolute top-0 rounded-sm border border-dashed border-action/60 bg-white"
-          style={{ left: `${plannedRect.left}%`, width: `${plannedRect.width}%`, height: `${barHeight}px` }}
+          className="absolute top-0 rounded-sm border border-dashed"
+          style={{
+            left: `${plannedRect.left}%`,
+            width: `${plannedRect.width}%`,
+            height: `${barHeight}px`,
+            borderColor: `${NEUTRAL_GRAY}99`,
+            backgroundColor: `${NEUTRAL_GRAY}33`,
+          }}
           title={`Previsto: ${formatShort(plannedStart)} – ${formatShort(plannedEnd)}`}
         />
         {realRect ? (
@@ -76,7 +98,7 @@ export function MiniGantt({
               width: `${realRect.width}%`,
               top: `${realTop}px`,
               height: `${barHeight}px`,
-              backgroundColor: STATUS_COLOR[status],
+              background: realBarBackground(status, isLateCompletion),
             }}
           />
         ) : (
@@ -90,7 +112,10 @@ export function MiniGantt({
               width: `${overrunRect.width}%`,
               top: `${realTop}px`,
               height: `${barHeight}px`,
-              backgroundColor: STATUS_COLOR.delayed,
+              // Concluído com atraso: o trecho que passou do previsto é a MESMA barra listrada,
+              // não um vermelho separado — o vermelho continua valendo pra quem ainda está
+              // rolando atrasado (status "delayed", ainda não concluído).
+              background: realBarBackground(status, isLateCompletion),
             }}
           />
         )}

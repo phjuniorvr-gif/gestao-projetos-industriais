@@ -49,6 +49,7 @@ export function ProjectCard({ project, people, today, holidays, onOpen }: Projec
         actualStart={project.actualStart}
         actualEnd={project.actualEnd}
         status={project.status}
+        isLateCompletion={project.isLateCompletion}
         today={today}
         size="compact"
       />
