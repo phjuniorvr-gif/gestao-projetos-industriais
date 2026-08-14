@@ -25,6 +25,9 @@ interface GanttRowProps {
    * barras/timeline desta linha. Independente de `compact` (que só decide quantas colunas
    * aparecem); ver comentário equivalente em `GanttTable.tsx`. */
   showGantt: boolean;
+  /** Largura (px, medida via `ResizeObserver` em `GanttTable.tsx`) da célula de preenchimento
+   * que substitui a barra quando `!showGantt` — estica a linha até a borda do card. */
+  fillerWidth: number;
   onClick: () => void;
   onHover: (task: TaskView, x: number, y: number) => void;
   onHoverEnd: () => void;
@@ -44,6 +47,7 @@ export function GanttRow({
   columns,
   compact,
   showGantt,
+  fillerWidth,
   onClick,
   onHover,
   onHoverEnd,
@@ -153,7 +157,7 @@ export function GanttRow({
           />
         </td>
       ) : (
-        <td className="h-[34px] bg-card" />
+        <td className="h-[34px] bg-card" style={{ width: fillerWidth }} />
       )}
     </tr>
   );

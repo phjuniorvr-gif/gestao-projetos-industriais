@@ -1,4 +1,4 @@
-import { Fragment, useState, type CSSProperties, type RefObject } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { STATUS_LABEL, type ActivityView, type CategoryEntry, type Holiday, type Person, type ProjectView, type TaskView } from '../../types';
 import {
@@ -181,6 +181,23 @@ export function GanttTable({
   // mesmo coincidindo hoje com `compact` — deixa explícito o motivo de cada `<td>`/`<th>` do
   // Gantt não renderizar, em vez de reler `compact` com um significado emprestado.
   const showGantt = compact;
+  // Sem Gantt, a tabela precisa esticar até a borda do card em vez de deixar um vão vazio — a
+  // tentativa óbvia (`width: 100%` na tabela + uma coluna sem `width` declarado, table-layout
+  // fixed jogando a sobra nela) não funcionou na prática: medido no navegador, o Chrome ignorou
+  // os 100% e dimensionou a tabela pela soma pura das colunas (1408px, batendo exato com o modo
+  // completo) — um comportamento de `table-layout:fixed` conhecido por ser inconsistente entre
+  // navegadores quando mistura colunas com largura fixa e uma sem largura nenhuma. Resolvido
+  // medindo o espaço disponível de verdade via `ResizeObserver` e calculando a largura da coluna
+  // de preenchimento em pixels — não depende de o navegador "adivinhar" certo.
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => setContainerWidth(entries[0].contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const [hover, setHover] = useState<{ target: HoverTarget; x: number; y: number } | null>(null);
   const pxPerDay = ZOOM_PX_PER_DAY[zoom];
   const today = todayISO();
@@ -308,6 +325,7 @@ export function GanttTable({
   const columns = getGanttColumns(!compact);
   const leftWidth = getGanttLeftWidth(columns);
   const lastColumnKey = columns[columns.length - 1].key;
+  const fillerWidth = showGantt ? 0 : Math.max(0, containerWidth - leftWidth);
 
   const timelineBackground = buildTimelineBackground(
     weekTicks,
@@ -354,14 +372,23 @@ export function GanttTable({
 
   return (
     <div className="space-y-2">
-    <div ref={scrollContainerRef} className="max-h-[70vh] overflow-auto rounded-lg border border-border">
+    <div
+      ref={(el) => {
+        measureRef.current = el;
+        if (scrollContainerRef) scrollContainerRef.current = el;
+      }}
+      className="max-h-[70vh] overflow-auto rounded-lg border border-border"
+    >
     <div className="relative">
       {/* table-layout: fixed + largura total explícita — sem isso, o layout automático deixa
           conteúdo mais largo que a coluna declarada esticar a coluna de verdade, o `left` das
           colunas sticky seguintes fica errado, e o Gantt (que não é sticky, só flui depois) passa
           por cima do painel esquerdo. Largura vem inteira de getGanttLeftWidth/totalWidth — mesma
           fonte única das colunas, nunca dois números que podem divergir. */}
-      <table className="table-fixed border-collapse text-sm" style={{ width: showGantt ? leftWidth + width : '100%' }}>
+      <table
+        className="table-fixed border-collapse text-sm"
+        style={{ width: showGantt ? leftWidth + width : leftWidth + fillerWidth }}
+      >
         <thead className="sticky top-0 z-30 border-b border-border">
           {showGantt ? (
             headerLevels.map((level, levelIndex) => (
@@ -416,7 +443,7 @@ export function GanttTable({
               {/* Preenchimento sem largura fixa — table-layout:fixed joga toda a sobra de espaço
                   aqui (única coluna sem `width` explícito), esticando a tabela até a borda direita
                   do card em vez de deixar um vão vazio quando não há Gantt pra ocupar o resto. */}
-              <th className={thClass} style={{ height: HEADER_ROW_HEIGHT }} />
+              <th className={thClass} style={{ height: HEADER_ROW_HEIGHT, width: fillerWidth }} />
             </tr>
           )}
         </thead>
@@ -518,7 +545,7 @@ export function GanttTable({
                       />
                     </td>
                   ) : (
-                    <td className="h-[34px] bg-page/70" />
+                    <td className="h-[34px] bg-page/70" style={{ width: fillerWidth }} />
                   )}
                 </tr>
 
@@ -647,7 +674,7 @@ export function GanttTable({
                               />
                             </td>
                           ) : (
-                            <td className="h-[34px] bg-page/35" />
+                            <td className="h-[34px] bg-page/35" style={{ width: fillerWidth }} />
                           )}
                         </tr>
                         {!collapsed &&
@@ -665,6 +692,7 @@ export function GanttTable({
                               columns={columns}
                               compact={compact}
                               showGantt={showGantt}
+                              fillerWidth={fillerWidth}
                               onClick={() => onOpenTask(task)}
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}
