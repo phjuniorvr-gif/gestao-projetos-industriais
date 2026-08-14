@@ -21,6 +21,10 @@ interface GanttRowProps {
   unit: string;
   columns: GanttColumn[];
   compact: boolean;
+  /** "Visão completa" sem Gantt (a pedido do usuário) — quando falso, não desenha a célula de
+   * barras/timeline desta linha. Independente de `compact` (que só decide quantas colunas
+   * aparecem); ver comentário equivalente em `GanttTable.tsx`. */
+  showGantt: boolean;
   onClick: () => void;
   onHover: (task: TaskView, x: number, y: number) => void;
   onHoverEnd: () => void;
@@ -39,6 +43,7 @@ export function GanttRow({
   unit,
   columns,
   compact,
+  showGantt,
   onClick,
   onHover,
   onHoverEnd,
@@ -114,8 +119,8 @@ export function GanttRow({
         </>
       )}
       <td
-        className={`h-[34px] overflow-hidden whitespace-nowrap px-2 py-0 text-center align-middle ${
-          compact ? 'sticky z-25 border-r border-border bg-card' : ''
+        className={`h-[34px] overflow-hidden whitespace-nowrap px-2 py-0 text-center align-middle border-r border-border ${
+          compact ? 'sticky z-25 bg-card' : ''
         }`}
         style={compact ? { left: avanco.left, width: avanco.width } : { width: avanco.width }}
       >
@@ -127,25 +132,29 @@ export function GanttRow({
           lateCompletionDays={task.lateCompletionDays}
         />
       </td>
-      <td
-        className="relative h-[34px] px-4 py-0 align-middle"
-        style={{ width, ...timelineBackground }}
-        onMouseMove={(e) => onHover(task, e.clientX, e.clientY)}
-        onMouseLeave={onHoverEnd}
-      >
-        <TodayLine range={range} pxPerDay={pxPerDay} />
-        <GanttBars
-          range={range}
-          pxPerDay={pxPerDay}
-          status={task.status}
-          plannedStart={task.plannedStart}
-          plannedEnd={task.plannedEnd}
-          baseStart={task.baseStart}
-          baseEnd={task.baseEnd}
-          actualStart={task.actualStart}
-          actualEnd={task.actualEnd}
-        />
-      </td>
+      {showGantt ? (
+        <td
+          className="relative h-[34px] px-4 py-0 align-middle"
+          style={{ width, ...timelineBackground }}
+          onMouseMove={(e) => onHover(task, e.clientX, e.clientY)}
+          onMouseLeave={onHoverEnd}
+        >
+          <TodayLine range={range} pxPerDay={pxPerDay} />
+          <GanttBars
+            range={range}
+            pxPerDay={pxPerDay}
+            status={task.status}
+            plannedStart={task.plannedStart}
+            plannedEnd={task.plannedEnd}
+            baseStart={task.baseStart}
+            baseEnd={task.baseEnd}
+            actualStart={task.actualStart}
+            actualEnd={task.actualEnd}
+          />
+        </td>
+      ) : (
+        <td className="h-[34px] bg-card" />
+      )}
     </tr>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, ListPlus, Maximize2, Minimize2, Pencil } from 'lucide-react';
+import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
 import {
   AddActivityDialog,
@@ -261,23 +261,27 @@ export function ProjectSchedulePage() {
               >
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Link>
-              <div className="flex items-center rounded-[9px] border border-border bg-page p-0.5">
-                {ZOOM_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setZoom(option.value)}
-                    className={`rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
-                      zoom === option.value ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <Button variant="secondary" icon={<CalendarClock className="h-4 w-4" />} onClick={scrollToToday}>
-                Ir para hoje
-              </Button>
+              {compact && (
+                <>
+                  <div className="flex items-center rounded-[9px] border border-border bg-page p-0.5">
+                    {ZOOM_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setZoom(option.value)}
+                        className={`rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
+                          zoom === option.value ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <Button variant="secondary" icon={<CalendarClock className="h-4 w-4" />} onClick={scrollToToday}>
+                    Ir para hoje
+                  </Button>
+                </>
+              )}
               {/* Cobre o caso da linha-alvo (projeto/atividade) não estar visível na tela — os
                   "+" por linha (sempre visíveis no hover, Fase 4 Commit 6) continuam sendo o
                   caminho mais rápido quando a linha já está à vista. */}
@@ -321,10 +325,10 @@ export function ProjectSchedulePage() {
               </div>
               <Button
                 variant={compact ? 'primary' : 'secondary'}
-                icon={compact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                icon={compact ? <Table2 className="h-4 w-4" /> : <GanttChart className="h-4 w-4" />}
                 onClick={() => setCompact((c) => !c)}
               >
-                {compact ? 'Visão completa' : 'Visão compacta'}
+                {compact ? 'Tabela' : 'Gantt'}
               </Button>
               <Button
                 variant={allExpanded ? 'secondary' : 'primary'}
@@ -363,7 +367,7 @@ export function ProjectSchedulePage() {
         />
       ) : null}
 
-      {ganttProjects.length > 0 && <ScheduleLegend />}
+      {ganttProjects.length > 0 && compact && <ScheduleLegend />}
 
       {ganttProjects.length > 0 && (
         <Card className="space-y-4 p-0">

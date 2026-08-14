@@ -175,6 +175,12 @@ export function GanttTable({
 }: GanttTableProps) {
   // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
   const locked = isAdmin !== true;
+  // A pedido do usuário: "Visão completa" (compact=false) vira só a tabela de dados, sem o
+  // gráfico de barras (que só a "Visão compacta" continua mostrando) — não é o mesmo eixo do
+  // `compact` original (que só trocava QUANTAS colunas aparecem), então precisa de flag própria
+  // mesmo coincidindo hoje com `compact` — deixa explícito o motivo de cada `<td>`/`<th>` do
+  // Gantt não renderizar, em vez de reler `compact` com um significado emprestado.
+  const showGantt = compact;
   const [hover, setHover] = useState<{ target: HoverTarget; x: number; y: number } | null>(null);
   const pxPerDay = ZOOM_PX_PER_DAY[zoom];
   const today = todayISO();
@@ -326,6 +332,14 @@ export function GanttTable({
   // em largura de coluna. px-2 (8px cada lado) é o mesmo respiro que o protótipo usa nas colunas
   // do painel esquerdo.
   const thClass = 'truncate bg-page px-2 align-middle sticky z-30';
+  // Cabeçalho da timeline (ano/mês/semana ou mês/dia) não precisa de sticky próprio — o `<thead>`
+  // inteiro é que fica fixo (`sticky top-0` nele, abaixo), então as linhas internas só precisam
+  // fluir empilhadas normalmente. Tentar fixar cada `<th>` de nível com seu próprio `top` (como
+  // era antes) exigia `border-collapse` pra não sobrepor uma linha na outra ao rolar — só que
+  // `border-collapse` quebra o sticky horizontal do painel esquerdo (LINHA/ESTRUTURA/AVANÇO
+  // somem ao rolar lateral). Com o `<thead>` como único ponto de sticky, os dois problemas somem
+  // juntos sem precisar mexer em `border-collapse`.
+  const timelineThClass = 'truncate bg-page px-2 align-middle';
   const HEADER_ROW_HEIGHT = 30;
   // Painel inteiro (todas as colunas, não só Linha/Estrutura) é sticky — é o que "painel
   // esquerdo" quer dizer: fica fixo enquanto o Gantt rola por baixo. `truncate` aqui (não só na
@@ -347,46 +361,64 @@ export function GanttTable({
           colunas sticky seguintes fica errado, e o Gantt (que não é sticky, só flui depois) passa
           por cima do painel esquerdo. Largura vem inteira de getGanttLeftWidth/totalWidth — mesma
           fonte única das colunas, nunca dois números que podem divergir. */}
-      <table className="table-fixed border-collapse text-sm" style={{ width: leftWidth + width }}>
-        <thead className="border-b border-border">
-          {headerLevels.map((level, levelIndex) => (
-            <tr key={levelIndex} className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
-              {levelIndex === 0 &&
-                columns.map((column) => (
-                  <th
-                    key={column.key}
-                    rowSpan={headerLevels.length}
-                    className={`${thClass} top-0 ${column.align === 'right' || column.key === 'linha' ? 'text-right' : column.key === 'estrutura' ? 'text-left' : 'text-center'} ${column.key === lastColumnKey ? 'border-r border-border' : ''}`}
-                    style={columnStyle(column.key)}
-                  >
-                    {column.label}
-                  </th>
-                ))}
-              <th
-                className={`relative ${thClass} ${levelIndex === headerLevels.length - 1 ? '' : 'border-b border-border/70'}`}
-                style={{ width, height: HEADER_ROW_HEIGHT, top: HEADER_ROW_HEIGHT * levelIndex }}
-              >
-                {levelIndex === 0 && <TodayLine range={range} pxPerDay={pxPerDay} showLabel />}
-                <div className="relative flex h-full" style={{ width }}>
-                  {level.map((tick) => (
-                    <div
-                      key={tick.key}
-                      className={`flex shrink-0 items-center justify-center border-l-2 border-border normal-case ${
-                        levelIndex === 0
-                          ? 'text-[11px] font-semibold text-text'
-                          : levelIndex === headerLevels.length - 1
-                            ? 'border-l border-l-border/60 text-[9px] font-normal text-text-muted/80'
-                            : 'text-[10px] font-semibold text-text-muted'
-                      }`}
-                      style={{ width: tick.days * pxPerDay }}
+      <table className="table-fixed border-collapse text-sm" style={{ width: showGantt ? leftWidth + width : '100%' }}>
+        <thead className="sticky top-0 z-30 border-b border-border">
+          {showGantt ? (
+            headerLevels.map((level, levelIndex) => (
+              <tr key={levelIndex} className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
+                {levelIndex === 0 &&
+                  columns.map((column) => (
+                    <th
+                      key={column.key}
+                      rowSpan={headerLevels.length}
+                      className={`${thClass} ${column.align === 'right' || column.key === 'linha' ? 'text-right' : column.key === 'estrutura' ? 'text-left' : 'text-center'} ${column.key === lastColumnKey ? 'border-r border-border' : ''}`}
+                      style={columnStyle(column.key)}
                     >
-                      {tick.label}
-                    </div>
+                      {column.label}
+                    </th>
                   ))}
-                </div>
-              </th>
+                <th
+                  className={`relative ${timelineThClass} ${levelIndex === headerLevels.length - 1 ? '' : 'border-b border-border/70'}`}
+                  style={{ width, height: HEADER_ROW_HEIGHT }}
+                >
+                  {levelIndex === 0 && <TodayLine range={range} pxPerDay={pxPerDay} showLabel />}
+                  <div className="relative flex h-full" style={{ width }}>
+                    {level.map((tick) => (
+                      <div
+                        key={tick.key}
+                        className={`flex shrink-0 items-center justify-center border-l-2 border-border normal-case ${
+                          levelIndex === 0
+                            ? 'text-[11px] font-semibold text-text'
+                            : levelIndex === headerLevels.length - 1
+                              ? 'border-l border-l-border/60 text-[9px] font-normal text-text-muted/80'
+                              : 'text-[10px] font-semibold text-text-muted'
+                        }`}
+                        style={{ width: tick.days * pxPerDay }}
+                      >
+                        {tick.label}
+                      </div>
+                    ))}
+                  </div>
+                </th>
+              </tr>
+            ))
+          ) : (
+            <tr className="text-left text-xs font-medium uppercase tracking-wide text-text-muted">
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className={`${thClass} ${column.align === 'right' || column.key === 'linha' ? 'text-right' : column.key === 'estrutura' ? 'text-left' : 'text-center'} ${column.key === lastColumnKey ? 'border-r border-border' : ''}`}
+                  style={{ ...columnStyle(column.key), height: HEADER_ROW_HEIGHT }}
+                >
+                  {column.label}
+                </th>
+              ))}
+              {/* Preenchimento sem largura fixa — table-layout:fixed joga toda a sobra de espaço
+                  aqui (única coluna sem `width` explícito), esticando a tabela até a borda direita
+                  do card em vez de deixar um vão vazio quando não há Gantt pra ocupar o resto. */}
+              <th className={thClass} style={{ height: HEADER_ROW_HEIGHT }} />
             </tr>
-          ))}
+          )}
         </thead>
         <tbody>
           {projects.map((project) => {
@@ -463,30 +495,31 @@ export function GanttTable({
                       </td>
                     </>
                   )}
-                  <td
-                    className={`${frozenTdClass} text-center ${compact ? 'border-r border-border' : ''}`}
-                    style={columnStyle('avanco')}
-                  >
+                  <td className={`${frozenTdClass} text-center border-r border-border`} style={columnStyle('avanco')}>
                     <GanttProgressCell progress={project.progress} />
                   </td>
-                  <td
-                    className="relative h-[34px] px-4 py-0 align-middle"
-                    style={{ width, ...timelineBackground }}
-                    onMouseMove={(e) => setHover({ target: { level: 'project', project }, x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => setHover(null)}
-                  >
-                    <TodayLine range={range} pxPerDay={pxPerDay} />
-                    <GanttSummaryBar
-                      range={range}
-                      pxPerDay={pxPerDay}
-                      status={project.status}
-                      plannedStart={project.plannedStart}
-                      plannedEnd={project.plannedEnd}
-                      actualStart={project.actualStart}
-                      actualEnd={project.actualEnd}
-                      progress={project.progress}
-                    />
-                  </td>
+                  {showGantt ? (
+                    <td
+                      className="relative h-[34px] px-4 py-0 align-middle"
+                      style={{ width, ...timelineBackground }}
+                      onMouseMove={(e) => setHover({ target: { level: 'project', project }, x: e.clientX, y: e.clientY })}
+                      onMouseLeave={() => setHover(null)}
+                    >
+                      <TodayLine range={range} pxPerDay={pxPerDay} />
+                      <GanttSummaryBar
+                        range={range}
+                        pxPerDay={pxPerDay}
+                        status={project.status}
+                        plannedStart={project.plannedStart}
+                        plannedEnd={project.plannedEnd}
+                        actualStart={project.actualStart}
+                        actualEnd={project.actualEnd}
+                        progress={project.progress}
+                      />
+                    </td>
+                  ) : (
+                    <td className="h-[34px] bg-page/70" />
+                  )}
                 </tr>
 
                 {!projectCollapsed &&
@@ -589,32 +622,33 @@ export function GanttTable({
                               </td>
                             </>
                           )}
-                          <td
-                            className={`${frozenTdClass} text-center ${compact ? 'border-r border-border' : ''}`}
-                            style={columnStyle('avanco')}
-                          >
+                          <td className={`${frozenTdClass} text-center border-r border-border`} style={columnStyle('avanco')}>
                             <GanttProgressCell progress={activity.progress} />
                           </td>
-                          <td
-                            className="relative h-[34px] px-4 py-0 align-middle"
-                            style={{ width, ...timelineBackground }}
-                            onMouseMove={(e) =>
-                              setHover({ target: { level: 'activity', activity, unit: project.unit }, x: e.clientX, y: e.clientY })
-                            }
-                            onMouseLeave={() => setHover(null)}
-                          >
-                            <TodayLine range={range} pxPerDay={pxPerDay} />
-                            <GanttSummaryBar
-                              range={range}
-                              pxPerDay={pxPerDay}
-                              status={activity.status}
-                              plannedStart={activity.plannedStart}
-                              plannedEnd={activity.plannedEnd}
-                              actualStart={activity.actualStart}
-                              actualEnd={activity.actualEnd}
-                              progress={activity.progress}
-                            />
-                          </td>
+                          {showGantt ? (
+                            <td
+                              className="relative h-[34px] px-4 py-0 align-middle"
+                              style={{ width, ...timelineBackground }}
+                              onMouseMove={(e) =>
+                                setHover({ target: { level: 'activity', activity, unit: project.unit }, x: e.clientX, y: e.clientY })
+                              }
+                              onMouseLeave={() => setHover(null)}
+                            >
+                              <TodayLine range={range} pxPerDay={pxPerDay} />
+                              <GanttSummaryBar
+                                range={range}
+                                pxPerDay={pxPerDay}
+                                status={activity.status}
+                                plannedStart={activity.plannedStart}
+                                plannedEnd={activity.plannedEnd}
+                                actualStart={activity.actualStart}
+                                actualEnd={activity.actualEnd}
+                                progress={activity.progress}
+                              />
+                            </td>
+                          ) : (
+                            <td className="h-[34px] bg-page/35" />
+                          )}
                         </tr>
                         {!collapsed &&
                           activity.tasks.map((task) => (
@@ -630,6 +664,7 @@ export function GanttTable({
                               unit={project.unit}
                               columns={columns}
                               compact={compact}
+                              showGantt={showGantt}
                               onClick={() => onOpenTask(task)}
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}
@@ -648,51 +683,54 @@ export function GanttTable({
           mesma origem de coordenadas das barras: `left: leftWidth` pousa exatamente onde a
           coluna de timeline dos `<td>` começa (posicionamento absoluto ignora o padding do
           ancestral, mesma lógica de `GanttBars`/`TodayLine`), `top` pula só a altura do
-          cabeçalho. `pointer-events-none` — a seta nunca deve capturar clique. */}
-      <svg
-        className="pointer-events-none absolute z-10"
-        style={{ left: leftWidth, top: HEADER_ROW_HEIGHT * headerLevels.length }}
-        width={width}
-        height={bodyHeight}
-      >
-        {arrowGroups.map((group, index) => {
-          const origem = visibleRowIndex.get(`${group.origem.level}:${group.origem.id}`);
-          const destino = visibleRowIndex.get(`${group.destino.level}:${group.destino.id}`);
-          if (!origem?.plannedStart || !origem.plannedEnd || !destino?.plannedStart || !destino.plannedEnd) return null;
+          cabeçalho. `pointer-events-none` — a seta nunca deve capturar clique. Só existe com o
+          Gantt visível — sem barra/timeline não há o que uma seta de dependência apontar para. */}
+      {showGantt && (
+        <svg
+          className="pointer-events-none absolute z-10"
+          style={{ left: leftWidth, top: HEADER_ROW_HEIGHT * headerLevels.length }}
+          width={width}
+          height={bodyHeight}
+        >
+          {arrowGroups.map((group, index) => {
+            const origem = visibleRowIndex.get(`${group.origem.level}:${group.origem.id}`);
+            const destino = visibleRowIndex.get(`${group.destino.level}:${group.destino.id}`);
+            if (!origem?.plannedStart || !origem.plannedEnd || !destino?.plannedStart || !destino.plannedEnd) return null;
 
-          const geometry = computeDependencyArrowGeometry(
-            group.tipo,
-            group.folgaDias,
-            { rowIndex: origem.rowIndex, plannedStart: origem.plannedStart, plannedEnd: origem.plannedEnd },
-            { rowIndex: destino.rowIndex, plannedStart: destino.plannedStart, plannedEnd: destino.plannedEnd },
-            range,
-            pxPerDay,
-            ROW_HEIGHT,
-          );
-          const color = group.violada ? 'var(--color-status-delayed)' : 'var(--color-text-muted2)';
+            const geometry = computeDependencyArrowGeometry(
+              group.tipo,
+              group.folgaDias,
+              { rowIndex: origem.rowIndex, plannedStart: origem.plannedStart, plannedEnd: origem.plannedEnd },
+              { rowIndex: destino.rowIndex, plannedStart: destino.plannedStart, plannedEnd: destino.plannedEnd },
+              range,
+              pxPerDay,
+              ROW_HEIGHT,
+            );
+            const color = group.violada ? 'var(--color-status-delayed)' : 'var(--color-text-muted2)';
 
-          return (
-            <g key={index}>
-              <path
-                d={geometry.path}
-                fill="none"
-                stroke={color}
-                strokeWidth={1.5}
-                strokeDasharray={group.violada ? '4 3' : undefined}
-              />
-              <path d={geometry.arrowheadPath} fill={color} />
-              {geometry.labelText && (
-                <text x={geometry.labelX} y={geometry.labelY} textAnchor="middle" fontSize={9} fill={color}>
-                  {geometry.labelText}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+            return (
+              <g key={index}>
+                <path
+                  d={geometry.path}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={1.5}
+                  strokeDasharray={group.violada ? '4 3' : undefined}
+                />
+                <path d={geometry.arrowheadPath} fill={color} />
+                {geometry.labelText && (
+                  <text x={geometry.labelX} y={geometry.labelY} textAnchor="middle" fontSize={9} fill={color}>
+                    {geometry.labelText}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      )}
     </div>
     </div>
-    {violatedEdgeCount > 0 && (
+    {showGantt && violatedEdgeCount > 0 && (
       <p className="text-xs font-medium text-status-delayed">
         {violatedEdgeCount} {violatedEdgeCount === 1 ? 'dependência violada' : 'dependências violadas'} (previsto em
         conflito com a regra da predecessora)
