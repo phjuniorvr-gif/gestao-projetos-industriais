@@ -50,22 +50,29 @@ describe('computeDateChanges', () => {
 });
 
 describe('validateReplanMotivo', () => {
-  it('mudou e motivo vazio: inválido', () => {
-    const result = validateReplanMotivo({ previstoChanged: true, baseChanged: false }, '');
+  it('mudou e motivo vazio, não-admin: inválido', () => {
+    const result = validateReplanMotivo({ previstoChanged: true, baseChanged: false }, '', false);
     expect(result.valid).toBe(false);
     expect(result.errors).toHaveLength(1);
   });
 
-  it('mudou e motivo só espaço: inválido', () => {
-    expect(validateReplanMotivo({ previstoChanged: false, baseChanged: true }, '   ').valid).toBe(false);
+  it('mudou e motivo só espaço, não-admin: inválido', () => {
+    expect(validateReplanMotivo({ previstoChanged: false, baseChanged: true }, '   ', false).valid).toBe(false);
   });
 
   it('mudou e motivo preenchido: válido', () => {
-    expect(validateReplanMotivo({ previstoChanged: true, baseChanged: false }, 'atraso do fornecedor').valid).toBe(true);
+    expect(validateReplanMotivo({ previstoChanged: true, baseChanged: false }, 'atraso do fornecedor', false).valid).toBe(
+      true,
+    );
   });
 
   it('nada mudou: válido mesmo sem motivo', () => {
-    expect(validateReplanMotivo({ previstoChanged: false, baseChanged: false }, '').valid).toBe(true);
+    expect(validateReplanMotivo({ previstoChanged: false, baseChanged: false }, '', false).valid).toBe(true);
+  });
+
+  it('mudou e motivo vazio, administrador: válido (motivo é opcional pra admin)', () => {
+    expect(validateReplanMotivo({ previstoChanged: true, baseChanged: false }, '', true).valid).toBe(true);
+    expect(validateReplanMotivo({ previstoChanged: false, baseChanged: true }, '   ', true).valid).toBe(true);
   });
 });
 

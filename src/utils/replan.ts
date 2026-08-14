@@ -49,9 +49,13 @@ export interface ReplanValidation {
 }
 
 /** Motivo é obrigatório sempre que previsto OU base mudou de verdade — mesmo se nada mudou,
- * válido mesmo sem motivo (não força preenchimento de um campo que não se aplica). */
-export function validateReplanMotivo(changes: DateChangeResult, motivo: string): ReplanValidation {
-  if ((changes.previstoChanged || changes.baseChanged) && !motivo.trim()) {
+ * válido mesmo sem motivo (não força preenchimento de um campo que não se aplica). Administrador
+ * fica de fora dessa obrigação (a pedido do usuário — único administrador do sistema, editando o
+ * próprio cronograma sem precisar justificar cada ajuste); mesma regra espelhada na RPC
+ * `replanejar_tarefa()` no banco, que também substitui motivo em branco por um texto padrão só
+ * pra administrador (a tabela `replanejamentos` nunca aceita motivo vazio, pra ninguém). */
+export function validateReplanMotivo(changes: DateChangeResult, motivo: string, isAdmin: boolean): ReplanValidation {
+  if ((changes.previstoChanged || changes.baseChanged) && !motivo.trim() && !isAdmin) {
     return { valid: false, errors: ['Informe o motivo do replanejamento.'] };
   }
   return { valid: true, errors: [] };

@@ -349,7 +349,7 @@ export function TaskPanel({
 
           {hasReplanChanges && (
             <div className="space-y-2 rounded-md border border-action/30 bg-action/5 p-3">
-              <FormField label="Motivo do replanejamento" required error={replanErrors[0]}>
+              <FormField label="Motivo do replanejamento" required={locked} error={replanErrors[0]}>
                 <Textarea
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}

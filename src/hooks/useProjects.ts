@@ -450,6 +450,7 @@ export function useProjects() {
       taskId: string,
       patch: Partial<Pick<Task, 'plannedStart' | 'plannedEnd' | 'baseStart' | 'baseEnd'>>,
       motivo: string,
+      isAdmin: boolean,
     ): ReplanValidation => {
       const project = rawProjects.find((p) => p.id === projectId);
       if (!project) return { valid: false, errors: ['Projeto não encontrado.'] };
@@ -457,7 +458,7 @@ export function useProjects() {
       if (!oldTask) return { valid: false, errors: ['Tarefa não encontrada.'] };
 
       const changes = computeDateChanges(oldTask, patch);
-      const validation = validateReplanMotivo(changes, motivo);
+      const validation = validateReplanMotivo(changes, motivo, isAdmin);
       if (!validation.valid) return validation;
 
       const plannedStart = patch.plannedStart ?? oldTask.plannedStart;

@@ -433,7 +433,7 @@ export function ProjectSchedulePage() {
             allTasks.find((t) => t.id === taskId)?.activityId ?? '',
           );
           if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
-          return replanTask(owningProjectId, taskId, patch, motivo);
+          return replanTask(owningProjectId, taskId, patch, motivo, isAdmin === true);
         }}
         dependentCount={selectedTaskDependentCount}
         onDelete={(taskId) => {
