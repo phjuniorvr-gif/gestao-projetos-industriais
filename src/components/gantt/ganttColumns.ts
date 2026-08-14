@@ -26,19 +26,20 @@ export interface GanttColumn {
 
 const COMPACT_COLUMNS: GanttColumn[] = [
   { key: 'linha', label: 'Linha', width: 64, align: 'right' },
-  { key: 'estrutura', label: 'Estrutura', width: 520 },
+  { key: 'estrutura', label: 'Estrutura', width: 480 },
   { key: 'avanco', label: 'Avanço', width: 150 },
 ];
 
 // Datas em 4 colunas separadas (não intervalo único) — decisão do usuário, contra a sugestão
 // original do protótipo: precisa ler início E fim previstos/reais lado a lado sem abrir a
-// tarefa. Estrutura bem mais larga (520px) pelo mesmo motivo — a descrição da tarefa precisa
-// caber legível, não truncar cedo demais (mesmo assim, nome muito longo ainda corta com "…" —
-// texto completo sempre disponível ao abrir a tarefa). Avanço em 150px (cabe "Em andamento" +
-// selo inteiro sem cortar) e Duração por extenso — pedidos explícitos do usuário.
+// tarefa. Estrutura mais larga (480px, reduzida de 520px a pedido do usuário) pelo mesmo motivo —
+// a descrição da tarefa precisa caber legível, não truncar cedo demais (mesmo assim, nome muito
+// longo ainda corta com "…" — texto completo sempre disponível ao abrir a tarefa). Avanço em
+// 150px (cabe "Em andamento" + selo inteiro sem cortar) e Duração por extenso — pedidos
+// explícitos do usuário.
 const FULL_COLUMNS: GanttColumn[] = [
   { key: 'linha', label: 'Linha', width: 64, align: 'right' },
-  { key: 'estrutura', label: 'Estrutura', width: 520 },
+  { key: 'estrutura', label: 'Estrutura', width: 480 },
   { key: 'categoria', label: 'Categoria', width: 100 },
   { key: 'responsavel', label: 'Responsável', width: 110 },
   { key: 'inicioPrevisto', label: 'Início prev.', width: 96 },

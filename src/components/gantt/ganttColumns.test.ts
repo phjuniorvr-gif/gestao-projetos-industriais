@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { getColumnLeft, getColumnRect, getGanttColumns, getGanttLeftWidth } from './ganttColumns';
 
 describe('getGanttColumns', () => {
-  it('modo compacto: Linha 64 + Estrutura 520 + Avanço 150 = 734px', () => {
+  it('modo compacto: Linha 64 + Estrutura 480 + Avanço 150 = 694px', () => {
     const columns = getGanttColumns(false);
     expect(columns.map((c) => c.key)).toEqual(['linha', 'estrutura', 'avanco']);
-    expect(getGanttLeftWidth(columns)).toBe(734);
+    expect(getGanttLeftWidth(columns)).toBe(694);
   });
 
-  it('modo completo: soma das 10 colunas (datas em 4 colunas separadas) = 1408px', () => {
+  it('modo completo: soma das 10 colunas (datas em 4 colunas separadas) = 1368px', () => {
     const columns = getGanttColumns(true);
     expect(columns.map((c) => c.key)).toEqual([
       'linha',
@@ -22,7 +22,7 @@ describe('getGanttColumns', () => {
       'duracao',
       'avanco',
     ]);
-    expect(getGanttLeftWidth(columns)).toBe(1408);
+    expect(getGanttLeftWidth(columns)).toBe(1368);
   });
 });
 
@@ -42,24 +42,24 @@ describe('getColumnLeft', () => {
 
   it('acumula a largura das colunas anteriores', () => {
     const columns = getGanttColumns(true);
-    // linha(64) + estrutura(520) + categoria(100) + responsavel(110) = 794
-    expect(getColumnLeft(columns, 'inicioPrevisto')).toBe(794);
+    // linha(64) + estrutura(480) + categoria(100) + responsavel(110) = 754
+    expect(getColumnLeft(columns, 'inicioPrevisto')).toBe(754);
   });
 
   it('última coluna soma tudo antes dela', () => {
     const columns = getGanttColumns(false);
-    // linha(64) + estrutura(520) = 584
-    expect(getColumnLeft(columns, 'avanco')).toBe(584);
+    // linha(64) + estrutura(480) = 544
+    expect(getColumnLeft(columns, 'avanco')).toBe(544);
   });
 });
 
 describe('getColumnRect', () => {
   it('resolve width e left juntos', () => {
     const columns = getGanttColumns(false);
-    expect(getColumnRect(columns, 'estrutura')).toEqual({ width: 520, left: 64 });
+    expect(getColumnRect(columns, 'estrutura')).toEqual({ width: 480, left: 64 });
   });
 
   it('width 0 quando a coluna não existe no modo atual', () => {
-    expect(getColumnRect(getGanttColumns(false), 'categoria')).toEqual({ width: 0, left: 734 });
+    expect(getColumnRect(getGanttColumns(false), 'categoria')).toEqual({ width: 0, left: 694 });
   });
 });

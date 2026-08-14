@@ -19,7 +19,7 @@ import {
   resolveVisibleDependencyEndpoint,
   type DependencyEdge,
 } from './dependencyArrows';
-import { getColumnRect, getGanttColumns, getGanttLeftWidth, type GanttColumnKey } from './ganttColumns';
+import { getColumnRect, getGanttColumns, getGanttLeftWidth, type GanttColumn, type GanttColumnKey } from './ganttColumns';
 import { GanttProgressCell } from './GanttProgressCell';
 import {
   calculatePortfolioRange,
@@ -326,6 +326,18 @@ export function GanttTable({
   const leftWidth = getGanttLeftWidth(columns);
   const lastColumnKey = columns[columns.length - 1].key;
   const fillerWidth = showGantt ? 0 : Math.max(0, containerWidth - leftWidth);
+  // Sem Gantt: a sobra de espaço (fillerWidth) não fica isolada numa coluna em branco no fim —
+  // a pedido do usuário, é dividida entre Categoria/Responsável/datas/Duração/Avanço (tudo menos
+  // Linha/Estrutura, que têm tamanho pensado pro conteúdo — número de linha e nome da tarefa).
+  // `left` de cada coluna, calculado a partir dessas larguras ajustadas, fica sem sentido nesse
+  // modo (nada rola horizontalmente, a tabela cabe inteira), mas não atrapalha: `position:
+  // sticky` só aplica o offset quando o scroll de verdade cruza o limiar — em repouso, a célula
+  // fica na posição normal do fluxo da tabela, que é quem `table-layout:fixed` usa de fato aqui.
+  const flexibleColumnKeys = columns.filter((c) => c.key !== 'linha' && c.key !== 'estrutura').map((c) => c.key);
+  const extraPerColumn = !showGantt && flexibleColumnKeys.length > 0 ? fillerWidth / flexibleColumnKeys.length : 0;
+  const displayColumns: GanttColumn[] = showGantt
+    ? columns
+    : columns.map((c) => (flexibleColumnKeys.includes(c.key) ? { ...c, width: c.width + extraPerColumn } : c));
 
   const timelineBackground = buildTimelineBackground(
     weekTicks,
@@ -367,7 +379,7 @@ export function GanttTable({
   const frozenTdClass = 'sticky z-25 h-[34px] truncate bg-card px-2 py-0 align-middle';
 
   function columnStyle(key: GanttColumnKey) {
-    return getColumnRect(columns, key);
+    return getColumnRect(displayColumns, key);
   }
 
   return (
@@ -440,10 +452,6 @@ export function GanttTable({
                   {column.label}
                 </th>
               ))}
-              {/* Preenchimento sem largura fixa — table-layout:fixed joga toda a sobra de espaço
-                  aqui (única coluna sem `width` explícito), esticando a tabela até a borda direita
-                  do card em vez de deixar um vão vazio quando não há Gantt pra ocupar o resto. */}
-              <th className={thClass} style={{ height: HEADER_ROW_HEIGHT, width: fillerWidth }} />
             </tr>
           )}
         </thead>
@@ -544,9 +552,7 @@ export function GanttTable({
                         progress={project.progress}
                       />
                     </td>
-                  ) : (
-                    <td className="h-[34px] bg-page/70" style={{ width: fillerWidth }} />
-                  )}
+                  ) : null}
                 </tr>
 
                 {!projectCollapsed &&
@@ -673,9 +679,7 @@ export function GanttTable({
                                 progress={activity.progress}
                               />
                             </td>
-                          ) : (
-                            <td className="h-[34px] bg-page/35" style={{ width: fillerWidth }} />
-                          )}
+                          ) : null}
                         </tr>
                         {!collapsed &&
                           activity.tasks.map((task) => (
@@ -689,10 +693,9 @@ export function GanttTable({
                               people={people}
                               holidays={holidays}
                               unit={project.unit}
-                              columns={columns}
+                              columns={displayColumns}
                               compact={compact}
                               showGantt={showGantt}
-                              fillerWidth={fillerWidth}
                               onClick={() => onOpenTask(task)}
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}
