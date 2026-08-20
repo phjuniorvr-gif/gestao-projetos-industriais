@@ -2,17 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MobileProjectSheet, StatusChipRow } from '../../components/projects';
 import { Card, UndoToast } from '../../components/ui';
-import { useHolidays, usePeople, useProjects, useUndoToast } from '../../hooks';
-import { computeAttentionItems, computeStatusDistribution, computeWorkload, computeWorstDeviation } from '../../utils/portfolio';
+import { useHolidays, useProjects, useUndoToast } from '../../hooks';
+import { computeAttentionItems, computeStatusDistribution, computeWorstDeviation } from '../../utils/portfolio';
 import { formatDatePtBr } from '../../utils';
 import { STATUS_COLOR } from '../../types';
-
-const WORKLOAD_TOP_N = 5;
 
 export function MobileDashboardPage() {
   const navigate = useNavigate();
   const { projects, today, updateTaskActualDates } = useProjects();
-  const { people } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
@@ -21,8 +18,6 @@ export function MobileDashboardPage() {
   const distribution = computeStatusDistribution(projects);
   const delayedCount = distribution.find((d) => d.status === 'delayed')?.count ?? 0;
   const worstDeviation = computeWorstDeviation(projects, today, safeHolidays);
-  const workload = computeWorkload(projects, people).slice(0, WORKLOAD_TOP_N);
-  const maxTaskCount = Math.max(1, ...workload.map((w) => w.taskCount));
   const attentionItems = computeAttentionItems(projects, today, safeHolidays);
   const openProject = projects.find((p) => p.id === openProjectId) ?? null;
 
@@ -44,30 +39,6 @@ export function MobileDashboardPage() {
         onToggleStatus={(status) => navigate(`/projetos?status=${status}`)}
         size="touch"
       />
-
-      <Card className="p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted2">Carga por pessoa</h3>
-        {workload.length === 0 ? (
-          <p className="text-xs text-text-muted">Nenhuma tarefa em aberto atribuída.</p>
-        ) : (
-          <ul className="space-y-2.5">
-            {workload.map(({ person, taskCount, lateTaskCount }) => (
-              <li key={person.id} className="text-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium text-text">{person.name}</span>
-                  <span className="shrink-0 text-text-muted2">
-                    {taskCount} tarefa{taskCount === 1 ? '' : 's'}
-                    {lateTaskCount > 0 && ` · ${lateTaskCount} atras.`}
-                  </span>
-                </div>
-                <div className="mt-1 h-1 w-full rounded-full bg-page">
-                  <div className="h-1 rounded-full bg-action" style={{ width: `${(taskCount / maxTaskCount) * 100}%` }} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
 
       <Card className="p-4">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted2">Atenção nos próximos 30 dias</h3>
