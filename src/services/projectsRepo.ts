@@ -68,6 +68,13 @@ interface ReplanejamentoRow {
   de: string;
   para: string;
   motivo: string;
+  /** Coluna pendente de migration — ver comentário em `Replanejamento` (types/index.ts).
+   * `undefined` enquanto a coluna não existe no banco; `orFalse` abaixo trata isso como `false`. */
+  por_administrador?: boolean;
+}
+
+function orFalse(value: boolean | undefined): boolean {
+  return value ?? false;
 }
 
 function orNull(value: string | undefined): string | null {
@@ -273,6 +280,7 @@ export async function fetchReplanejamentos(): Promise<Replanejamento[]> {
     de: row.de,
     para: row.para,
     motivo: row.motivo,
+    porAdministrador: orFalse(row.por_administrador),
   }));
 }
 

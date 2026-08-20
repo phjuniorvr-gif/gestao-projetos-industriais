@@ -18,12 +18,16 @@ interface DateFields {
 type DatePatch = Partial<DateFields>;
 
 /** Conta quantas vezes o PREVISTO desta tarefa já foi empurrado — só `campo==='previsto'`,
- * por decisão explícita (o selo R{n} da spec é sobre "data prevista", não sobre a base). */
+ * por decisão explícita (o selo R{n} da spec é sobre "data prevista", não sobre a base).
+ * Edições feitas pelo administrador não contam (`porAdministrador`) — a pedido do usuário
+ * (único administrador do sistema): mudar previsto/base continua sendo registrado no log de
+ * auditoria normalmente, só não infla o selo R{n} que sinaliza replanejamento pra quem acompanha
+ * o cronograma. */
 export function computeReplanCount(
   taskId: string,
-  replanejamentos: { tarefaId: string; campo: ReplanCampo }[],
+  replanejamentos: { tarefaId: string; campo: ReplanCampo; porAdministrador: boolean }[],
 ): number {
-  return replanejamentos.filter((r) => r.tarefaId === taskId && r.campo === 'previsto').length;
+  return replanejamentos.filter((r) => r.tarefaId === taskId && r.campo === 'previsto' && !r.porAdministrador).length;
 }
 
 export interface DateChangeResult {

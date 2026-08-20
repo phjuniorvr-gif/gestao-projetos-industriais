@@ -216,4 +216,11 @@ export interface Replanejamento {
   de: string;
   para: string;
   motivo: string;
+  /** Pendente de migration (`replanejamentos.por_administrador`, ainda não aplicada — conexão
+   * com o Supabase caiu na sessão em que isso foi escrito). Até a migration existir, sempre
+   * `false` (a coluna não existe no banco, `fetchReplanejamentos` não tem o que mapear) — o R{n}
+   * continua contando tudo, comportamento inalterado até a migration entrar. Quando aplicada, a
+   * RPC `replanejar_tarefa()` grava esse campo com base em `eh_administrador()` no momento da
+   * edição; `computeReplanCount` (`replan.ts`) passa a ignorar as linhas marcadas aqui. */
+  porAdministrador: boolean;
 }

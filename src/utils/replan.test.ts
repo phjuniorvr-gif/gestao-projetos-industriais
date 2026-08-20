@@ -8,17 +8,25 @@ describe('computeReplanCount', () => {
 
   it('conta só campo=previsto, ignora campo=base da mesma tarefa', () => {
     const log = [
-      { tarefaId: 't1', campo: 'previsto' as const },
-      { tarefaId: 't1', campo: 'base' as const },
-      { tarefaId: 't1', campo: 'previsto' as const },
+      { tarefaId: 't1', campo: 'previsto' as const, porAdministrador: false },
+      { tarefaId: 't1', campo: 'base' as const, porAdministrador: false },
+      { tarefaId: 't1', campo: 'previsto' as const, porAdministrador: false },
     ];
     expect(computeReplanCount('t1', log)).toBe(2);
   });
 
   it('ignora entradas de outra tarefa', () => {
     const log = [
-      { tarefaId: 't1', campo: 'previsto' as const },
-      { tarefaId: 't2', campo: 'previsto' as const },
+      { tarefaId: 't1', campo: 'previsto' as const, porAdministrador: false },
+      { tarefaId: 't2', campo: 'previsto' as const, porAdministrador: false },
+    ];
+    expect(computeReplanCount('t1', log)).toBe(1);
+  });
+
+  it('ignora entradas feitas pelo administrador', () => {
+    const log = [
+      { tarefaId: 't1', campo: 'previsto' as const, porAdministrador: true },
+      { tarefaId: 't1', campo: 'previsto' as const, porAdministrador: false },
     ];
     expect(computeReplanCount('t1', log)).toBe(1);
   });
