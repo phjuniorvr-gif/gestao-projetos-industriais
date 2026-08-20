@@ -51,6 +51,17 @@ export interface Person {
   userId?: string;
 }
 
+// Papel de acesso (Fase 5, tabela `perfis`) — login + permissão, diferente de `Person`
+// (que é só "quem é referenciado em tarefa/projeto", nem sempre tem login).
+export type Papel = 'usuario' | 'administrador';
+
+export interface Usuario {
+  userId: string;
+  email: string;
+  papel: Papel;
+  createdAt: string;
+}
+
 // Task/Activity/Project (abaixo) são a forma PERSISTIDA — sem status nem nenhum campo
 // derivado. É o que projectsRepo.ts lê/escreve. TaskView/ActivityView/ProjectView (mais
 // abaixo) são o que recomputeProject produz — status e condições derivadas anexadas —

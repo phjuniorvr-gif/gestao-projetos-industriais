@@ -3,8 +3,8 @@ import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../components/ui';
 import { getSettings as getStoredSettings, setSettings as persistSettings } from '../services/localSettings';
-import { useCategories, usePeople } from '../hooks';
-import { STATUS_LABEL, type Category, type ProjectStatus } from '../types';
+import { useAuth, useCategories, usePeople, usePerfil, useUsuarios } from '../hooks';
+import { STATUS_LABEL, type Category, type Papel, type ProjectStatus } from '../types';
 
 interface Settings {
   defaultUnit: string;
@@ -32,6 +32,34 @@ export function SettingsPage() {
   const { categories } = useCategories();
   const { people, createPerson, updatePerson } = usePeople();
   const [newPersonName, setNewPersonName] = useState('');
+
+  const { session } = useAuth();
+  const isAdmin = usePerfil();
+  const { usuarios, createUsuario, updateUsuarioPapel } = useUsuarios(isAdmin === true);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserPapel, setNewUserPapel] = useState<Papel>('usuario');
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserError, setCreateUserError] = useState('');
+
+  async function handleCreateUser() {
+    setCreateUserError('');
+    if (!newUserEmail.trim() || !newUserPassword) {
+      setCreateUserError('Preencha e-mail e senha.');
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      await createUsuario(newUserEmail.trim(), newUserPassword, newUserPapel);
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserPapel('usuario');
+    } catch (err) {
+      setCreateUserError(err instanceof Error ? err.message : 'Não foi possível criar o usuário.');
+    } finally {
+      setCreatingUser(false);
+    }
+  }
 
   useEffect(() => {
     setSettings(getStoredSettings(DEFAULT_SETTINGS));
@@ -206,6 +234,71 @@ export function SettingsPage() {
           {people.length === 0 && <p className="text-sm text-text-muted">Nenhuma pessoa cadastrada ainda.</p>}
         </div>
       </Card>
+
+      {isAdmin === true && (
+        <Card className="max-w-2xl space-y-4 p-6">
+          <div>
+            <p className="text-sm font-semibold text-text">Usuários</p>
+            <p className="mt-1 text-xs text-text-muted">
+              Login e permissão de acesso ao sistema. Só administrador pode criar usuário ou trocar papel.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {usuarios.map((u) => {
+              const isSelf = u.userId === session?.user.id;
+              return (
+                <div key={u.userId} className="flex items-center gap-3">
+                  <span className="flex-1 truncate text-sm text-text">{u.email}</span>
+                  {isSelf ? (
+                    <span className="text-xs font-medium text-text-muted" title="Você não pode trocar seu próprio papel por aqui.">
+                      {u.papel === 'administrador' ? 'Administrador' : 'Usuário'}
+                    </span>
+                  ) : (
+                    <Select
+                      value={u.papel}
+                      onChange={(e) => updateUsuarioPapel(u.userId, e.target.value as Papel)}
+                      className="w-40"
+                    >
+                      <option value="usuario">Usuário</option>
+                      <option value="administrador">Administrador</option>
+                    </Select>
+                  )}
+                </div>
+              );
+            })}
+            {usuarios.length === 0 && <p className="text-sm text-text-muted">Nenhum usuário cadastrado ainda.</p>}
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted2">Novo usuário</p>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                type="email"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                placeholder="E-mail"
+                className="flex-1 min-w-[180px]"
+              />
+              <Input
+                type="password"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                placeholder="Senha"
+                className="flex-1 min-w-[140px]"
+              />
+              <Select value={newUserPapel} onChange={(e) => setNewUserPapel(e.target.value as Papel)} className="w-40">
+                <option value="usuario">Usuário</option>
+                <option value="administrador">Administrador</option>
+              </Select>
+              <Button variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={handleCreateUser} disabled={creatingUser}>
+                Criar
+              </Button>
+            </div>
+            {createUserError && <p className="text-xs text-status-delayed">{createUserError}</p>}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
