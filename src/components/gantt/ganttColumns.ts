@@ -15,7 +15,8 @@ export type GanttColumnKey =
   | 'inicioReal'
   | 'fimReal'
   | 'duracao'
-  | 'avanco';
+  | 'avanco'
+  | 'status';
 
 export interface GanttColumn {
   key: GanttColumnKey;
@@ -28,6 +29,7 @@ const COMPACT_COLUMNS: GanttColumn[] = [
   { key: 'linha', label: 'Linha', width: 64, align: 'right' },
   { key: 'estrutura', label: 'Estrutura', width: 480 },
   { key: 'avanco', label: 'Avanço', width: 150 },
+  { key: 'status', label: 'Status', width: 90 },
 ];
 
 // Datas em 4 colunas separadas (não intervalo único) — decisão do usuário, contra a sugestão
@@ -48,6 +50,7 @@ const FULL_COLUMNS: GanttColumn[] = [
   { key: 'fimReal', label: 'Fim real', width: 96 },
   { key: 'duracao', label: 'Duração', width: 80, align: 'right' },
   { key: 'avanco', label: 'Avanço', width: 150 },
+  { key: 'status', label: 'Status', width: 90 },
 ];
 
 /** `fullMode` = modo completo (checkbox "Colunas"/toggle "Visão completa" já existente). */

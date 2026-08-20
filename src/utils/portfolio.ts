@@ -46,7 +46,7 @@ export function computeActiveFilterCount(filters: ProjectFiltersState): number {
   let count = 0;
   if (filters.search.trim()) count++;
   if (filters.unit) count++;
-  if (filters.status) count++;
+  if (filters.status.length > 0) count++;
   if (filters.year) count++;
   return count;
 }

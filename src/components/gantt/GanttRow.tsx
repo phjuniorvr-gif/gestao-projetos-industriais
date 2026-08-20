@@ -4,6 +4,7 @@ import type { CategoryEntry, Holiday, Person, TaskView } from '../../types';
 import { businessDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
 import { Badge } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
+import { StatusEmoji } from '../shared/StatusEmoji';
 import { getColumnRect, type GanttColumn } from './ganttColumns';
 import { totalWidth, type DateRange } from './ganttMath';
 import { GanttBars } from './GanttBars';
@@ -63,6 +64,7 @@ export function GanttRow({
   const responsavel = people.find((p) => p.id === task.responsavelId);
   const estrutura = getColumnRect(columns, 'estrutura');
   const avanco = getColumnRect(columns, 'avanco');
+  const statusCol = getColumnRect(columns, 'status');
 
   return (
     <tr className="border-b border-border/70 bg-card hover:bg-page/60">
@@ -129,7 +131,7 @@ export function GanttRow({
         </>
       )}
       <td
-        className={`h-[34px] overflow-hidden whitespace-nowrap px-2 py-0 text-center align-middle border-r border-border ${
+        className={`h-[34px] overflow-hidden whitespace-nowrap px-2 py-0 text-center align-middle ${
           compact ? 'sticky z-25 bg-card' : ''
         }`}
         style={compact ? { left: avanco.left, width: avanco.width } : { width: avanco.width }}
@@ -141,6 +143,16 @@ export function GanttRow({
           lateCompletion={task.isLateCompletion}
           lateCompletionDays={task.lateCompletionDays}
         />
+      </td>
+      <td
+        className={`h-[34px] overflow-hidden px-2 py-0 align-middle border-r border-border ${
+          compact ? 'sticky z-25 bg-card' : ''
+        }`}
+        style={compact ? { left: statusCol.left, width: statusCol.width } : { width: statusCol.width }}
+      >
+        <div className="flex items-center justify-center">
+          <StatusEmoji status={task.status} />
+        </div>
       </td>
       {showGantt && (
         <>

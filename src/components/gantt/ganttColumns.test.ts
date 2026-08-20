@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { getColumnLeft, getColumnRect, getGanttColumns, getGanttLeftWidth } from './ganttColumns';
 
 describe('getGanttColumns', () => {
-  it('modo compacto: Linha 64 + Estrutura 480 + Avanço 150 = 694px', () => {
+  it('modo compacto: Linha 64 + Estrutura 480 + Avanço 150 + Status 90 = 784px', () => {
     const columns = getGanttColumns(false);
-    expect(columns.map((c) => c.key)).toEqual(['linha', 'estrutura', 'avanco']);
-    expect(getGanttLeftWidth(columns)).toBe(694);
+    expect(columns.map((c) => c.key)).toEqual(['linha', 'estrutura', 'avanco', 'status']);
+    expect(getGanttLeftWidth(columns)).toBe(784);
   });
 
-  it('modo completo: soma das 10 colunas (datas em 4 colunas separadas) = 1368px', () => {
+  it('modo completo: soma das 11 colunas (datas em 4 colunas separadas) = 1458px', () => {
     const columns = getGanttColumns(true);
     expect(columns.map((c) => c.key)).toEqual([
       'linha',
@@ -21,8 +21,9 @@ describe('getGanttColumns', () => {
       'fimReal',
       'duracao',
       'avanco',
+      'status',
     ]);
-    expect(getGanttLeftWidth(columns)).toBe(1368);
+    expect(getGanttLeftWidth(columns)).toBe(1458);
   });
 });
 
@@ -46,7 +47,7 @@ describe('getColumnLeft', () => {
     expect(getColumnLeft(columns, 'inicioPrevisto')).toBe(754);
   });
 
-  it('última coluna soma tudo antes dela', () => {
+  it('soma as larguras de todas as colunas anteriores', () => {
     const columns = getGanttColumns(false);
     // linha(64) + estrutura(480) = 544
     expect(getColumnLeft(columns, 'avanco')).toBe(544);
@@ -60,6 +61,6 @@ describe('getColumnRect', () => {
   });
 
   it('width 0 quando a coluna não existe no modo atual', () => {
-    expect(getColumnRect(getGanttColumns(false), 'categoria')).toEqual({ width: 0, left: 694 });
+    expect(getColumnRect(getGanttColumns(false), 'categoria')).toEqual({ width: 0, left: 784 });
   });
 });

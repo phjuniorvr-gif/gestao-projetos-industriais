@@ -69,9 +69,9 @@ describe('computeActiveFilterCount', () => {
   it('cada filtro conta 1, combinados somam', () => {
     expect(computeActiveFilterCount({ ...EMPTY_FILTERS, search: 'p01' })).toBe(1);
     expect(computeActiveFilterCount({ ...EMPTY_FILTERS, unit: 'Matriz' })).toBe(1);
-    expect(computeActiveFilterCount({ ...EMPTY_FILTERS, status: 'Atrasado' })).toBe(1);
+    expect(computeActiveFilterCount({ ...EMPTY_FILTERS, status: ['Atrasado'] })).toBe(1);
     expect(computeActiveFilterCount({ ...EMPTY_FILTERS, year: '2026' })).toBe(1);
-    expect(computeActiveFilterCount({ search: 'p01', unit: 'Matriz', status: 'Atrasado', year: '2026' })).toBe(4);
+    expect(computeActiveFilterCount({ search: 'p01', unit: 'Matriz', status: ['Atrasado'], year: '2026' })).toBe(4);
   });
 });
 

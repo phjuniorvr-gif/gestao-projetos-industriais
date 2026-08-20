@@ -22,6 +22,7 @@ import {
 } from './dependencyArrows';
 import { getColumnRect, getGanttColumns, getGanttLeftWidth, type GanttColumn, type GanttColumnKey } from './ganttColumns';
 import { GanttProgressCell } from './GanttProgressCell';
+import { StatusEmoji } from '../shared/StatusEmoji';
 import { LabelColumn, LABEL_COLUMN_WIDTH } from './LabelColumn';
 import {
   calculatePortfolioRange,
@@ -561,8 +562,13 @@ export function GanttTable({
                       </td>
                     </>
                   )}
-                  <td className={`${frozenTdClass} text-center border-r border-border`} style={columnStyle('avanco')}>
+                  <td className={`${frozenTdClass} text-center`} style={columnStyle('avanco')}>
                     <GanttProgressCell progress={project.progress} />
+                  </td>
+                  <td className={`${frozenTdClass} border-r border-border`} style={columnStyle('status')}>
+                    <div className="flex items-center justify-center">
+                      <StatusEmoji status={project.status} />
+                    </div>
                   </td>
                   {showGantt && (
                     <>
@@ -690,8 +696,13 @@ export function GanttTable({
                               </td>
                             </>
                           )}
-                          <td className={`${frozenTdClass} text-center border-r border-border`} style={columnStyle('avanco')}>
+                          <td className={`${frozenTdClass} text-center`} style={columnStyle('avanco')}>
                             <GanttProgressCell progress={activity.progress} />
+                          </td>
+                          <td className={`${frozenTdClass} border-r border-border`} style={columnStyle('status')}>
+                            <div className="flex items-center justify-center">
+                              <StatusEmoji status={activity.status} />
+                            </div>
                           </td>
                           {showGantt && (
                             <>

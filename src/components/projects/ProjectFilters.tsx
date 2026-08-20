@@ -7,11 +7,13 @@ import { FilterSelect } from './FilterSelect';
 export interface ProjectFiltersState {
   search: string;
   unit: string;
-  status: string;
+  /** Vários status ao mesmo tempo (Ctrl/Cmd+clique nos cards de saúde) — o dropdown abaixo
+   * continua de seleção única, só escreve um item nesse array. */
+  status: string[];
   year: string;
 }
 
-export const EMPTY_FILTERS: ProjectFiltersState = { search: '', unit: '', status: '', year: '' };
+export const EMPTY_FILTERS: ProjectFiltersState = { search: '', unit: '', status: [], year: '' };
 
 interface ProjectFiltersProps {
   filters: ProjectFiltersState;
@@ -38,8 +40,8 @@ export function ProjectFilters({ filters, units, years, onChange }: ProjectFilte
       <FilterSelect label="Unidade" value={filters.unit} onChange={(unit) => onChange({ ...filters, unit })} options={units} />
       <FilterSelect
         label="Status"
-        value={filters.status}
-        onChange={(status) => onChange({ ...filters, status })}
+        value={filters.status[0] ?? ''}
+        onChange={(status) => onChange({ ...filters, status: status ? [status] : [] })}
         options={Object.values(STATUS_LABEL)}
       />
       <FilterSelect label="Ano" value={filters.year} onChange={(year) => onChange({ ...filters, year })} options={years} />

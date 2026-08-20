@@ -88,19 +88,30 @@ export function ProjectsPage() {
     [projects],
   );
 
-  const activeStatus = useMemo(
-    () => (Object.keys(STATUS_LABEL) as ProjectStatus[]).find((s) => STATUS_LABEL[s] === filters.status) ?? null,
+  const activeStatuses = useMemo(
+    () => (Object.keys(STATUS_LABEL) as ProjectStatus[]).filter((s) => filters.status.includes(STATUS_LABEL[s])),
     [filters.status],
   );
-  const toggleStatus = (status: ProjectStatus) => {
-    setFilters((f) => ({ ...f, status: f.status === STATUS_LABEL[status] ? '' : STATUS_LABEL[status] }));
+  // Clique normal: seleção única (troca ou limpa se já era o único ativo). Ctrl/Cmd+clique:
+  // acrescenta/remove esse status da seleção, permitindo ver vários status juntos na tabela.
+  const toggleStatus = (status: ProjectStatus, multi: boolean) => {
+    const label = STATUS_LABEL[status];
+    setFilters((f) => {
+      if (multi) {
+        const has = f.status.includes(label);
+        return { ...f, status: has ? f.status.filter((s) => s !== label) : [...f.status, label] };
+      }
+      const isOnlySelected = f.status.length === 1 && f.status[0] === label;
+      return { ...f, status: isOnlySelected ? [] : [label] };
+    });
   };
 
-  const filtered = useMemo(
+  // Sem o filtro de status — é a base que os cards de saúde usam pra contar por status (senão,
+  // selecionar "Atrasado" zeraria os outros cards em vez de só destacar/filtrar a tabela).
+  const filteredExceptStatus = useMemo(
     () =>
       projects.filter((p) => {
         if (filters.unit && p.unit !== filters.unit) return false;
-        if (filters.status && STATUS_LABEL[p.status] !== filters.status) return false;
         if (filters.year && p.plannedStart?.slice(0, 4) !== filters.year) return false;
         if (filters.search.trim()) {
           const term = filters.search.trim().toLowerCase();
@@ -110,7 +121,15 @@ export function ProjectsPage() {
         }
         return true;
       }),
-    [projects, filters, people],
+    [projects, filters.unit, filters.year, filters.search, people],
+  );
+
+  const filtered = useMemo(
+    () =>
+      filters.status.length === 0
+        ? filteredExceptStatus
+        : filteredExceptStatus.filter((p) => filters.status.includes(STATUS_LABEL[p.status])),
+    [filteredExceptStatus, filters.status],
   );
 
   const sorted = useMemo(() => {
@@ -144,10 +163,9 @@ export function ProjectsPage() {
         />
 
         <ProjectsHealthStrip
-          projects={projects}
-          today={today}
-          holidays={safeHolidays}
-          activeStatus={activeStatus}
+          projects={filteredExceptStatus}
+          totalCount={filtered.length}
+          activeStatuses={activeStatuses}
           onToggleStatus={toggleStatus}
         />
       </div>

@@ -15,9 +15,15 @@ import {
   ZOOM_PX_PER_DAY,
   type GanttZoom,
 } from '../components/gantt';
-import { EMPTY_FILTERS, FilterSelect, ProjectFilters, type ProjectFiltersState } from '../components/projects';
+import {
+  EMPTY_FILTERS,
+  FilterSelect,
+  ProjectFilters,
+  ProjectsHealthStrip,
+  type ProjectFiltersState,
+} from '../components/projects';
 import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
-import { STATUS_LABEL, type ActivityView, type ProjectView, type TaskView } from '../types';
+import { STATUS_LABEL, type ActivityView, type ProjectStatus, type ProjectView, type TaskView } from '../types';
 import { rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
@@ -65,18 +71,43 @@ export function ProjectSchedulePage() {
     [projects],
   );
 
-  const visibleProjects = useMemo(
+  // Sem o filtro de status — base que os cards de saúde usam pra contar por status (senão,
+  // selecionar "Atrasado" zeraria os outros cards em vez de só destacar/filtrar a lista).
+  const visibleProjectsExceptStatus = useMemo(
     () =>
       id
         ? projectsToShow
         : projectsToShow.filter((p) => {
             if (filters.unit && p.unit !== filters.unit) return false;
-            if (filters.status && STATUS_LABEL[p.status] !== filters.status) return false;
             if (filters.year && p.plannedStart?.slice(0, 4) !== filters.year) return false;
             return true;
           }),
-    [projectsToShow, filters, id],
+    [projectsToShow, filters.unit, filters.year, id],
   );
+
+  const visibleProjects = useMemo(
+    () =>
+      filters.status.length === 0
+        ? visibleProjectsExceptStatus
+        : visibleProjectsExceptStatus.filter((p) => filters.status.includes(STATUS_LABEL[p.status])),
+    [visibleProjectsExceptStatus, filters.status],
+  );
+
+  const activeStatuses = useMemo(
+    () => (Object.keys(STATUS_LABEL) as ProjectStatus[]).filter((s) => filters.status.includes(STATUS_LABEL[s])),
+    [filters.status],
+  );
+  const toggleStatus = (status: ProjectStatus, multi: boolean) => {
+    const label = STATUS_LABEL[status];
+    setFilters((f) => {
+      if (multi) {
+        const has = f.status.includes(label);
+        return { ...f, status: has ? f.status.filter((s) => s !== label) : [...f.status, label] };
+      }
+      const isOnlySelected = f.status.length === 1 && f.status[0] === label;
+      return { ...f, status: isOnlySelected ? [] : [label] };
+    });
+  };
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
@@ -248,6 +279,15 @@ export function ProjectSchedulePage() {
             )}
           </div>
         </div>
+
+        {!project && projectsToShow.length > 0 && (
+          <ProjectsHealthStrip
+            projects={visibleProjectsExceptStatus}
+            totalCount={visibleProjects.length}
+            activeStatuses={activeStatuses}
+            onToggleStatus={toggleStatus}
+          />
+        )}
 
         {projectsToShow.length > 0 && (
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5">
