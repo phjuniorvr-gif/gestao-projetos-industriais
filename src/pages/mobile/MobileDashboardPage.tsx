@@ -41,7 +41,7 @@ export function MobileDashboardPage() {
       />
 
       <Card className="p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted2">Atenção nos próximos 30 dias</h3>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted2">Atenção nos próximos 90 dias</h3>
         {attentionItems.length === 0 ? (
           <p className="text-xs text-text-muted">Nada urgente por enquanto.</p>
         ) : (

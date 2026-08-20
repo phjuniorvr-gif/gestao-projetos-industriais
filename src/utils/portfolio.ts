@@ -211,7 +211,7 @@ export function computeFocusTask(tasks: TaskView[]): TaskView | null {
   })[0];
 }
 
-const ATTENTION_WINDOW_DAYS = 30;
+const ATTENTION_WINDOW_DAYS = 90;
 
 export interface AttentionItem {
   project: ProjectView;
@@ -223,8 +223,8 @@ export interface AttentionItem {
 }
 
 /**
- * "Atenção nos próximos 30 dias" — um item por projeto (o mais urgente entre atrasado/entrega
- * próxima/início próximo), ordenado por urgência e limitado a 5. Projeto concluído nunca aparece
+ * "Atenção nos próximos 90 dias" — um item por projeto (o mais urgente entre atrasado/entrega
+ * próxima/início próximo), ordenado por urgência e limitado a 10. Projeto concluído nunca aparece
  * — não tem mais nada a "atender".
  */
 export function computeAttentionItems(projects: ProjectView[], today: string, holidays: Holiday[]): AttentionItem[] {

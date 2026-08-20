@@ -10,13 +10,13 @@ interface AttentionPanelProps {
   holidays: Holiday[];
 }
 
-/** "Atenção nos próximos 30 dias" — painel lateral direito (Fase 3). */
+/** "Atenção nos próximos 90 dias" — painel lateral direito (Fase 3). */
 export function AttentionPanel({ projects, today, holidays }: AttentionPanelProps) {
   const items = computeAttentionItems(projects, today, holidays);
 
   return (
     <Card className="p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted2">Atenção nos próximos 30 dias</h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted2">Atenção nos próximos 90 dias</h3>
       {items.length === 0 ? (
         <p className="text-xs text-text-muted">Nada urgente por enquanto.</p>
       ) : (

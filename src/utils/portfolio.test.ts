@@ -333,7 +333,7 @@ describe('computeAttentionItems', () => {
     expect(items[0].days).toBeGreaterThan(0);
   });
 
-  it('entrega dentro de 30 dias entra como dueSoon; fora da janela não entra', () => {
+  it('entrega dentro de 90 dias entra como dueSoon; fora da janela não entra', () => {
     const dentro = baseProject({ id: 'a', status: 'in_progress', plannedEnd: '2026-08-20' }); // 9 dias
     const fora = baseProject({ id: 'b', status: 'in_progress', plannedEnd: '2026-12-01' });
     const items = computeAttentionItems([dentro, fora], today, []);
@@ -342,7 +342,7 @@ describe('computeAttentionItems', () => {
     expect(items[0].days).toBe(9);
   });
 
-  it('início previsto dentro de 30 dias, projeto ainda planned: upcomingStart', () => {
+  it('início previsto dentro de 90 dias, projeto ainda planned: upcomingStart', () => {
     const project = baseProject({ id: 'a', status: 'planned', plannedStart: '2026-08-25', plannedEnd: '2026-12-01' });
     const items = computeAttentionItems([project], today, []);
     expect(items[0].kind).toBe('upcomingStart');
