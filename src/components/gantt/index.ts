@@ -7,6 +7,7 @@ export * from './GanttRow';
 export * from './GanttSummaryBar';
 export * from './GanttTable';
 export * from './GanttTooltip';
+export * from './MobileScheduleList';
 export * from './RowTypeBadge';
 export * from './ScheduleLegend';
 export * from './TaskDependencyInput';
