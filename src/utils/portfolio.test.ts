@@ -349,7 +349,7 @@ describe('computeAttentionItems', () => {
     expect(items[0].days).toBe(14);
   });
 
-  it('ordena atrasados primeiro (pior desvio primeiro), depois por dias restantes crescente; corta em 5', () => {
+  it('ordena atrasados primeiro (pior desvio primeiro), depois por dias restantes crescente; corta em 10', () => {
     const projects = [
       baseProject({ id: 'p1', status: 'in_progress', plannedEnd: '2026-08-25' }), // dueSoon, 14d
       baseProject({ id: 'p2', status: 'delayed', plannedEnd: '2026-08-01' }), // overdue, desvio menor

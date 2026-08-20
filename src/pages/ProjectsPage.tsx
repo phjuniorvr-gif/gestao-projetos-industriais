@@ -10,7 +10,6 @@ import {
   ProjectFilters,
   ProjectsHealthStrip,
   ProjectsTable,
-  WorkloadPanel,
   type ProjectFiltersState,
 } from '../components/projects';
 import { Button, UndoToast } from '../components/ui';
@@ -170,7 +169,6 @@ export function ProjectsPage() {
 
         <div className="space-y-4">
           <AttentionPanel projects={projects} today={today} holidays={safeHolidays} />
-          <WorkloadPanel projects={projects} people={people} />
         </div>
       </div>
 

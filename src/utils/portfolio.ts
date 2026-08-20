@@ -261,7 +261,7 @@ export function computeAttentionItems(projects: ProjectView[], today: string, ho
       if (a.kind === 'overdue' && b.kind === 'overdue') return b.days - a.days; // pior desvio primeiro
       return a.days - b.days; // menos dias restantes primeiro
     })
-    .slice(0, 5);
+    .slice(0, 10);
 }
 
 export interface WorkloadEntry {
