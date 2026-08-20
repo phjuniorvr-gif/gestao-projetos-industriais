@@ -58,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
 
   return (
     <aside
@@ -105,6 +105,11 @@ export function Sidebar() {
       </div>
 
       <div className="mt-auto px-2.5 py-4">
+        {!collapsed && session?.user.email && (
+          <p className="truncate px-3 pb-2 text-xs text-white/60" title={session.user.email}>
+            {session.user.email}
+          </p>
+        )}
         <button
           type="button"
           onClick={() => signOut()}
