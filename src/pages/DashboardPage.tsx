@@ -141,6 +141,12 @@ export function DashboardPage() {
         onStatusChange={setStatus}
         onRefresh={handleRefresh}
         refreshing={refreshing}
+        onClear={() => {
+          setYear('');
+          setPeriodDays(90);
+          setUnit('');
+          setStatus('');
+        }}
       />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">

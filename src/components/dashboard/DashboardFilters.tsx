@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import { STATUS_LABEL } from '../../types';
 import { Button, Card, FormField, Select } from '../ui';
 
@@ -21,6 +21,7 @@ interface DashboardFiltersProps {
   onStatusChange: (status: string) => void;
   onRefresh: () => void;
   refreshing: boolean;
+  onClear: () => void;
 }
 
 /** Barra de filtros do Dashboard — Ano/Período/Unidade/Status ficam locais à página (nenhum
@@ -39,7 +40,10 @@ export function DashboardFilters({
   onStatusChange,
   onRefresh,
   refreshing,
+  onClear,
 }: DashboardFiltersProps) {
+  const hasActiveFilter = Boolean(year || unit || status || periodDays !== 90);
+
   return (
     <Card className="flex flex-wrap items-end justify-between gap-4 p-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -87,9 +91,16 @@ export function DashboardFilters({
         </FormField>
       </div>
 
-      <Button variant="secondary" icon={<RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />} onClick={onRefresh}>
-        Atualizar
-      </Button>
+      <div className="flex items-center gap-2">
+        {hasActiveFilter && (
+          <Button variant="ghost" icon={<X className="h-4 w-4" />} onClick={onClear}>
+            Limpar filtros
+          </Button>
+        )}
+        <Button variant="secondary" icon={<RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />} onClick={onRefresh}>
+          Atualizar
+        </Button>
+      </div>
     </Card>
   );
 }
