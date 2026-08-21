@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { MobileProjectSheet, StatusChipRow } from '../../components/projects';
 import { MiniGantt } from '../../components/projects/MiniGantt';
 import { Card, EmptyState, Input, UndoToast } from '../../components/ui';
+import type { MobileOutletContext } from '../../components/layout';
 import { useHolidays, usePeople, useProjects, useUndoToast } from '../../hooks';
 import { computeStatusDistribution, formatPeriod, sortProjectsByCriticality } from '../../utils';
 import type { ProjectStatus, ProjectView } from '../../types';
@@ -43,6 +45,7 @@ function ScheduleListCard({ project, today, onOpen }: { project: ProjectView; to
  * Fase 4 — não cabe em tela de celular). Toque abre o mesmo `MobileProjectSheet` da aba Projetos.
  */
 export function MobileSchedulePage() {
+  const { year, setYear } = useOutletContext<MobileOutletContext>();
   const { projects, today, updateTaskActualDates } = useProjects();
   const { people } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
@@ -58,6 +61,7 @@ export function MobileSchedulePage() {
     () =>
       projects.filter((p) => {
         if (activeStatus && p.status !== activeStatus) return false;
+        if (year && p.plannedStart?.slice(0, 4) !== year) return false;
         if (search.trim()) {
           const term = search.trim().toLowerCase();
           const gerente = people.find((person) => person.id === p.gerenteId)?.name ?? '';
@@ -66,7 +70,7 @@ export function MobileSchedulePage() {
         }
         return true;
       }),
-    [projects, activeStatus, search, people],
+    [projects, activeStatus, year, search, people],
   );
 
   const sorted = useMemo(
@@ -92,11 +96,12 @@ export function MobileSchedulePage() {
           onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
           size="touch"
         />
-        {(activeStatus || search.trim()) && (
+        {(activeStatus || year || search.trim()) && (
           <button
             type="button"
             onClick={() => {
               setActiveStatus(null);
+              setYear('');
               setSearch('');
             }}
             className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"

@@ -10,11 +10,12 @@ interface FilterSelectProps {
   value: string;
   onChange: (value: string) => void;
   options: (string | FilterOption)[];
+  className?: string;
 }
 
-export function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
+export function FilterSelect({ label, value, onChange, options, className }: FilterSelectProps) {
   return (
-    <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
+    <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className={className}>
       <option value="">{`${label}: Todos`}</option>
       {options.map((option) => {
         const { value: optionValue, label: optionLabel } =
