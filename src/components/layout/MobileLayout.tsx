@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { FilterSelect } from '../projects';
+import { AppLogo } from '../ui';
 import { MobileTabBar } from './MobileTabBar';
 import { useAuth, useProjects } from '../../hooks';
 
@@ -48,7 +49,10 @@ export function MobileLayout() {
         className="sticky top-0 z-30 flex min-h-11 items-center justify-between gap-2 bg-gradient-to-b from-sidebar to-sidebar-dark px-4 py-2"
         style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
       >
-        <p className="min-w-0 truncate text-base font-bold text-white">{title}</p>
+        <div className="flex min-w-0 items-center gap-2">
+          <AppLogo className="h-7 w-7 shrink-0" />
+          <p className="min-w-0 truncate text-base font-bold text-white">{title}</p>
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           {showsYearFilter(pathname) && (
             <FilterSelect label="Ano" value={year} onChange={setYear} options={years} className="min-h-11 w-32" />

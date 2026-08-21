@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MobileProjectSheet, StatusChipRow } from '../../components/projects';
+import { MobileProjectSheet, StatusGrid } from '../../components/projects';
 import { Card, UndoToast } from '../../components/ui';
 import { useHolidays, useProjects, useUndoToast } from '../../hooks';
 import { computeAttentionItems, computeStatusDistribution, computeWorstDeviation } from '../../utils/portfolio';
@@ -33,11 +33,10 @@ export function MobileDashboardPage() {
         </p>
       </Card>
 
-      <StatusChipRow
+      <StatusGrid
         distribution={distribution}
-        activeStatus={null}
+        isActive={() => false}
         onToggleStatus={(status) => navigate(`/projetos?status=${status}`)}
-        size="touch"
       />
 
       <Card className="p-4">

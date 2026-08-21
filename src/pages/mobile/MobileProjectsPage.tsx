@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { X } from 'lucide-react';
-import { MobileProjectSheet, ProjectCard, StatusChipRow } from '../../components/projects';
+import { ArrowUpDown, X } from 'lucide-react';
+import { MobileProjectSheet, ProjectCard, StatusGrid } from '../../components/projects';
 import { EmptyState, Input, UndoToast } from '../../components/ui';
 import type { MobileOutletContext } from '../../components/layout';
 import { useHolidays, usePeople, useProjects, useUndoToast } from '../../hooks';
@@ -23,6 +23,10 @@ export function MobileProjectsPage() {
   const { toast, show, dismiss } = useUndoToast();
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<ProjectStatus | null>(() => readStatusParam(searchParams.get('status')));
+  // Ordenação padrão continua por criticidade (sortProjectsByCriticality) — o botão "Ordenar"
+  // alterna pra código crescente/decrescente e volta, mesmo ciclo de 3 estados do cabeçalho
+  // "Projeto" no desktop (ProjectsPage.tsx), só que por código (P05, P10, ...) em vez de nome.
+  const [codeSort, setCodeSort] = useState<'asc' | 'desc' | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
 
   const safeHolidays = holidaysLoaded ? holidays : [];
@@ -51,10 +55,16 @@ export function MobileProjectsPage() {
     [projects, activeStatus, year, search, people],
   );
 
-  const sorted = useMemo(
-    () => sortProjectsByCriticality(filtered, today, safeHolidays),
-    [filtered, today, safeHolidays],
-  );
+  const sorted = useMemo(() => {
+    if (codeSort) {
+      // Extrai o número do código ("P48" -> 48) em vez de comparar a string direto — string
+      // ordenaria "P5" depois de "P48" se algum código não tivesse zero à esquerda.
+      const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
+      const ranked = [...filtered].sort((a, b) => codeNumber(a.code) - codeNumber(b.code));
+      return codeSort === 'desc' ? ranked.reverse() : ranked;
+    }
+    return sortProjectsByCriticality(filtered, today, safeHolidays);
+  }, [filtered, today, safeHolidays, codeSort]);
 
   const openProject = projects.find((p) => p.id === openProjectId) ?? null;
 
@@ -67,27 +77,33 @@ export function MobileProjectsPage() {
         className="min-h-11 w-full"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusChipRow
-          distribution={distribution}
-          activeStatus={activeStatus}
-          onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
-          size="touch"
-        />
-        {(activeStatus || year || search.trim()) && (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveStatus(null);
-              setYear('');
-              setSearch('');
-            }}
-            className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
-          >
-            <X className="h-3.5 w-3.5" /> Limpar filtro
-          </button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => setCodeSort((current) => (current === null ? 'asc' : current === 'asc' ? 'desc' : null))}
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-xs font-semibold text-text-muted"
+      >
+        <ArrowUpDown className="h-3.5 w-3.5" />
+        {codeSort === 'asc' ? 'Código: P01 → P99' : codeSort === 'desc' ? 'Código: P99 → P01' : 'Ordenado por criticidade'}
+      </button>
+
+      <StatusGrid
+        distribution={distribution}
+        isActive={(status) => activeStatus === status}
+        onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
+      />
+      {(activeStatus || year || search.trim()) && (
+        <button
+          type="button"
+          onClick={() => {
+            setActiveStatus(null);
+            setYear('');
+            setSearch('');
+          }}
+          className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
+        >
+          <X className="h-3.5 w-3.5" /> Limpar filtro
+        </button>
+      )}
 
       {sorted.length === 0 ? (
         <EmptyState title="Nenhum projeto com esse filtro" />

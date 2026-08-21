@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import type { ProjectStatus, ProjectView, TaskView } from '../../types';
-import { STATUS_COLOR, STATUS_LABEL } from '../../types';
 import { formatPeriod } from '../../utils';
+import { computeStatusDistribution } from '../../utils/portfolio';
 import { StatusEmoji } from '../shared/StatusEmoji';
 import { Card } from '../ui';
+import { StatusGrid } from '../projects';
 import { RowTypeBadge } from './RowTypeBadge';
-
-const STATUS_ORDER: ProjectStatus[] = ['planned', 'in_progress', 'delayed', 'completed'];
 
 interface DatesLineProps {
   plannedStart?: string;
@@ -51,41 +50,29 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
   }
 
   // Sempre conta TODAS as tarefas (não só as visíveis) — senão selecionar "Atrasado" zeraria a
-  // contagem dos outros chips em vez de só filtrar a lista abaixo (mesmo raciocínio dos cards de
-  // saúde do desktop).
+  // contagem dos outros cards em vez de só filtrar a lista abaixo (mesmo raciocínio dos cards de
+  // saúde do desktop). TaskStatus === ProjectStatus (mesmo union), então computeStatusDistribution
+  // (feito pra projeto) já serve pra contar tarefa sem duplicar lógica.
   const allTasks = projects.flatMap((p) => p.activities.flatMap((a) => a.tasks));
-  const countOf = (status: ProjectStatus) => allTasks.filter((t) => t.status === status).length;
+  const distribution = computeStatusDistribution(allTasks);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {STATUS_ORDER.map((status) => {
-          const active = statusFilter.includes(status);
-          return (
-            <button
-              key={status}
-              type="button"
-              onClick={() => toggleStatusFilter(status)}
-              aria-pressed={active}
-              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors ${
-                active ? 'border-sidebar bg-sidebar text-white' : 'border-border bg-white text-text-muted'
-              }`}
-            >
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR[status] }} />
-              {STATUS_LABEL[status]} · {countOf(status)}
-            </button>
-          );
-        })}
-        {statusFilter.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setStatusFilter([])}
-            className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
-          >
-            <X className="h-3.5 w-3.5" /> Limpar filtro
-          </button>
-        )}
-      </div>
+      <StatusGrid
+        distribution={distribution}
+        isActive={(status) => statusFilter.includes(status)}
+        onToggleStatus={toggleStatusFilter}
+        title="Status das tarefas"
+      />
+      {statusFilter.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setStatusFilter([])}
+          className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
+        >
+          <X className="h-3.5 w-3.5" /> Limpar filtro
+        </button>
+      )}
 
       {projects.map((project) => {
         const activitiesWithVisibleTasks = project.activities

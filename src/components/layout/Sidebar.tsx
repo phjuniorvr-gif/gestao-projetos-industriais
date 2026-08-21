@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
+import { AppLogo } from '../ui';
 import { useAuth } from '../../hooks';
 
 interface NavItem {
@@ -76,7 +77,12 @@ export function Sidebar() {
         >
           <Menu className="h-[18px] w-[18px]" />
         </button>
-        {!collapsed && <p className="whitespace-nowrap text-lg font-extrabold">Projetos</p>}
+        {!collapsed && (
+          <div className="flex min-w-0 items-center gap-2">
+            <AppLogo className="h-7 w-7 shrink-0" />
+            <p className="whitespace-nowrap text-lg font-extrabold">Projetos</p>
+          </div>
+        )}
       </div>
 
       <div className="px-2.5 py-4">

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { MobileProjectSheet, StatusChipRow } from '../../components/projects';
+import { MobileProjectSheet, StatusGrid } from '../../components/projects';
 import { MiniGantt } from '../../components/projects/MiniGantt';
 import { Card, EmptyState, Input, UndoToast } from '../../components/ui';
 import type { MobileOutletContext } from '../../components/layout';
@@ -96,27 +96,24 @@ export function MobileSchedulePage() {
         className="min-h-11 w-full"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusChipRow
-          distribution={distribution}
-          activeStatus={activeStatus}
-          onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
-          size="touch"
-        />
-        {(activeStatus || year || search.trim()) && (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveStatus(null);
-              setYear('');
-              setSearch('');
-            }}
-            className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
-          >
-            <X className="h-3.5 w-3.5" /> Limpar filtro
-          </button>
-        )}
-      </div>
+      <StatusGrid
+        distribution={distribution}
+        isActive={(status) => activeStatus === status}
+        onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
+      />
+      {(activeStatus || year || search.trim()) && (
+        <button
+          type="button"
+          onClick={() => {
+            setActiveStatus(null);
+            setYear('');
+            setSearch('');
+          }}
+          className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
+        >
+          <X className="h-3.5 w-3.5" /> Limpar filtro
+        </button>
+      )}
 
       {sorted.length === 0 ? (
         <EmptyState title="Nenhum projeto com esse filtro" />
