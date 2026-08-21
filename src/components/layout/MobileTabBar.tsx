@@ -47,7 +47,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-card"
+      className="fixed inset-x-0 bottom-0 z-40 flex bg-gradient-to-b from-sidebar to-sidebar-dark"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {tabItems.map((item) => {
@@ -58,7 +58,7 @@ export function MobileTabBar() {
             key={item.to}
             to={item.to}
             className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-semibold ${
-              active ? 'text-action' : 'text-text-muted'
+              active ? 'text-white' : 'text-white/60'
             }`}
           >
             <span className="relative">

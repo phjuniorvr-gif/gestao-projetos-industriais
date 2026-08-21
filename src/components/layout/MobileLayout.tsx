@@ -27,6 +27,9 @@ export interface MobileOutletContext {
   setYear: (year: string) => void;
 }
 
+/** Barra de abas embaixo, igual à Fase 6 original (sidebar e barra de abas não convivem numa
+ * árvore só — tentativa de barra lateral revertida a pedido do usuário). Cabeçalho e barra de
+ * abas ganharam a cor navy do Sidebar desktop, também a pedido do usuário. */
 export function MobileLayout() {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
@@ -42,10 +45,10 @@ export function MobileLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <header
-        className="sticky top-0 z-30 flex min-h-11 items-center justify-between gap-2 border-b border-border bg-card px-4 py-2"
+        className="sticky top-0 z-30 flex min-h-11 items-center justify-between gap-2 bg-gradient-to-b from-sidebar to-sidebar-dark px-4 py-2"
         style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
       >
-        <p className="min-w-0 truncate text-base font-bold text-text">{title}</p>
+        <p className="min-w-0 truncate text-base font-bold text-white">{title}</p>
         <div className="flex shrink-0 items-center gap-1">
           {showsYearFilter(pathname) && (
             <FilterSelect label="Ano" value={year} onChange={setYear} options={years} className="min-h-11 w-32" />
@@ -55,7 +58,7 @@ export function MobileLayout() {
             onClick={() => signOut()}
             aria-label="Sair"
             title="Sair"
-            className="flex h-11 w-11 shrink-0 items-center justify-center text-text-muted hover:text-text"
+            className="flex h-11 w-11 shrink-0 items-center justify-center text-white/80 hover:text-white"
           >
             <LogOut className="h-5 w-5" />
           </button>
