@@ -1,17 +1,25 @@
 import { useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import { MobileProjectSheet, StatusChipRow } from '../../components/projects';
 import { MiniGantt } from '../../components/projects/MiniGantt';
 import { Card, EmptyState, Input, UndoToast } from '../../components/ui';
 import { useHolidays, usePeople, useProjects, useUndoToast } from '../../hooks';
-import { computeStatusDistribution, sortProjectsByCriticality } from '../../utils';
+import { computeStatusDistribution, formatPeriod, sortProjectsByCriticality } from '../../utils';
 import type { ProjectStatus, ProjectView } from '../../types';
 
 function ScheduleListCard({ project, today, onOpen }: { project: ProjectView; today: string; onOpen: (p: ProjectView) => void }) {
   return (
     <Card className="min-h-11 cursor-pointer space-y-1.5 p-3" onClick={() => onOpen(project)}>
-      <p className="truncate text-sm font-semibold text-text">
-        {project.code} — {project.name}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate text-sm font-semibold text-text">
+          {project.code} — {project.name}
+        </p>
+        {project.unit && (
+          <span className="shrink-0 rounded-full bg-page px-2 py-0.5 text-[11px] font-medium text-text-muted">
+            {project.unit}
+          </span>
+        )}
+      </div>
       <MiniGantt
         plannedStart={project.plannedStart}
         plannedEnd={project.plannedEnd}
@@ -21,6 +29,10 @@ function ScheduleListCard({ project, today, onOpen }: { project: ProjectView; to
         today={today}
         size="compact"
       />
+      <div className="space-y-0.5 text-xs text-text-muted">
+        <p>Previsto: {formatPeriod(project.plannedStart, project.plannedEnd)}</p>
+        <p>Real: {project.actualStart ? formatPeriod(project.actualStart, project.actualEnd) : 'Não iniciado'}</p>
+      </div>
     </Card>
   );
 }
@@ -73,12 +85,26 @@ export function MobileSchedulePage() {
         className="min-h-11 w-full"
       />
 
-      <StatusChipRow
-        distribution={distribution}
-        activeStatus={activeStatus}
-        onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
-        size="touch"
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusChipRow
+          distribution={distribution}
+          activeStatus={activeStatus}
+          onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
+          size="touch"
+        />
+        {(activeStatus || search.trim()) && (
+          <button
+            type="button"
+            onClick={() => {
+              setActiveStatus(null);
+              setSearch('');
+            }}
+            className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
+          >
+            <X className="h-3.5 w-3.5" /> Limpar filtro
+          </button>
+        )}
+      </div>
 
       {sorted.length === 0 ? (
         <EmptyState title="Nenhum projeto com esse filtro" />
