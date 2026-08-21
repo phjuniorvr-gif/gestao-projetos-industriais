@@ -1,93 +1,226 @@
-import { useMemo } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout';
+import {
+  AttentionPoints,
+  AttentionSplitPanel,
+  DashboardFilters,
+  DelayedTasksByPerson,
+  MonthlyStatusTrendChart,
+  UnitDonutChart,
+} from '../components/dashboard';
+import { StatusDonutChart } from '../components/projects';
 import { Card } from '../components/ui';
-import { useProjects } from '../hooks';
-import { diffDays, todayISO } from '../utils';
+import { useHolidays, usePeople, useProjects } from '../hooks';
+import { diffDays } from '../utils';
+import { computeAttentionItems, computeStatusDistribution } from '../utils/portfolio';
+import { STATUS_COLOR, STATUS_LABEL, type ProjectStatus } from '../types';
 
 export function DashboardPage() {
-  const { projects } = useProjects();
+  const navigate = useNavigate();
+  const { projects, today, refetch } = useProjects();
+  const { people } = usePeople();
+  const { holidays, loaded: holidaysLoaded } = useHolidays();
+  const safeHolidays = holidaysLoaded ? holidays : [];
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [year, setYear] = useState('');
+  const [periodDays, setPeriodDays] = useState(90);
+  const [unit, setUnit] = useState('');
+  const [status, setStatus] = useState('');
+
+  const years = useMemo(
+    () => Array.from(new Set(projects.map((p) => p.plannedStart?.slice(0, 4)).filter((y): y is string => Boolean(y)))).sort(),
+    [projects],
+  );
+  const units = useMemo(() => Array.from(new Set(projects.map((p) => p.unit).filter(Boolean))).sort(), [projects]);
+
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter((p) => {
+        if (year && p.plannedStart?.slice(0, 4) !== year) return false;
+        if (unit && p.unit !== unit) return false;
+        if (status && STATUS_LABEL[p.status] !== status) return false;
+        return true;
+      }),
+    [projects, year, unit, status],
+  );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }
+
+  const distribution = useMemo(() => computeStatusDistribution(filteredProjects), [filteredProjects]);
+  const attentionItems = useMemo(
+    () => computeAttentionItems(filteredProjects, today, safeHolidays, periodDays),
+    [filteredProjects, today, safeHolidays, periodDays],
+  );
 
   const metrics = useMemo(() => {
-    const today = todayISO();
-    const currentMonth = today.slice(0, 7);
+    const referenceYear = year || today.slice(0, 4);
 
-    const activeProjects = projects.filter((p) => p.status !== 'completed');
-    const delayedProjects = projects.filter((p) => p.status === 'delayed');
-    const delayedTasks = projects
-      .flatMap((p) => p.activities.flatMap((a) => a.tasks))
-      .filter((t) => t.status === 'delayed').length;
-    const completedThisMonth = projects.filter(
-      (p) => p.status === 'completed' && p.actualEnd?.slice(0, 7) === currentMonth,
-    ).length;
+    const activeProjects = filteredProjects.filter((p) => p.status !== 'completed');
+    const delayedProjects = filteredProjects.filter((p) => p.status === 'delayed');
+    const delayedTasks = filteredProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)).filter((t) => t.status === 'delayed');
+    const impactedResponsibles = new Set(delayedTasks.map((t) => t.responsavelId).filter(Boolean)).size;
+    const completedThisYear = projects.filter((p) => p.status === 'completed' && p.actualEnd?.slice(0, 4) === referenceYear).length;
 
-    const durations = projects
+    const activeDurations = activeProjects
       .filter((p) => p.plannedStart && p.plannedEnd)
       .map((p) => diffDays(p.plannedStart!, p.plannedEnd!));
-    const averageDuration = durations.length
-      ? Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length)
+    const averageDuration = activeDurations.length
+      ? Math.round(activeDurations.reduce((sum, d) => sum + d, 0) / activeDurations.length)
       : 0;
 
-    const byUnit = new Map<string, number>();
-    for (const project of projects) {
+    const total = filteredProjects.length;
+    const onTrackCount = filteredProjects.filter((p) => p.status !== 'delayed').length;
+    const onTrackPct = total ? Math.round((onTrackCount / total) * 100) : 0;
+
+    const byUnit = new Map<string, { count: number; delayed: number }>();
+    for (const project of filteredProjects) {
       const key = project.unit || 'Sem unidade';
-      byUnit.set(key, (byUnit.get(key) ?? 0) + 1);
+      const entry = byUnit.get(key) ?? { count: 0, delayed: 0 };
+      entry.count += 1;
+      if (project.status === 'delayed') entry.delayed += 1;
+      byUnit.set(key, entry);
     }
+
+    const semGerenteCount = filteredProjects.filter((p) => !p.gerenteId).length;
 
     return {
       activeCount: activeProjects.length,
       delayedCount: delayedProjects.length,
-      delayedTasks,
-      completedThisMonth,
+      delayedTaskCount: delayedTasks.length,
+      impactedResponsibles,
+      completedThisYear,
       averageDuration,
+      onTrackPct,
       byUnit: Array.from(byUnit.entries()),
+      semGerenteCount,
+      total,
     };
-  }, [projects]);
+  }, [filteredProjects, projects, today, year]);
+
+  const attentionPoints = [
+    ...(metrics.semGerenteCount > 0
+      ? [
+          {
+            color: STATUS_COLOR.delayed,
+            title: `${metrics.semGerenteCount} projeto${metrics.semGerenteCount === 1 ? '' : 's'} sem gerente definido`,
+            subtitle: 'Atribuição recomendada',
+          },
+        ]
+      : []),
+    ...(metrics.completedThisYear > 0
+      ? [
+          {
+            color: STATUS_COLOR.completed,
+            title: `${metrics.completedThisYear} projeto${metrics.completedThisYear === 1 ? '' : 's'} concluído${metrics.completedThisYear === 1 ? '' : 's'} no ano`,
+            subtitle: 'Dentro do planejamento atual',
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" subtitle="Visão geral dos projetos industriais" />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <MetricCard label="Projetos ativos" value={metrics.activeCount} />
-        <MetricCard label="Projetos atrasados" value={metrics.delayedCount} />
-        <MetricCard label="Tarefas atrasadas" value={metrics.delayedTasks} />
-        <MetricCard label="Concluídos no mês" value={metrics.completedThisMonth} />
-        <MetricCard label="Prazo médio (dias)" value={metrics.averageDuration} />
+      <DashboardFilters
+        year={year}
+        years={years}
+        onYearChange={setYear}
+        periodDays={periodDays}
+        onPeriodChange={setPeriodDays}
+        unit={unit}
+        units={units}
+        onUnitChange={setUnit}
+        status={status}
+        onStatusChange={setStatus}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+      />
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <MetricCard label="Projetos ativos" value={metrics.activeCount} color={STATUS_COLOR.in_progress} />
+        <MetricCard
+          label="Projetos atrasados"
+          value={metrics.delayedCount}
+          subtitle={metrics.total ? `${Math.round((metrics.delayedCount / metrics.total) * 100)}% do total` : undefined}
+          color={STATUS_COLOR.delayed}
+        />
+        <MetricCard
+          label="Tarefas atrasadas"
+          value={metrics.delayedTaskCount}
+          subtitle={
+            metrics.impactedResponsibles > 0
+              ? `${metrics.impactedResponsibles} responsáve${metrics.impactedResponsibles === 1 ? 'l' : 'is'} impactado${metrics.impactedResponsibles === 1 ? '' : 's'}`
+              : undefined
+          }
+          color={STATUS_COLOR.delayed}
+        />
+        <MetricCard
+          label="Concluídos no ano"
+          value={metrics.completedThisYear}
+          subtitle="Referente ao ano selecionado"
+          color={STATUS_COLOR.completed}
+        />
+        <MetricCard label="Prazo médio" value={`${metrics.averageDuration}d`} subtitle="Média dos projetos ativos" color="#334155" />
+        <MetricCard
+          label="Projetos no prazo"
+          value={`${metrics.onTrackPct}%`}
+          subtitle={`${metrics.total - metrics.delayedCount} de ${metrics.total} no prazo`}
+          color={STATUS_COLOR.completed}
+        />
       </div>
 
-      <Card className="p-4">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">Projetos por unidade</p>
-        <div className="space-y-2">
-          {metrics.byUnit.map(([unit, count]) => (
-            <div key={unit} className="flex items-center gap-3">
-              <span className="w-24 text-sm text-text">{unit}</span>
-              <div className="h-2 flex-1 rounded-full bg-page">
-                <div
-                  className="h-2 rounded-full bg-action"
-                  style={{ width: `${(count / Math.max(1, projects.length)) * 100}%` }}
-                />
-              </div>
-              <span className="w-6 text-right text-sm text-text-muted">{count}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <UnitDonutChart
+          data={metrics.byUnit.map(([unitName, entry]) => ({ unit: unitName, count: entry.count, delayed: entry.delayed }))}
+          onSelectUnit={setUnit}
+        />
 
-      <Card className="flex flex-col items-center justify-center gap-2 border-dashed p-10 text-center">
-        <BarChart3 className="h-8 w-8 text-text-muted" />
-        <p className="text-sm font-medium text-text">Espaço reservado para gráficos</p>
-        <p className="text-xs text-text-muted">Curva S, distribuição de status e tendência de atrasos entram aqui.</p>
-      </Card>
+        <StatusDonutChart
+          distribution={distribution}
+          onSelectStatus={(s: ProjectStatus) => navigate(`/projetos?status=${s}`)}
+          subtitle={`Distribuição atual${year ? ` em ${year}` : ''}`}
+        />
+
+        <MonthlyStatusTrendChart projects={filteredProjects} year={year} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <AttentionSplitPanel items={attentionItems} />
+        <DelayedTasksByPerson projects={filteredProjects} people={people} />
+      </div>
+
+      <AttentionPoints points={attentionPoints} />
     </div>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function MetricCard({
+  label,
+  value,
+  subtitle,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  subtitle?: string;
+  color: string;
+}) {
   return (
-    <Card className="p-4">
-      <p className="text-xs font-medium text-text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-text">{value}</p>
+    <Card className="overflow-hidden p-0">
+      <div className="px-3 py-1.5 text-xs font-semibold text-white" style={{ backgroundColor: color }}>
+        {label}
+      </div>
+      <div className="p-3">
+        <p className="text-2xl font-semibold text-text">{value}</p>
+        {subtitle && <p className="mt-0.5 text-xs text-text-muted2">{subtitle}</p>}
+      </div>
     </Card>
   );
 }

@@ -13,4 +13,5 @@ export * from './WorkloadPanel';
 export * from './ProjectCard';
 export * from './DeletedProjectCard';
 export * from './StatusGrid';
+export * from './StatusDonutChart';
 export * from './MobileProjectSheet';

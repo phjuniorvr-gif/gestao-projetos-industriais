@@ -38,7 +38,10 @@ export function ProjectsPage() {
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   // Ordenação padrão continua por criticidade (sortProjectsByCriticality) — clicar no cabeçalho
-  // "Projeto" (ProjectsTable.tsx) alterna pra A-Z/Z-A; um terceiro clique volta pra criticidade.
+  // "Projeto" (ProjectsTable.tsx) ou no botão explícito abaixo alterna por código (P01→P99 /
+  // P99→P01); um terceiro clique volta pra criticidade. Nome do state ficou de quando ordenava
+  // por nome descritivo — trocado pra código a pedido do usuário (o identificador em destaque em
+  // cada linha é o código, não o texto do nome).
   const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
   // Guarda só o id, não o ProjectView capturado no clique — o painel precisa refletir o projeto
   // sempre atualizado (ex.: depois de salvar Identificação ou adicionar atividade, sem fechar),
@@ -134,7 +137,11 @@ export function ProjectsPage() {
 
   const sorted = useMemo(() => {
     if (nameSort) {
-      const ranked = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+      // Por código (P01, P02...), não pelo texto do nome — é o identificador que aparece em
+      // destaque em cada linha; ordenar pelo nome descritivo deixava os códigos embaralhados e
+      // dava a impressão de que o clique não fazia nada (mesmo raciocínio da versão mobile).
+      const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
+      const ranked = [...filtered].sort((a, b) => codeNumber(a.code) - codeNumber(b.code));
       return nameSort === 'desc' ? ranked.reverse() : ranked;
     }
     return sortProjectsByCriticality(filtered, today, safeHolidays);

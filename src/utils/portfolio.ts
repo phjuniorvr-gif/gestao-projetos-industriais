@@ -227,7 +227,12 @@ export interface AttentionItem {
  * próxima/início próximo), ordenado por urgência e limitado a 10. Projeto concluído nunca aparece
  * — não tem mais nada a "atender".
  */
-export function computeAttentionItems(projects: ProjectView[], today: string, holidays: Holiday[]): AttentionItem[] {
+export function computeAttentionItems(
+  projects: ProjectView[],
+  today: string,
+  holidays: Holiday[],
+  windowDays: number = ATTENTION_WINDOW_DAYS,
+): AttentionItem[] {
   const items: AttentionItem[] = [];
 
   for (const project of projects) {
@@ -240,7 +245,7 @@ export function computeAttentionItems(projects: ProjectView[], today: string, ho
 
     if (project.plannedEnd) {
       const daysToEnd = diffDays(today, project.plannedEnd);
-      if (daysToEnd >= 0 && daysToEnd <= ATTENTION_WINDOW_DAYS) {
+      if (daysToEnd >= 0 && daysToEnd <= windowDays) {
         items.push({ project, kind: 'dueSoon', days: daysToEnd });
         continue;
       }
@@ -248,7 +253,7 @@ export function computeAttentionItems(projects: ProjectView[], today: string, ho
 
     if (project.status === 'planned' && project.plannedStart) {
       const daysToStart = diffDays(today, project.plannedStart);
-      if (daysToStart >= 0 && daysToStart <= ATTENTION_WINDOW_DAYS) {
+      if (daysToStart >= 0 && daysToStart <= windowDays) {
         items.push({ project, kind: 'upcomingStart', days: daysToStart });
       }
     }

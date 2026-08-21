@@ -106,11 +106,17 @@ export function useProjects() {
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { replanejamentos, loaded: replanejamentosLoaded, refetch: refetchReplanejamentos } = useReplanejamentos();
 
-  useEffect(() => {
-    fetchProjects()
+  const refetch = useCallback(() => {
+    return fetchProjects()
       .then(setRawProjects)
       .catch((err) => console.error('Falha ao carregar projetos do Supabase', err))
       .finally(() => setLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch é estável (useCallback com
+    // deps vazias), só precisa rodar uma vez no mount
   }, []);
 
   // Estado (não const recalculada a cada render): sem um trigger de re-render, uma aba aberta
@@ -574,6 +580,7 @@ export function useProjects() {
     loaded,
     today,
     replanejamentos,
+    refetch,
     createProject,
     removeProject,
     restoreProject,

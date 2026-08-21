@@ -54,7 +54,7 @@ export function ProjectsTable({
           type="button"
           onClick={onToggleNameSort}
           className={`flex items-center gap-1 uppercase tracking-wide hover:text-text-muted ${nameSort ? 'text-text-muted' : ''}`}
-          title={nameSort === 'asc' ? 'Ordenado A-Z' : nameSort === 'desc' ? 'Ordenado Z-A' : 'Ordenar por nome'}
+          title={nameSort === 'asc' ? 'Ordenado por código, crescente' : nameSort === 'desc' ? 'Ordenado por código, decrescente' : 'Ordenar por código'}
         >
           Projeto
           <SortIcon className="h-3 w-3" />
