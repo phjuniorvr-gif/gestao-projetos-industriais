@@ -494,6 +494,7 @@ export function ProjectSchedulePage() {
 
       <TaskPanel
         task={liveSelectedTask}
+        isMobile={isMobile}
         allTasks={allTasks}
         categories={categories}
         people={people}

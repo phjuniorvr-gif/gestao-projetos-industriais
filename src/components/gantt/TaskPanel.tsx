@@ -57,6 +57,9 @@ interface TaskPanelProps {
   /** Só PEDE a exclusão — quem decide bloquear (dependentCount > 0) ou confirmar antes de
    * remover de verdade é quem chama (`ProjectSchedulePage.tsx`, `ConfirmDialog` próprio). */
   onDelete: (taskId: string) => void;
+  /** Cabeçalho/rodapé ganham a cor navy do resto do app no mobile — no desktop este painel
+   * continua com o visual de gaveta lateral de sempre (mesmo componente serve os dois). */
+  isMobile?: boolean;
 }
 
 export function TaskPanel({
@@ -76,6 +79,7 @@ export function TaskPanel({
   onReplan,
   dependentCount,
   onDelete,
+  isMobile = false,
 }: TaskPanelProps) {
   // `undefined` (carregando) conta como travado — nunca libera por engano antes de saber o
   // papel de verdade (ver usePerfil.ts).
@@ -248,26 +252,40 @@ export function TaskPanel({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
       <Card
-        className="h-full w-full max-w-md overflow-y-auto rounded-none rounded-l-xl p-5"
+        className={`h-full w-full max-w-md rounded-none rounded-l-xl ${
+          isMobile ? 'flex flex-col overflow-hidden p-0' : 'overflow-y-auto p-5'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div
+          className={`flex items-center justify-between ${
+            isMobile ? 'shrink-0 bg-gradient-to-b from-sidebar to-sidebar-dark px-4 py-3' : 'mb-4'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-text">Tarefa {task.rowNumber}</p>
+            <p className={`text-sm font-semibold ${isMobile ? 'text-white' : 'text-text'}`}>Tarefa {task.rowNumber}</p>
             {!!task.replanCount && (
               <span
                 title={`Previsto replanejado ${task.replanCount} ${task.replanCount === 1 ? 'vez' : 'vezes'}`}
-                className="inline-flex items-center rounded-full bg-action/10 px-2.5 py-1 text-xs font-semibold text-action"
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  isMobile ? 'bg-white/15 text-white' : 'bg-action/10 text-action'
+                }`}
               >
                 R{task.replanCount}
               </span>
             )}
           </div>
-          <button type="button" onClick={onClose} className="text-text-muted hover:text-text" aria-label="Fechar">
+          <button
+            type="button"
+            onClick={onClose}
+            className={isMobile ? 'text-white/80 hover:text-white' : 'text-text-muted hover:text-text'}
+            aria-label="Fechar"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
+        <div className={isMobile ? 'flex-1 overflow-y-auto p-5' : ''}>
         <div className="space-y-3">
           <FormField label={<>Nome {locked && <LockBadge />}</>}>
             <Input
@@ -539,29 +557,69 @@ export function TaskPanel({
           </div>
         )}
 
-        <div className="mt-6 flex justify-between border-t border-border pt-4">
-          <Button
-            variant="danger"
-            icon={<Trash2 className="h-4 w-4" />}
-            onClick={() => {
-              onDelete(task.id);
-              onClose();
-            }}
-            disabled={locked || dependentCount > 0}
-            title={
-              locked
-                ? 'Somente administrador pode excluir tarefa.'
-                : dependentCount > 0
-                  ? `Não é possível excluir: ${dependentCount} ${dependentCount === 1 ? 'tarefa depende' : 'tarefas dependem'} desta como predecessora.`
-                  : undefined
-            }
-          >
-            Excluir tarefa
-          </Button>
-          <Button variant="primary" onClick={onClose}>
-            Concluído
-          </Button>
         </div>
+        {isMobile ? (
+          // Mesmo visual "flat" da barra de abas (MobileTabBar.tsx) — ícone + texto direto sobre
+          // o navy, sem caixa de botão por cima (o usuário pediu explicitamente "igual esse
+          // rodapé"). Continua sendo <button>, só sem a aparência de Button.
+          <div
+            className="flex shrink-0 items-center justify-between bg-gradient-to-b from-sidebar to-sidebar-dark px-2"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            {isAdmin === true && (
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete(task.id);
+                  onClose();
+                }}
+                disabled={dependentCount > 0}
+                title={
+                  dependentCount > 0
+                    ? `Não é possível excluir: ${dependentCount} ${dependentCount === 1 ? 'tarefa depende' : 'tarefas dependem'} desta como predecessora.`
+                    : undefined
+                }
+                className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-status-delayed disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir tarefa
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className={`flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-white ${
+                isAdmin === true ? '' : 'ml-auto'
+              }`}
+            >
+              Concluído
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 flex justify-between border-t border-border pt-4">
+            {isAdmin === true && (
+              <Button
+                variant="danger"
+                icon={<Trash2 className="h-4 w-4" />}
+                onClick={() => {
+                  onDelete(task.id);
+                  onClose();
+                }}
+                disabled={dependentCount > 0}
+                title={
+                  dependentCount > 0
+                    ? `Não é possível excluir: ${dependentCount} ${dependentCount === 1 ? 'tarefa depende' : 'tarefas dependem'} desta como predecessora.`
+                    : undefined
+                }
+              >
+                Excluir tarefa
+              </Button>
+            )}
+            <Button variant="primary" onClick={onClose} className={isAdmin === true ? '' : 'ml-auto'}>
+              Concluído
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );
