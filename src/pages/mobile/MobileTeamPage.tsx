@@ -19,11 +19,13 @@ export function MobileTeamPage() {
   const { people } = usePeople();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
-  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  // Guarda a pessoa junto com o projeto — o sheet precisa saber de quem filtrar "Tarefas em
+  // aberto" (senão mostraria as tarefas do projeto inteiro, não só as dessa pessoa).
+  const [openTarget, setOpenTarget] = useState<{ projectId: string; personId: string; personName: string } | null>(null);
 
   const safeHolidays = holidaysLoaded ? holidays : [];
   const workload = computeWorkloadWithProjects(projects, people);
-  const openProject = projects.find((p) => p.id === openProjectId) ?? null;
+  const openProject = projects.find((p) => p.id === openTarget?.projectId) ?? null;
 
   return (
     <div className="space-y-3">
@@ -57,7 +59,7 @@ export function MobileTeamPage() {
                 <li key={project.id}>
                   <button
                     type="button"
-                    onClick={() => setOpenProjectId(project.id)}
+                    onClick={() => setOpenTarget({ projectId: project.id, personId: person.id, personName: person.name })}
                     className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-1 text-left text-xs hover:bg-page"
                   >
                     <span className="min-w-0 truncate text-text">
@@ -78,11 +80,13 @@ export function MobileTeamPage() {
         project={openProject}
         today={today}
         holidays={safeHolidays}
-        onClose={() => setOpenProjectId(null)}
+        onClose={() => setOpenTarget(null)}
         onUpdateTask={(taskId, patch) => {
           if (openProject) updateTaskActualDates(openProject.id, taskId, patch);
         }}
         onShowUndo={(message, onUndo) => show(message, onUndo)}
+        filterResponsavelId={openTarget?.personId}
+        filterResponsavelName={openTarget?.personName}
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />

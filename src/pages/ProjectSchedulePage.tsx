@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
 import {
@@ -35,6 +35,11 @@ const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+  // Drill-down da aba Equipe (mobile): "Ver atividades" a partir de uma pessoa já filtrada manda
+  // pra cá com ?responsavel=<id> — restringe a árvore a só as tarefas dela, mesmo raciocínio de
+  // categoryFilter (recomputa rollup, dropa quem ficou sem tarefa).
+  const responsavelFilterId = searchParams.get('responsavel');
   const {
     projects,
     loaded,
@@ -132,12 +137,16 @@ export function ProjectSchedulePage() {
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
 
   const ganttProjects = useMemo(() => {
-    if (!categoryFilter) return visibleProjects;
+    if (!categoryFilter && !responsavelFilterId) return visibleProjects;
     return visibleProjects
       .map((p): ProjectView | null => {
         const activities = p.activities
           .map((a): ActivityView | null => {
-            const tasks = a.tasks.filter((t) => t.category === categoryFilter);
+            const tasks = a.tasks.filter(
+              (t) =>
+                (!categoryFilter || t.category === categoryFilter) &&
+                (!responsavelFilterId || t.responsavelId === responsavelFilterId),
+            );
             if (tasks.length === 0) return null;
             return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
           })
@@ -146,7 +155,7 @@ export function ProjectSchedulePage() {
         return { ...p, activities, ...rollUpDates(activities), status: rollUpStatus(activities) };
       })
       .filter((p): p is ProjectView => p !== null);
-  }, [visibleProjects, categoryFilter]);
+  }, [visibleProjects, categoryFilter, responsavelFilterId]);
 
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
 
@@ -267,6 +276,7 @@ export function ProjectSchedulePage() {
 
   const project = id ? projectsToShow[0] : undefined;
   const title = project ? `${project.code} — ${project.name}` : 'Cronograma de Projetos';
+  const responsavelFilterName = responsavelFilterId ? people.find((p) => p.id === responsavelFilterId)?.name : undefined;
 
   return (
     <div className="space-y-5">
@@ -279,6 +289,14 @@ export function ProjectSchedulePage() {
               </Link>
             )}
             <h1 className="text-2xl font-bold text-text">{title}</h1>
+            {responsavelFilterName && (
+              <p className="mt-0.5 text-xs text-text-muted">
+                Mostrando só tarefas de <span className="font-semibold text-text">{responsavelFilterName}</span> ·{' '}
+                <Link to={`/projetos/${id}/cronograma`} className="font-semibold text-action">
+                  ver todas
+                </Link>
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

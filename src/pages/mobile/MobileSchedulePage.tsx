@@ -55,7 +55,14 @@ export function MobileSchedulePage() {
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
 
   const safeHolidays = holidaysLoaded ? holidays : [];
-  const distribution = computeStatusDistribution(projects);
+  // Sem o filtro de status — base pros chips contarem por status dentro do ano selecionado, sem
+  // que escolher um status zere a contagem dos outros (mesmo raciocínio dos cards de saúde do
+  // desktop, ProjectsHealthStrip.tsx).
+  const projectsForDistribution = useMemo(
+    () => (year ? projects.filter((p) => p.plannedStart?.slice(0, 4) === year) : projects),
+    [projects, year],
+  );
+  const distribution = computeStatusDistribution(projectsForDistribution);
 
   const filtered = useMemo(
     () =>

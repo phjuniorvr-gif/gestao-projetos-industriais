@@ -14,6 +14,10 @@ interface MobileProjectSheetProps {
   /** Já escopado ao `project.id` por quem monta o sheet (mesmo formato de `updateTaskActualDates`). */
   onUpdateTask: (taskId: string, patch: { actualStart?: string; actualEnd?: string }) => void;
   onShowUndo: (message: string, onUndo: () => void) => void;
+  /** Drill-down da aba Equipe: restringe "Tarefas em aberto" só às tarefas desse responsável, em
+   * vez de todas as tarefas do projeto — `responsavelName` só troca o texto do título da seção. */
+  filterResponsavelId?: string;
+  filterResponsavelName?: string;
 }
 
 /**
@@ -22,11 +26,22 @@ interface MobileProjectSheetProps {
  * única ação de escrita no mobile (reaproveita `updateTaskActualDates`, Fase 5) — sem view de
  * tarefa própria, sem criar/editar projeto (exclusivo do desktop).
  */
-export function MobileProjectSheet({ project, today, holidays, onClose, onUpdateTask, onShowUndo }: MobileProjectSheetProps) {
+export function MobileProjectSheet({
+  project,
+  today,
+  holidays,
+  onClose,
+  onUpdateTask,
+  onShowUndo,
+  filterResponsavelId,
+  filterResponsavelName,
+}: MobileProjectSheetProps) {
   if (!project) return null;
 
   const allTasks = project.activities.flatMap((a) => a.tasks);
-  const openTasks = allTasks.filter((t) => t.status !== 'completed');
+  const openTasks = allTasks.filter(
+    (t) => t.status !== 'completed' && (!filterResponsavelId || t.responsavelId === filterResponsavelId),
+  );
   const expected = computeExpectedProgress(allTasks, today, holidays, project.unit);
   const deviation = computeScheduleDeviationDays(project, today, holidays);
   const durationDays =
@@ -101,10 +116,13 @@ export function MobileProjectSheet({ project, today, holidays, onClose, onUpdate
 
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted2">
-            Tarefas em aberto {openTasks.length > 0 && `(${openTasks.length})`}
+            {filterResponsavelName ? `Tarefas de ${filterResponsavelName}` : 'Tarefas em aberto'}{' '}
+            {openTasks.length > 0 && `(${openTasks.length})`}
           </h3>
           {openTasks.length === 0 ? (
-            <p className="text-sm text-text-muted">Todas as tarefas estão concluídas.</p>
+            <p className="text-sm text-text-muted">
+              {filterResponsavelName ? 'Nenhuma tarefa em aberto desse responsável.' : 'Todas as tarefas estão concluídas.'}
+            </p>
           ) : (
             <ul className="space-y-1.5">
               {openTasks.map((task) => (
@@ -128,7 +146,14 @@ export function MobileProjectSheet({ project, today, holidays, onClose, onUpdate
       </div>
 
       <div className="border-t border-border px-4 py-3">
-        <Link to={`/projetos/${project.id}/cronograma`} className="block">
+        <Link
+          to={
+            filterResponsavelId
+              ? `/projetos/${project.id}/cronograma?responsavel=${filterResponsavelId}`
+              : `/projetos/${project.id}/cronograma`
+          }
+          className="block"
+        >
           <Button variant="ghost" className="min-h-11 w-full">
             Ver atividades
           </Button>
