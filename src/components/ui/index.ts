@@ -13,3 +13,4 @@ export * from './UndoToast';
 export * from './LockBadge';
 export * from './BottomSheet';
 export * from './AppLogo';
+export * from './MultiSelectFilter';

@@ -6,4 +6,5 @@ export * from './NewProjectPage';
 export * from './DashboardPage';
 export * from './ProjectSchedulePage';
 export * from './ActivitiesPage';
+export * from './UpcomingTasksPage';
 export * from './SettingsPage';

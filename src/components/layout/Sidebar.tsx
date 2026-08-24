@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
+import { CalendarClock, CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
 import { AppLogo } from '../ui';
 import { useAuth } from '../../hooks';
 
@@ -29,6 +29,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Cronograma',
     icon: CalendarRange,
     isActive: (pathname) => pathname.includes('/cronograma'),
+  },
+  {
+    to: '/tarefas-proximas',
+    label: 'Próximas Tarefas',
+    icon: CalendarClock,
+    isActive: (pathname) => pathname === '/tarefas-proximas',
   },
   {
     to: '/atividades',
