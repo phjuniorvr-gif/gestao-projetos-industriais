@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
 import {
   AddActivityDialog,
@@ -122,7 +122,12 @@ export function ProjectSchedulePage() {
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
-  const [compact, setCompact] = useState(true);
+  // Começa em modo Tabela (sem Gantt) — pedido do usuário.
+  const [compact, setCompact] = useState(false);
+  // Ordena por código (P01→P99), não pelo cabeçalho "Estrutura" (que é a árvore inteira, não uma
+  // coluna "Projeto" isolada como em ProjectsTable.tsx) — botão explícito. Só 2 estados (sem
+  // "padrão" no meio, a pedido do usuário), já começa em decrescente (P99 → P01).
+  const [nameSort, setNameSort] = useState<'asc' | 'desc'>('desc');
   const [editMode, setEditMode] = useState(false);
   const [newItemMenuOpen, setNewItemMenuOpen] = useState(false);
   const [zoom, setZoom] = useState<GanttZoom>('semana');
@@ -136,7 +141,7 @@ export function ProjectSchedulePage() {
   const [deletingActivity, setDeletingActivity] = useState<ActivityView | null>(null);
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
 
-  const ganttProjects = useMemo(() => {
+  const filteredGanttProjects = useMemo(() => {
     if (!categoryFilter && !responsavelFilterId) return visibleProjects;
     return visibleProjects
       .map((p): ProjectView | null => {
@@ -157,6 +162,12 @@ export function ProjectSchedulePage() {
       .filter((p): p is ProjectView => p !== null);
   }, [visibleProjects, categoryFilter, responsavelFilterId]);
 
+  const ganttProjects = useMemo(() => {
+    const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
+    const ranked = [...filteredGanttProjects].sort((a, b) => codeNumber(a.code) - codeNumber(b.code));
+    return nameSort === 'desc' ? ranked.reverse() : ranked;
+  }, [filteredGanttProjects, nameSort]);
+
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
 
   // Fase 7 (Parte A) — portfólio inteiro, SEM o filtro de rota que `allTasks` carrega (essa
@@ -173,26 +184,19 @@ export function ProjectSchedulePage() {
     [ganttProjects],
   );
 
-  // Ao abrir a página com o portfólio inteiro (desktop), começa com tudo recolhido (só mostra a
-  // linha do projeto). Na rota de um projeto só (/projetos/:id/cronograma — é a que o "Ver
-  // atividades" do bottom sheet mobile abre) no DESKTOP, começa já expandido: quem chega numa
-  // tela de projeto único quer ver as atividades sem mais um toque. No MOBILE (`MobileScheduleList`,
-  // sem o nível "projeto" pra recolher) é o oposto — pedido do usuário: abre com as atividades
-  // recolhidas, senão a lista de tarefas some a tela inteira antes mesmo de ver quais atividades
-  // existem.
+  // Ao abrir a página, tudo recolhido — projeto E atividade (pedido do usuário: mesmo expandindo
+  // um projeto, as tarefas de cada atividade continuam escondidas até um clique próprio nela). No
+  // MOBILE (`MobileScheduleList`, sem o nível "projeto" pra recolher) só existe o nível atividade.
   const collapsedOnLoadRef = useRef(false);
   useEffect(() => {
     if (loaded && !collapsedOnLoadRef.current && projectsToShow.length > 0) {
-      if (isMobile) {
-        setCollapsedActivityIds(new Set(projectsToShow.flatMap((p) => p.activities.map((a) => a.id))));
-      } else if (id) {
-        setAllExpanded(true);
-      } else {
+      setCollapsedActivityIds(new Set(projectsToShow.flatMap((p) => p.activities.map((a) => a.id))));
+      if (!isMobile) {
         setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
       }
       collapsedOnLoadRef.current = true;
     }
-  }, [loaded, projectsToShow, id, isMobile]);
+  }, [loaded, projectsToShow, isMobile]);
 
   if (!loaded) {
     return (
@@ -423,6 +427,16 @@ export function ProjectSchedulePage() {
                     Editar
                   </Button>
                 </>
+              )}
+              {!isMobile && !project && (
+                <button
+                  type="button"
+                  onClick={() => setNameSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
+                  className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-card px-3.5 py-2.5 text-sm font-semibold text-text-muted hover:border-text-muted2"
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                  {nameSort === 'asc' ? 'Código: P01 → P99' : 'Código: P99 → P01'}
+                </button>
               )}
               {!isMobile && (
                 <Button
