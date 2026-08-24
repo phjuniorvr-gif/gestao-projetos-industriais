@@ -14,13 +14,18 @@ interface UpcomingRow {
   project: ProjectView;
   activity: ActivityView;
   task: TaskView;
+  /** `end`: prazo (fim previsto) dentro da janela — `daysLeft` conta até o fim. `start`: ainda
+   * não começou e o INÍCIO previsto é que está dentro da janela (fim previsto fica pra depois,
+   * senão já teria caído no caso `end`) — `daysLeft` aqui conta até o início. */
+  kind: 'end' | 'start';
   daysLeft: number;
 }
 
-/** "Tarefas dos próximos 15 dias" — uma linha por tarefa (não atividade/projeto), com prazo
- * previsto dentro da janela e ainda não concluída. Inclui atrasadas (`daysLeft < 0`) — quem tem
- * prazo vencido dentro da janela recente também precisa aparecer aqui, não só o que ainda não
- * venceu; ordenado do mais urgente pro menos urgente. */
+/** "Tarefas dos próximos 15 dias" — uma linha por tarefa (não atividade/projeto), ainda não
+ * concluída. Dois jeitos de entrar na lista: fim previsto dentro da janela (inclui atrasadas,
+ * `daysLeft < 0`), OU início previsto dentro da janela pra quem ainda não começou (tarefa longa,
+ * cujo fim só cai muito depois dos 15 dias, mas que precisa aparecer porque está pra começar —
+ * pedido do usuário: "tarefas que não começou"). Ordenado do mais urgente pro menos urgente. */
 export function UpcomingTasksPage() {
   const { projects, today } = useProjects();
   const { people } = usePeople();
@@ -28,6 +33,7 @@ export function UpcomingTasksPage() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedResponsaveis, setSelectedResponsaveis] = useState<string[]>([]);
+  const [onlyNotStarted, setOnlyNotStarted] = useState(false);
 
   const rows = useMemo(() => {
     const list: UpcomingRow[] = [];
@@ -35,10 +41,21 @@ export function UpcomingTasksPage() {
       for (const activity of project.activities) {
         for (const task of activity.tasks) {
           if (task.status === 'completed') continue;
-          if (!task.plannedEnd) continue;
-          const daysLeft = diffDays(today, task.plannedEnd);
-          if (daysLeft > WINDOW_DAYS) continue;
-          list.push({ project, activity, task, daysLeft });
+
+          if (task.plannedEnd) {
+            const daysToEnd = diffDays(today, task.plannedEnd);
+            if (daysToEnd <= WINDOW_DAYS) {
+              list.push({ project, activity, task, kind: 'end', daysLeft: daysToEnd });
+              continue;
+            }
+          }
+
+          if (!task.actualStart && task.plannedStart) {
+            const daysToStart = diffDays(today, task.plannedStart);
+            if (daysToStart <= WINDOW_DAYS) {
+              list.push({ project, activity, task, kind: 'start', daysLeft: daysToStart });
+            }
+          }
         }
       }
     }
@@ -75,20 +92,27 @@ export function UpcomingTasksPage() {
       if (selectedActivities.length > 0 && !selectedActivities.includes(activity.id)) return false;
       if (selectedResponsaveis.length > 0 && (!task.responsavelId || !selectedResponsaveis.includes(task.responsavelId)))
         return false;
+      // "Não iniciada" = deveria ter começado (previsto <= hoje) e não começou — não conta quem
+      // ainda não chegou na data de início, esse é só "previsto" (pedido do usuário: "fica
+      // apenas o da data de hoje pra trás, o futuro já entra nos previsto"). Mesma flag
+      // `isStartDelayed` que o selo do StatusBadge já usa, não um cálculo novo.
+      if (onlyNotStarted && !task.isStartDelayed) return false;
       if (!term) return true;
       const responsavel = people.find((p) => p.id === task.responsavelId)?.name ?? '';
       const haystack = `${project.code} ${project.name} ${activity.name} ${task.name} ${responsavel}`.toLowerCase();
       return haystack.includes(term);
     });
-  }, [rows, search, people, selectedProjects, selectedActivities, selectedResponsaveis]);
+  }, [rows, search, people, selectedProjects, selectedActivities, selectedResponsaveis, onlyNotStarted]);
 
+  // Reflete os filtros ativos (Projeto/Atividade/Responsável/Não iniciadas/busca) — pedido do
+  // usuário: os cards devem mudar junto com o filtro, não continuar mostrando o total geral.
   const summary = useMemo(() => {
-    const projectCount = new Set(rows.map((r) => r.project.id)).size;
-    const activityCount = new Set(rows.map((r) => r.activity.id)).size;
-    const overdueCount = rows.filter((r) => r.daysLeft < 0).length;
-    const upcomingCount = rows.length - overdueCount;
-    return { total: rows.length, projectCount, activityCount, overdueCount, upcomingCount };
-  }, [rows]);
+    const projectCount = new Set(filtered.map((r) => r.project.id)).size;
+    const activityCount = new Set(filtered.map((r) => r.activity.id)).size;
+    const overdueCount = filtered.filter((r) => r.daysLeft < 0).length;
+    const upcomingCount = filtered.length - overdueCount;
+    return { total: filtered.length, projectCount, activityCount, overdueCount, upcomingCount };
+  }, [filtered]);
 
   return (
     <div className="space-y-6">
@@ -135,13 +159,29 @@ export function UpcomingTasksPage() {
           className="w-52"
         />
 
-        {(selectedProjects.length > 0 || selectedActivities.length > 0 || selectedResponsaveis.length > 0 || search.trim()) && (
+        <button
+          type="button"
+          onClick={() => setOnlyNotStarted((v) => !v)}
+          aria-pressed={onlyNotStarted}
+          className={`flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+            onlyNotStarted ? 'border-sidebar bg-sidebar text-white' : 'border-border bg-white text-text-muted hover:border-text-muted2'
+          }`}
+        >
+          Não iniciadas
+        </button>
+
+        {(selectedProjects.length > 0 ||
+          selectedActivities.length > 0 ||
+          selectedResponsaveis.length > 0 ||
+          onlyNotStarted ||
+          search.trim()) && (
           <button
             type="button"
             onClick={() => {
               setSelectedProjects([]);
               setSelectedActivities([]);
               setSelectedResponsaveis([]);
+              setOnlyNotStarted(false);
               setSearch('');
             }}
             className="text-sm font-semibold text-action hover:underline"
@@ -180,7 +220,7 @@ export function UpcomingTasksPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(({ project, activity, task, daysLeft }) => {
+              {filtered.map(({ project, activity, task, kind, daysLeft }) => {
                 const responsavel = people.find((p) => p.id === task.responsavelId);
                 return (
                   <tr key={task.id} className="border-b border-border last:border-0 hover:bg-page/40">
@@ -196,9 +236,19 @@ export function UpcomingTasksPage() {
                       <p className="truncate text-text">{task.name}</p>
                     </td>
                     <td className="overflow-hidden truncate px-4 py-2.5 text-text-muted">{responsavel?.name ?? '—'}</td>
-                    <td className="overflow-hidden truncate px-4 py-2.5 text-text-muted">{formatDatePtBr(task.plannedEnd)}</td>
+                    <td className="overflow-hidden truncate px-4 py-2.5 text-text-muted">
+                      {formatDatePtBr(kind === 'start' ? task.plannedStart : task.plannedEnd)}
+                      {kind === 'start' && <span className="ml-1 text-[10px] text-text-muted2">(início)</span>}
+                    </td>
                     <td className="overflow-hidden px-2 py-2.5">
-                      <StatusBadge status={task.status} startDelayed={task.isStartDelayed} />
+                      <div className="flex flex-wrap items-center gap-1">
+                        <StatusBadge status={task.status} startDelayed={task.isStartDelayed} />
+                        {task.isStartDelayed && (
+                          <span className="whitespace-nowrap rounded-full bg-page px-1.5 py-0.5 text-[10px] font-semibold text-text-muted2">
+                            não iniciada
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td
                       className={`overflow-hidden px-2 py-2.5 text-right font-mono text-xs font-semibold ${
