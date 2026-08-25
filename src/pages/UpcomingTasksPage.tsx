@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CalendarClock, FolderKanban, ListChecks, ListTree, Search } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CalendarClock, FolderKanban, ListChecks, ListTree, Search } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { Card, EmptyState, Input, MultiSelectFilter } from '../components/ui';
@@ -34,6 +34,27 @@ export function UpcomingTasksPage() {
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedResponsaveis, setSelectedResponsaveis] = useState<string[]>([]);
   const [onlyNotStarted, setOnlyNotStarted] = useState(false);
+  // Coluna que manda na ordenação da tabela — "prazo" é o padrão de sempre (mais urgente/mais
+  // atrasado primeiro); "projeto" ordena por código (P01<->P99). Cada uma guarda a própria
+  // direção pra lembrar como ficou da última vez que foi a coluna ativa.
+  const [sortColumn, setSortColumn] = useState<'projeto' | 'prazo'>('prazo');
+  const [projectSortDir, setProjectSortDir] = useState<'asc' | 'desc'>('asc');
+  const [prazoSortDir, setPrazoSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function toggleProjectSort() {
+    if (sortColumn === 'projeto') setProjectSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortColumn('projeto');
+      setProjectSortDir('asc');
+    }
+  }
+  function togglePrazoSort() {
+    if (sortColumn === 'prazo') setPrazoSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortColumn('prazo');
+      setPrazoSortDir('asc');
+    }
+  }
 
   const rows = useMemo(() => {
     const list: UpcomingRow[] = [];
@@ -59,7 +80,7 @@ export function UpcomingTasksPage() {
         }
       }
     }
-    return list.sort((a, b) => a.daysLeft - b.daysLeft);
+    return list;
   }, [projects, today]);
 
   // Opções derivadas de `rows` (só quem aparece nos próximos 15 dias) — não a lista de
@@ -103,6 +124,19 @@ export function UpcomingTasksPage() {
       return haystack.includes(term);
     });
   }, [rows, search, people, selectedProjects, selectedActivities, selectedResponsaveis, onlyNotStarted]);
+
+  const sorted = useMemo(() => {
+    const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
+    const list = [...filtered];
+    if (sortColumn === 'projeto') {
+      list.sort((a, b) => codeNumber(a.project.code) - codeNumber(b.project.code));
+      if (projectSortDir === 'desc') list.reverse();
+    } else {
+      list.sort((a, b) => a.daysLeft - b.daysLeft);
+      if (prazoSortDir === 'desc') list.reverse();
+    }
+    return list;
+  }, [filtered, sortColumn, projectSortDir, prazoSortDir]);
 
   // Reflete os filtros ativos (Projeto/Atividade/Responsável/Não iniciadas/busca) — pedido do
   // usuário: os cards devem mudar junto com o filtro, não continuar mostrando o total geral.
@@ -210,17 +244,27 @@ export function UpcomingTasksPage() {
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-page/60 text-left text-xs font-medium uppercase tracking-wide text-text-muted">
-                <th className="px-4 py-2.5">Projeto</th>
+                <th className="px-4 py-2.5">
+                  <SortableHeader label="Projeto" active={sortColumn === 'projeto'} dir={projectSortDir} onClick={toggleProjectSort} />
+                </th>
                 <th className="px-4 py-2.5">Atividade</th>
                 <th className="px-4 py-2.5">Tarefa</th>
                 <th className="px-4 py-2.5">Responsável</th>
                 <th className="px-4 py-2.5">Prazo previsto</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-right">Prazo</th>
+                <th className="px-4 py-2.5 text-right">
+                  <SortableHeader
+                    label="Prazo"
+                    active={sortColumn === 'prazo'}
+                    dir={prazoSortDir}
+                    onClick={togglePrazoSort}
+                    align="right"
+                  />
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(({ project, activity, task, kind, daysLeft }) => {
+              {sorted.map(({ project, activity, task, kind, daysLeft }) => {
                 const responsavel = people.find((p) => p.id === task.responsavelId);
                 return (
                   <tr key={task.id} className="border-b border-border last:border-0 hover:bg-page/40">
@@ -265,6 +309,34 @@ export function UpcomingTasksPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+  align = 'left',
+}: {
+  label: string;
+  active: boolean;
+  dir: 'asc' | 'desc';
+  onClick: () => void;
+  align?: 'left' | 'right';
+}) {
+  const Icon = active ? (dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-1 uppercase tracking-wide hover:text-text-muted ${
+        align === 'right' ? 'ml-auto flex-row-reverse' : ''
+      } ${active ? 'text-text-muted' : ''}`}
+    >
+      {label}
+      <Icon className="h-3 w-3" />
+    </button>
   );
 }
 
