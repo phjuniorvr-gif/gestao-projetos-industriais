@@ -68,6 +68,10 @@ export function ProjectSchedulePage() {
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [categoryFilter, setCategoryFilter] = useState('');
+  // Concluída fica visível por padrão (comportamento de sempre) — o botão só liga/desliga a
+  // exibição, mesmo raciocínio de categoryFilter/responsavelFilterId (dropa atividade/projeto que
+  // ficou sem nenhuma tarefa depois do filtro).
+  const [hideCompleted, setHideCompleted] = useState(false);
 
   const projectsToShow = useMemo(
     () => (id ? projects.filter((p) => p.id === id) : projects),
@@ -142,7 +146,7 @@ export function ProjectSchedulePage() {
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
 
   const filteredGanttProjects = useMemo(() => {
-    if (!categoryFilter && !responsavelFilterId) return visibleProjects;
+    if (!categoryFilter && !responsavelFilterId && !hideCompleted) return visibleProjects;
     return visibleProjects
       .map((p): ProjectView | null => {
         const activities = p.activities
@@ -150,7 +154,8 @@ export function ProjectSchedulePage() {
             const tasks = a.tasks.filter(
               (t) =>
                 (!categoryFilter || t.category === categoryFilter) &&
-                (!responsavelFilterId || t.responsavelId === responsavelFilterId),
+                (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
+                (!hideCompleted || t.status !== 'completed'),
             );
             if (tasks.length === 0) return null;
             return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
@@ -160,7 +165,7 @@ export function ProjectSchedulePage() {
         return { ...p, activities, ...rollUpDates(activities), status: rollUpStatus(activities) };
       })
       .filter((p): p is ProjectView => p !== null);
-  }, [visibleProjects, categoryFilter, responsavelFilterId]);
+  }, [visibleProjects, categoryFilter, responsavelFilterId, hideCompleted]);
 
   const ganttProjects = useMemo(() => {
     const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
@@ -312,6 +317,18 @@ export function ProjectSchedulePage() {
                 options={categories.map((c) => ({ value: c.id, label: c.label }))}
               />
             )}
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={() => setHideCompleted((v) => !v)}
+                aria-pressed={hideCompleted}
+                className={`flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+                  hideCompleted ? 'border-sidebar bg-sidebar text-white' : 'border-border bg-white text-text-muted hover:border-text-muted2'
+                }`}
+              >
+                Esconder concluídas
+              </button>
+            )}
             {!project && projectsToShow.length > 0 && (
               <ProjectFilters
                 filters={filters}
@@ -319,7 +336,10 @@ export function ProjectSchedulePage() {
                 years={years}
                 onChange={(next) => {
                   setFilters(next);
-                  if (next === EMPTY_FILTERS) setCategoryFilter('');
+                  if (next === EMPTY_FILTERS) {
+                    setCategoryFilter('');
+                    setHideCompleted(false);
+                  }
                 }}
               />
             )}
