@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CalendarClock, FolderKanban, ListChecks, ListTree, Search } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/shared/StatusBadge';
@@ -6,9 +6,12 @@ import { Card, EmptyState, Input, MultiSelectFilter } from '../components/ui';
 import { usePeople, useProjects } from '../hooks';
 import { diffDays, formatDatePtBr } from '../utils';
 import { STATUS_COLOR } from '../types';
-import type { ActivityView, ProjectView, TaskView } from '../types';
+import type { ActivityView, ProjectStatus, ProjectView, TaskView } from '../types';
 
 const WINDOW_DAYS = 15;
+
+// Ordem por urgência (não alfabética) — mesmo raciocínio de outras listas de status do app.
+const STATUS_RANK: Record<ProjectStatus, number> = { delayed: 0, in_progress: 1, planned: 2, completed: 3 };
 
 interface UpcomingRow {
   project: ProjectView;
@@ -34,12 +37,16 @@ export function UpcomingTasksPage() {
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedResponsaveis, setSelectedResponsaveis] = useState<string[]>([]);
   const [onlyNotStarted, setOnlyNotStarted] = useState(false);
+  // Clique no card "Atrasadas"/"A vencer" filtra a tabela pra só aquele grupo — clicar de novo no
+  // mesmo card desliga. Só um ativo por vez (é a mesma dimensão, atrasada x a vencer).
+  const [urgencyFilter, setUrgencyFilter] = useState<'overdue' | 'upcoming' | null>(null);
   // Coluna que manda na ordenação da tabela — "prazo" é o padrão de sempre (mais urgente/mais
   // atrasado primeiro); "projeto" ordena por código (P01<->P99). Cada uma guarda a própria
   // direção pra lembrar como ficou da última vez que foi a coluna ativa.
-  const [sortColumn, setSortColumn] = useState<'projeto' | 'prazo'>('prazo');
+  const [sortColumn, setSortColumn] = useState<'projeto' | 'prazo' | 'status'>('prazo');
   const [projectSortDir, setProjectSortDir] = useState<'asc' | 'desc'>('asc');
   const [prazoSortDir, setPrazoSortDir] = useState<'asc' | 'desc'>('asc');
+  const [statusSortDir, setStatusSortDir] = useState<'asc' | 'desc'>('asc');
 
   function toggleProjectSort() {
     if (sortColumn === 'projeto') setProjectSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -53,6 +60,13 @@ export function UpcomingTasksPage() {
     else {
       setSortColumn('prazo');
       setPrazoSortDir('asc');
+    }
+  }
+  function toggleStatusSort() {
+    if (sortColumn === 'status') setStatusSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortColumn('status');
+      setStatusSortDir('asc');
     }
   }
 
@@ -106,7 +120,10 @@ export function UpcomingTasksPage() {
       .map((p) => ({ value: p.id, label: p.name }));
   }, [rows, people]);
 
-  const filtered = useMemo(() => {
+  // Todos os filtros MENOS o de urgência (Atrasadas/A vencer) — base usada pra calcular os dois
+  // cards de urgência, senão selecionar um zeraria a contagem do outro (mesmo raciocínio de
+  // `filteredExceptStatus` em ProjectsHealthStrip.tsx).
+  const filteredExceptUrgency = useMemo(() => {
     const term = search.trim().toLowerCase();
     return rows.filter(({ project, activity, task }) => {
       if (selectedProjects.length > 0 && !selectedProjects.includes(project.id)) return false;
@@ -125,28 +142,39 @@ export function UpcomingTasksPage() {
     });
   }, [rows, search, people, selectedProjects, selectedActivities, selectedResponsaveis, onlyNotStarted]);
 
+  // Filtro final (alimenta a tabela) — aplica o clique no card "Atrasadas"/"A vencer" por cima.
+  const filtered = useMemo(() => {
+    if (!urgencyFilter) return filteredExceptUrgency;
+    return filteredExceptUrgency.filter((r) => (urgencyFilter === 'overdue' ? r.daysLeft < 0 : r.daysLeft >= 0));
+  }, [filteredExceptUrgency, urgencyFilter]);
+
   const sorted = useMemo(() => {
     const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
     const list = [...filtered];
     if (sortColumn === 'projeto') {
       list.sort((a, b) => codeNumber(a.project.code) - codeNumber(b.project.code));
       if (projectSortDir === 'desc') list.reverse();
+    } else if (sortColumn === 'status') {
+      list.sort((a, b) => STATUS_RANK[a.task.status] - STATUS_RANK[b.task.status]);
+      if (statusSortDir === 'desc') list.reverse();
     } else {
       list.sort((a, b) => a.daysLeft - b.daysLeft);
       if (prazoSortDir === 'desc') list.reverse();
     }
     return list;
-  }, [filtered, sortColumn, projectSortDir, prazoSortDir]);
+  }, [filtered, sortColumn, projectSortDir, prazoSortDir, statusSortDir]);
 
   // Reflete os filtros ativos (Projeto/Atividade/Responsável/Não iniciadas/busca) — pedido do
   // usuário: os cards devem mudar junto com o filtro, não continuar mostrando o total geral.
+  // Atrasadas/A vencer usam `filteredExceptUrgency` (não `filtered`) pra não se auto-zerarem
+  // quando um dos dois está selecionado — ver comentário acima de `filteredExceptUrgency`.
   const summary = useMemo(() => {
     const projectCount = new Set(filtered.map((r) => r.project.id)).size;
     const activityCount = new Set(filtered.map((r) => r.activity.id)).size;
-    const overdueCount = filtered.filter((r) => r.daysLeft < 0).length;
-    const upcomingCount = filtered.length - overdueCount;
+    const overdueCount = filteredExceptUrgency.filter((r) => r.daysLeft < 0).length;
+    const upcomingCount = filteredExceptUrgency.length - overdueCount;
     return { total: filtered.length, projectCount, activityCount, overdueCount, upcomingCount };
-  }, [filtered]);
+  }, [filtered, filteredExceptUrgency]);
 
   return (
     <div className="space-y-6">
@@ -156,8 +184,22 @@ export function UpcomingTasksPage() {
         <SummaryCard label="Total de Tarefas" value={summary.total} icon={ListChecks} color="#0F172A" />
         <SummaryCard label="Projetos Envolvidos" value={summary.projectCount} icon={FolderKanban} color="#2563EB" />
         <SummaryCard label="Atividades Envolvidas" value={summary.activityCount} icon={ListTree} color="#7C3AED" />
-        <SummaryCard label="Atrasadas" value={summary.overdueCount} icon={AlertTriangle} color={STATUS_COLOR.delayed} />
-        <SummaryCard label="A vencer" value={summary.upcomingCount} icon={CalendarClock} color={STATUS_COLOR.in_progress} />
+        <SummaryCard
+          label="Atrasadas"
+          value={summary.overdueCount}
+          icon={AlertTriangle}
+          color={STATUS_COLOR.delayed}
+          active={urgencyFilter === 'overdue'}
+          onClick={() => setUrgencyFilter((f) => (f === 'overdue' ? null : 'overdue'))}
+        />
+        <SummaryCard
+          label="A vencer"
+          value={summary.upcomingCount}
+          icon={CalendarClock}
+          color={STATUS_COLOR.in_progress}
+          active={urgencyFilter === 'upcoming'}
+          onClick={() => setUrgencyFilter((f) => (f === 'upcoming' ? null : 'upcoming'))}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -208,6 +250,7 @@ export function UpcomingTasksPage() {
           selectedActivities.length > 0 ||
           selectedResponsaveis.length > 0 ||
           onlyNotStarted ||
+          urgencyFilter !== null ||
           search.trim()) && (
           <button
             type="button"
@@ -216,6 +259,7 @@ export function UpcomingTasksPage() {
               setSelectedActivities([]);
               setSelectedResponsaveis([]);
               setOnlyNotStarted(false);
+              setUrgencyFilter(null);
               setSearch('');
             }}
             className="text-sm font-semibold text-action hover:underline"
@@ -251,7 +295,9 @@ export function UpcomingTasksPage() {
                 <th className="px-4 py-2.5">Tarefa</th>
                 <th className="px-4 py-2.5">Responsável</th>
                 <th className="px-4 py-2.5">Prazo previsto</th>
-                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">
+                  <SortableHeader label="Status" active={sortColumn === 'status'} dir={statusSortDir} onClick={toggleStatusSort} />
+                </th>
                 <th className="px-4 py-2.5 text-right">
                   <SortableHeader
                     label="Prazo"
@@ -345,14 +391,19 @@ function SummaryCard({
   value,
   icon: Icon,
   color,
+  active,
+  onClick,
 }: {
   label: string;
   value: number;
   icon: typeof ListChecks;
   color: string;
+  /** Presente só nos cards clicáveis (Atrasadas/A vencer) — os outros três são só leitura. */
+  active?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <Card className="overflow-hidden p-0">
+  const card = (
+    <Card className={`overflow-hidden p-0 ${active ? 'ring-2 ring-offset-1' : ''}`} style={active ? ({ '--tw-ring-color': color } as CSSProperties) : undefined}>
       <div className="px-3 py-1.5 text-xs font-semibold text-white" style={{ backgroundColor: color }}>
         {label}
       </div>
@@ -361,5 +412,13 @@ function SummaryCard({
         <Icon className="h-6 w-6" style={{ color }} />
       </div>
     </Card>
+  );
+
+  if (!onClick) return card;
+
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active} className="text-left transition-opacity hover:opacity-90">
+      {card}
+    </button>
   );
 }
