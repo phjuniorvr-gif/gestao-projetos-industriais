@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { STATUS_LABEL, type ActivityView, type CategoryEntry, type Holiday, type Person, type ProjectView, type TaskView } from '../../types';
+import { Input } from '../ui';
 import {
   addDays,
   businessDaysBetween,
@@ -99,6 +100,8 @@ interface GanttTableProps {
    * chama. Implementa a decisão já registrada no CLAUDE.md desde antes da Fase 2, nunca
    * construída até agora — o botão sempre cascateava direto. */
   onRemoveActivityWithTasks: (activity: ActivityView) => void;
+  /** Renomear atividade já criada — pedido do usuário (antes só dava pra nomear na criação). */
+  onRenameActivity: (activity: ActivityView, name: string) => void;
 }
 
 interface HeaderTick {
@@ -175,9 +178,20 @@ export function GanttTable({
   onAddActivity,
   onRemoveActivity,
   onRemoveActivityWithTasks,
+  onRenameActivity,
 }: GanttTableProps) {
   // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
   const locked = isAdmin !== true;
+  // Renomear atividade: input inline no lugar do nome, só uma linha por vez. Sem validação de
+  // vazio nova — mesmo padrão simples que `addActivity` já aceita (nunca teve trava de nome).
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [editingActivityName, setEditingActivityName] = useState('');
+
+  function commitActivityRename(activity: ActivityView) {
+    const trimmed = editingActivityName.trim();
+    if (trimmed && trimmed !== activity.name) onRenameActivity(activity, trimmed);
+    setEditingActivityId(null);
+  }
   // A pedido do usuário: "Visão completa" (compact=false) vira só a tabela de dados, sem o
   // gráfico de barras (que só a "Visão compacta" continua mostrando) — não é o mesmo eixo do
   // `compact` original (que só trocava QUANTAS colunas aparecem), então precisa de flag própria
@@ -604,45 +618,75 @@ export function GanttTable({
                         <tr className="group border-b border-border bg-page/35">
                           <td className={frozenTdClass} style={columnStyle('linha')} />
                           <td className={`${frozenTdClass} overflow-hidden !pl-7`} style={columnStyle('estrutura')}>
-                            <div className="flex min-w-0 items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => onToggleActivity(activity.id)}
-                                className="flex min-w-0 items-center gap-2 font-medium text-text hover:text-action"
-                              >
-                                {collapsed ? (
-                                  <ChevronRight className="h-4 w-4 shrink-0" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 shrink-0" />
-                                )}
+                            {editingActivityId === activity.id ? (
+                              <div className="flex min-w-0 items-center gap-2">
                                 <RowTypeBadge type="activity" />
-                                <span className="truncate">{activity.name}</span>
-                              </button>
-                              {/* "+" sempre existe, só fica visível no hover da linha — a lixeira
-                                  (ação destrutiva) continua atrás do modo Editar. Travado por
-                                  papel (Fase 5): criar tarefa é admin-only. */}
-                              <button
-                                type="button"
-                                onClick={() => onAddTask(activity)}
-                                disabled={locked}
-                                title={locked ? 'Somente administrador pode criar tarefa.' : undefined}
-                                className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100 disabled:cursor-not-allowed disabled:no-underline"
-                              >
-                                <Plus className="h-3.5 w-3.5" /> Tarefa
-                              </button>
-                              {editMode && (
+                                <Input
+                                  autoFocus
+                                  value={editingActivityName}
+                                  onChange={(e) => setEditingActivityName(e.target.value)}
+                                  onBlur={() => commitActivityRename(activity)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') commitActivityRename(activity);
+                                    if (e.key === 'Escape') setEditingActivityId(null);
+                                  }}
+                                  className="h-7 min-w-0 flex-1 px-2 py-1 text-sm"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex min-w-0 items-center gap-3">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    activity.tasks.length > 0
-                                      ? onRemoveActivityWithTasks(activity)
-                                      : onRemoveActivity(activity)
-                                  }
-                                  className="shrink-0 text-text-muted hover:text-status-delayed"
-                                  aria-label={
-                                    activity.tasks.length > 0
-                                      ? `Excluir atividade e suas ${activity.tasks.length} tarefas`
-                                      : 'Excluir atividade'
+                                  onClick={() => onToggleActivity(activity.id)}
+                                  className="flex min-w-0 items-center gap-2 font-medium text-text hover:text-action"
+                                >
+                                  {collapsed ? (
+                                    <ChevronRight className="h-4 w-4 shrink-0" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 shrink-0" />
+                                  )}
+                                  <RowTypeBadge type="activity" />
+                                  <span className="truncate">{activity.name}</span>
+                                </button>
+                                {/* "+" sempre existe, só fica visível no hover da linha — lápis e
+                                    lixeira (edição/exclusão) continuam atrás do modo Editar.
+                                    Travado por papel (Fase 5): criar tarefa é admin-only. */}
+                                <button
+                                  type="button"
+                                  onClick={() => onAddTask(activity)}
+                                  disabled={locked}
+                                  title={locked ? 'Somente administrador pode criar tarefa.' : undefined}
+                                  className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-action opacity-0 hover:underline group-hover:opacity-100 disabled:cursor-not-allowed disabled:no-underline"
+                                >
+                                  <Plus className="h-3.5 w-3.5" /> Tarefa
+                                </button>
+                                {editMode && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingActivityId(activity.id);
+                                      setEditingActivityName(activity.name);
+                                    }}
+                                    className="shrink-0 text-text-muted hover:text-action"
+                                    aria-label="Renomear atividade"
+                                    title="Renomear atividade"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {editMode && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      activity.tasks.length > 0
+                                        ? onRemoveActivityWithTasks(activity)
+                                        : onRemoveActivity(activity)
+                                    }
+                                    className="shrink-0 text-text-muted hover:text-status-delayed"
+                                    aria-label={
+                                      activity.tasks.length > 0
+                                        ? `Excluir atividade e suas ${activity.tasks.length} tarefas`
+                                        : 'Excluir atividade'
                                   }
                                   title={
                                     activity.tasks.length > 0
@@ -650,10 +694,11 @@ export function GanttTable({
                                       : undefined
                                   }
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                           {!compact && (
                             <>

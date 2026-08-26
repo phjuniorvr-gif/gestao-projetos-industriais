@@ -257,6 +257,16 @@ export function useProjects() {
     [updateProject],
   );
 
+  const updateActivityName = useCallback(
+    (projectId: string, activityId: string, name: string) => {
+      updateProject(projectId, (project) => ({
+        ...project,
+        activities: project.activities.map((a) => (a.id === activityId ? { ...a, name } : a)),
+      }));
+    },
+    [updateProject],
+  );
+
   const addActivity = useCallback(
     (projectId: string, name: string) => {
       updateProject(projectId, (project) => ({
@@ -585,6 +595,7 @@ export function useProjects() {
     removeProject,
     restoreProject,
     updateProjectInfo,
+    updateActivityName,
     addActivity,
     addActivityWithTasks,
     removeActivity,

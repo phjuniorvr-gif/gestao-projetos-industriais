@@ -46,6 +46,7 @@ export function ProjectSchedulePage() {
     replanejamentos,
     addTask,
     updateTask,
+    updateActivityName,
     updateTaskActualDates,
     replanTask,
     removeTask,
@@ -521,6 +522,10 @@ export function ProjectSchedulePage() {
               onAddActivity={(project) => setActivityDialog({ open: true, initialProjectId: project.id })}
               onRemoveActivity={setDeletingActivity}
               onRemoveActivityWithTasks={handleRemoveActivityWithTasks}
+              onRenameActivity={(activity, name) => {
+                const owningProjectId = activityIdToProjectId.get(activity.id);
+                if (owningProjectId) updateActivityName(owningProjectId, activity.id, name);
+              }}
             />
           </div>
         </Card>
