@@ -2,8 +2,9 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CalendarClock, FolderKanban, ListChecks, ListTree, Search } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/shared/StatusBadge';
-import { Card, EmptyState, Input, MultiSelectFilter } from '../components/ui';
-import { usePeople, useProjects } from '../hooks';
+import { Card, ConfirmDialog, EmptyState, Input, MultiSelectFilter } from '../components/ui';
+import { TaskPanel } from '../components/gantt';
+import { useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects } from '../hooks';
 import { diffDays, formatDatePtBr } from '../utils';
 import { STATUS_COLOR } from '../types';
 import type { ActivityView, ProjectStatus, ProjectView, TaskView } from '../types';
@@ -30,8 +31,15 @@ interface UpcomingRow {
  * cujo fim só cai muito depois dos 15 dias, mas que precisa aparecer porque está pra começar —
  * pedido do usuário: "tarefas que não começou"). Ordenado do mais urgente pro menos urgente. */
 export function UpcomingTasksPage() {
-  const { projects, today } = useProjects();
-  const { people } = usePeople();
+  const { projects, today, replanejamentos, updateTask, updateTaskActualDates, replanTask, setTaskPredecessors, removeTask } =
+    useProjects();
+  const { people, createPerson } = usePeople();
+  const { categories } = useCategories();
+  const { holidays } = useHolidays();
+  const isAdmin = usePerfil();
+  const isMobile = useIsMobile();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
   const [search, setSearch] = useState('');
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
@@ -96,6 +104,19 @@ export function UpcomingTasksPage() {
     }
     return list;
   }, [projects, today]);
+
+  // Portfólio inteiro (não só as linhas dos próximos 15 dias) — pra clicar numa linha e abrir o
+  // mesmo `TaskPanel` do Cronograma, que precisa enxergar todas as tarefas (predecessoras
+  // candidatas, contagem de dependentes) e não só as visíveis nesta lista filtrada.
+  const allTasks = useMemo(() => projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [projects]);
+  const activityIdToProjectId = useMemo(
+    () => new Map(projects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
+    [projects],
+  );
+  const selectedTask = selectedTaskId ? (allTasks.find((t) => t.id === selectedTaskId) ?? null) : null;
+  const selectedTaskDependentCount = selectedTask
+    ? allTasks.filter((t) => t.dependencies.some((d) => d.predecessorId === selectedTask.id)).length
+    : 0;
 
   // Opções derivadas de `rows` (só quem aparece nos próximos 15 dias) — não a lista de
   // projetos/pessoas do portfólio inteiro, senão a maioria das opções nunca bateria com nada.
@@ -313,7 +334,11 @@ export function UpcomingTasksPage() {
               {sorted.map(({ project, activity, task, kind, daysLeft }) => {
                 const responsavel = people.find((p) => p.id === task.responsavelId);
                 return (
-                  <tr key={task.id} className="border-b border-border last:border-0 hover:bg-page/40">
+                  <tr
+                    key={task.id}
+                    onClick={() => setSelectedTaskId(task.id)}
+                    className="cursor-pointer border-b border-border last:border-0 hover:bg-page/40"
+                  >
                     <td className="max-w-0 px-4 py-2.5">
                       <p className="truncate font-medium text-text">
                         <span className="font-mono text-xs text-text-muted2">{project.code}</span> {project.name}
@@ -354,6 +379,60 @@ export function UpcomingTasksPage() {
           </table>
         </Card>
       )}
+
+      <TaskPanel
+        task={selectedTask}
+        isMobile={isMobile}
+        allTasks={allTasks}
+        categories={categories}
+        people={people}
+        replanejamentos={replanejamentos}
+        isAdmin={isAdmin}
+        holidays={holidays}
+        unit={projects.find((p) => p.id === activityIdToProjectId.get(selectedTask?.activityId ?? ''))?.unit ?? ''}
+        onCreatePerson={createPerson}
+        onClose={() => setSelectedTaskId(null)}
+        onSave={(taskId, patch) => {
+          const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+          if (!owningProjectId) return;
+          updateTask(owningProjectId, taskId, patch);
+        }}
+        onSaveActual={(taskId, patch) => {
+          const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+          if (!owningProjectId) return;
+          updateTaskActualDates(owningProjectId, taskId, patch);
+        }}
+        onSetPredecessors={(taskId, entries) => {
+          const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+          if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
+          return setTaskPredecessors(owningProjectId, taskId, entries);
+        }}
+        onReplan={(taskId, patch, motivo) => {
+          const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+          if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
+          return replanTask(owningProjectId, taskId, patch, motivo, isAdmin === true);
+        }}
+        dependentCount={selectedTaskDependentCount}
+        onDelete={(taskId) => {
+          const task = allTasks.find((t) => t.id === taskId);
+          if (task) setDeletingTask(task);
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletingTask)}
+        title="Excluir tarefa"
+        message={deletingTask ? `Tem certeza que deseja excluir "${deletingTask.name}"?` : ''}
+        confirmLabel="Excluir"
+        danger
+        onCancel={() => setDeletingTask(null)}
+        onConfirm={() => {
+          const owningProjectId = deletingTask ? activityIdToProjectId.get(deletingTask.activityId) : undefined;
+          if (deletingTask && owningProjectId) removeTask(owningProjectId, deletingTask.id);
+          setDeletingTask(null);
+          setSelectedTaskId(null);
+        }}
+      />
     </div>
   );
 }
