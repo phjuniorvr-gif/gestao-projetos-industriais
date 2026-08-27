@@ -12,7 +12,7 @@ import {
   SettingsPage,
   UpcomingTasksPage,
 } from './pages';
-import { MobileDashboardPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage } from './pages/mobile';
+import { MobileDashboardPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage, MobileUpcomingTasksPage } from './pages/mobile';
 import { useIsMobile } from './hooks';
 
 export default function App() {
@@ -26,7 +26,7 @@ export default function App() {
           <Route element={isMobile ? <MobileLayout /> : <AppLayout />}>
             {/* Único caminho aberto pra usuário comum (RequireAdmin barra o resto) — pedido do
                 usuário: login sem papel administrador só enxerga esta tela. */}
-            <Route path="tarefas-proximas" element={<UpcomingTasksPage />} />
+            <Route path="tarefas-proximas" element={isMobile ? <MobileUpcomingTasksPage /> : <UpcomingTasksPage />} />
             <Route element={<RequireAdmin />}>
               <Route index element={<Navigate to="/projetos" replace />} />
               <Route path="projetos" element={isMobile ? <MobileProjectsPage /> : <ProjectsPage />} />

@@ -13,5 +13,6 @@ export * from './ScheduleLegend';
 export * from './TaskDependencyInput';
 export * from './TodayLine';
 export * from './TaskPanel';
+export * from './UpcomingTaskDetail';
 export * from './AddTaskPanel';
 export * from './AddActivityDialog';
