@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Plus, Trash2, UserCheck, X } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2, UserCheck, X, XCircle } from 'lucide-react';
 import { Button, Card, FormField, Input, LockBadge, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import type { Category, CategoryEntry, DependencyType, Holiday, Person, Replanejamento, Task, TaskView } from '../../types';
@@ -60,6 +60,9 @@ interface TaskPanelProps {
   /** Fase 7+ — administrador confirma a finalização marcada por um usuário comum
    * (`task.pendingConfirmation`). Botão só aparece pra administrador; qualquer papel vê o aviso. */
   onConfirmCompletion: (taskId: string) => void;
+  /** Só PEDE a reprovação (abre o diálogo de "tratativa") — mesmo padrão de `onDelete`, quem
+   * decide o motivo e chama `rejectTaskCompletion` de verdade é quem monta este painel. */
+  onRequestReject: (taskId: string) => void;
   /** Cabeçalho/rodapé ganham a cor navy do resto do app no mobile — no desktop este painel
    * continua com o visual de gaveta lateral de sempre (mesmo componente serve os dois). */
   isMobile?: boolean;
@@ -83,6 +86,7 @@ export function TaskPanel({
   dependentCount,
   onDelete,
   onConfirmCompletion,
+  onRequestReject,
   isMobile = false,
 }: TaskPanelProps) {
   // `undefined` (carregando) conta como travado — nunca libera por engano antes de saber o
@@ -229,6 +233,12 @@ export function TaskPanel({
   function resolveQuemName(quemUserId: string): string {
     return people.find((p) => p.userId === quemUserId)?.name ?? 'Usuário';
   }
+
+  // Última reprovação (pra mostrar a "tratativa" no banner "Não validado") — mesmo log de
+  // "informar real", identificada por campo='real'/campo_data='fim'/para vazio/administrador.
+  const lastRejection = taskReplanHistory.find(
+    (r) => r.campo === 'real' && r.campoData === 'fim' && r.porAdministrador && !r.para,
+  );
 
   /** Só linhas com número preenchido viram entrada de verdade — linha em branco (usuário ainda
    * digitando) não é enviada nem valida como erro. */
@@ -420,11 +430,27 @@ export function TaskPanel({
                 administrador.
               </p>
               {!locked && (
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  <Button variant="danger" onClick={() => onRequestReject(task.id)}>
+                    Reprovar
+                  </Button>
                   <Button variant="primary" onClick={() => onConfirmCompletion(task.id)}>
                     Confirmar finalização
                   </Button>
                 </div>
+              )}
+            </div>
+          )}
+
+          {task.rejected && (
+            <div className="space-y-1 rounded-md border border-status-delayed/30 bg-status-delayed/5 p-3">
+              <p className="flex items-center gap-1.5 text-sm text-text">
+                <XCircle className="h-4 w-4 shrink-0 text-status-delayed" aria-hidden="true" />
+                Finalização não validada pelo administrador — informe o fim real novamente
+                {task.rejectionCount > 1 && ` (já reprovada ${task.rejectionCount} vezes)`}.
+              </p>
+              {lastRejection && (
+                <p className="pl-6 text-xs italic text-text-muted">"{lastRejection.motivo}"</p>
               )}
             </div>
           )}

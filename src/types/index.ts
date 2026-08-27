@@ -112,6 +112,15 @@ export interface Task {
    * esta coluna — `saveProjectTree` nunca inclui no upsert, pra não sobrescrever com um valor
    * desatualizado do estado local quando o administrador edita outra coisa da tarefa. */
   confirmedByAdmin: boolean;
+  /** Fase 7+ — `true` quando o administrador reprovou a última finalização informada (RPC
+   * `reprovar_finalizacao_tarefa`). Volta a `false` sozinho quando a pessoa informa uma nova
+   * data real (RPC `informar_data_real`) — a ressubmissão supera a reprovação anterior. Só a RPC
+   * escreve esta coluna, mesmo raciocínio de `confirmedByAdmin`. */
+  rejected: boolean;
+  /** Fase 7+ — quantas vezes esta tarefa já foi reprovada pelo administrador. Só cresce, nunca
+   * reseta (mesmo depois de uma ressubmissão bem-sucedida) — é o histórico de quantas idas e
+   * vindas essa tarefa teve, não "reprovações em aberto". */
+  rejectionCount: number;
 }
 
 /** Os quatro tipos de dependência (Fase 2.7, spec 2.7) — regra em dias úteis de cada um em

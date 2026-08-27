@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Hourglass, UserCheck } from 'lucide-react';
+import { AlertTriangle, Clock, Hourglass, UserCheck, XCircle } from 'lucide-react';
 import { Badge } from '../ui';
 import { STATUS_COLOR, STATUS_LABEL, type ProjectStatus } from '../../types';
 import { shouldShowStartDelayedBadge } from '../../utils/status';
@@ -18,6 +18,10 @@ interface StatusBadgeProps {
    * ainda sem confirmação do administrador. Enquanto isso, `status` já não é 'completed' — este
    * selo é o que explica a aparente contradição pra quem olha. */
   pendingConfirmation?: boolean;
+  /** Fase 7+ — `Task.rejected`: administrador reprovou a última finalização informada (fim real
+   * voltou a vazio). Mutuamente exclusivo com `pendingConfirmation` na prática (reprovar sempre
+   * limpa `actualEnd`) — é o que avisa a pessoa que precisa informar de novo. */
+  rejected?: boolean;
 }
 
 const iconClass = 'h-3 w-3 text-status-delayed';
@@ -31,11 +35,12 @@ export function StatusBadge({
   lateCompletion,
   lateCompletionDays,
   pendingConfirmation,
+  rejected,
 }: StatusBadgeProps) {
   const showStartDelayed = shouldShowStartDelayedBadge({ isStartDelayed: startDelayed, isBlocked: blocked, status });
 
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex flex-wrap items-center gap-1.5">
       <Badge color={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Badge>
 
       {blocked && (
@@ -92,7 +97,18 @@ export function StatusBadge({
           className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-page px-1.5 py-0.5 text-[10px] font-semibold text-text-muted2"
         >
           <UserCheck className="h-3 w-3" aria-hidden="true" />
-          Aguardando confirmação
+          Ag. confirmação
+        </span>
+      )}
+
+      {rejected && (
+        <span
+          aria-label="Finalização não validada pelo administrador"
+          title="Finalização não validada pelo administrador"
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-status-delayed/10 px-1.5 py-0.5 text-[10px] font-semibold text-status-delayed"
+        >
+          <XCircle className="h-3 w-3" aria-hidden="true" />
+          Não validado
         </span>
       )}
     </span>

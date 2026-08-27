@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
+import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2, UserCheck } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
-import { useAuth, usePapel } from '../../hooks';
+import { useAuth, usePapel, useProjects } from '../../hooks';
 
 interface NavItem {
   to: string;
@@ -37,6 +37,12 @@ const NAV_ITEMS: NavItem[] = [
     isActive: (pathname) => pathname === '/tarefas-proximas',
   },
   {
+    to: '/confirmacoes',
+    label: 'Confirmações',
+    icon: UserCheck,
+    isActive: (pathname) => pathname === '/confirmacoes',
+  },
+  {
     to: '/atividades',
     label: 'Atividades',
     icon: ListChecks,
@@ -67,7 +73,15 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { session, signOut } = useAuth();
   const papel = usePapel();
+  const { projects } = useProjects();
   const [changingPassword, setChangingPassword] = useState(false);
+  // Badge em "Confirmações" — mesma contagem que popula PendingConfirmationsPage.tsx, calculada
+  // aqui de novo (sem store compartilhado nesta app, ver useUpcomingTasksData.ts) só pra saber o
+  // número sem montar a tela inteira.
+  const pendingConfirmationCount = projects.reduce(
+    (sum, p) => sum + p.activities.reduce((s, a) => s + a.tasks.filter((t) => t.pendingConfirmation).length, 0),
+    0,
+  );
   // Só 'usuario' fica restrito a "Próximas Tarefas" — administrador e visualizador (Fase 7+)
   // enxergam o menu inteiro. Checa `=== 'usuario'` explícito (não o inverso de canViewAll) pra
   // não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
@@ -115,8 +129,24 @@ export function Sidebar() {
                   collapsed ? 'justify-center px-0' : ''
                 } ${active ? 'bg-white/[.18] text-white' : 'text-white hover:bg-white/10'}`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                <span className="relative shrink-0">
+                  <Icon className="h-4 w-4" />
+                  {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && collapsed && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-status-delayed text-[8px] font-bold text-white">
+                      {pendingConfirmationCount > 9 ? '9+' : pendingConfirmationCount}
+                    </span>
+                  )}
+                </span>
+                {!collapsed && (
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="truncate whitespace-nowrap">{item.label}</span>
+                    {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && (
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-status-delayed px-1 text-[11px] font-bold text-white">
+                        {pendingConfirmationCount}
+                      </span>
+                    )}
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -8,3 +8,4 @@ export * from './ProjectSchedulePage';
 export * from './ActivitiesPage';
 export * from './UpcomingTasksPage';
 export * from './SettingsPage';
+export * from './PendingConfirmationsPage';

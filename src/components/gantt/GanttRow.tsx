@@ -143,6 +143,7 @@ export function GanttRow({
           lateCompletion={task.isLateCompletion}
           lateCompletionDays={task.lateCompletionDays}
           pendingConfirmation={task.pendingConfirmation}
+          rejected={task.rejected}
         />
       </td>
       <td

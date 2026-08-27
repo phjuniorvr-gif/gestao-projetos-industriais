@@ -40,6 +40,8 @@ const project: Project = {
           baseStart: '2026-07-01',
           baseEnd: '2026-07-15',
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         },
         {
           // cenário 1: dentro do prazo, mas bloqueada pela predecessora (t1) ainda não concluída.
@@ -54,6 +56,8 @@ const project: Project = {
           baseStart: '2026-08-01',
           baseEnd: '2026-08-20',
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         },
       ],
     },
@@ -76,6 +80,8 @@ const project: Project = {
           baseStart: '2026-08-01',
           baseEnd: '2026-08-20',
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         },
         {
           // cenário 3: concluída 3 dias úteis depois do previsto (Tiradentes descontado — ver
@@ -93,6 +99,8 @@ const project: Project = {
           actualStart: '2026-04-01',
           actualEnd: '2026-04-23',
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         },
         {
           id: 't5',
@@ -108,6 +116,8 @@ const project: Project = {
           actualStart: '2026-05-01',
           actualEnd: '2026-05-08',
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         },
       ],
     },
@@ -232,6 +242,8 @@ describe('recomputeProject — pendingConfirmation (Fase 7+)', () => {
               actualStart: '2026-08-01',
               actualEnd: '2026-08-09',
               confirmedByAdmin,
+              rejected: false,
+              rejectionCount: 0,
             },
           ],
         },

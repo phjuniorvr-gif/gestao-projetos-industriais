@@ -244,6 +244,7 @@ export function UpcomingTasksPage() {
                           status={task.status}
                           startDelayed={task.isStartDelayed}
                           pendingConfirmation={task.pendingConfirmation}
+                          rejected={task.rejected}
                         />
                         {task.isStartDelayed && (
                           <span className="whitespace-nowrap rounded-full bg-page px-1.5 py-0.5 text-[10px] font-semibold text-text-muted2">

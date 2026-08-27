@@ -28,6 +28,8 @@ const baseTask: Task = {
   baseStart: '2026-08-03',
   baseEnd: '2026-08-10',
   confirmedByAdmin: true,
+  rejected: false,
+  rejectionCount: 0,
 };
 
 describe('validateTaskDependencies', () => {

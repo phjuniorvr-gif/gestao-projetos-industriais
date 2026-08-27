@@ -35,8 +35,18 @@ export interface UpcomingRow {
  * dias, mas que precisa aparecer porque está pra começar).
  */
 export function useUpcomingTasksData() {
-  const { projects, today, replanejamentos, updateTask, updateTaskActualDates, confirmTaskCompletion, replanTask, setTaskPredecessors, removeTask } =
-    useProjects();
+  const {
+    projects,
+    today,
+    replanejamentos,
+    updateTask,
+    updateTaskActualDates,
+    confirmTaskCompletion,
+    rejectTaskCompletion,
+    replanTask,
+    setTaskPredecessors,
+    removeTask,
+  } = useProjects();
   const { people, createPerson } = usePeople();
   const { categories } = useCategories();
   const { holidays } = useHolidays();
@@ -214,6 +224,7 @@ export function useUpcomingTasksData() {
     updateTask,
     updateTaskActualDates,
     confirmTaskCompletion,
+    rejectTaskCompletion,
     replanTask,
     setTaskPredecessors,
     removeTask,

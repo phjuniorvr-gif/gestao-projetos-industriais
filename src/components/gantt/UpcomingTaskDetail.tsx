@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog } from '../ui';
 import { TaskPanel } from './TaskPanel';
+import { RejectTaskDialog } from './RejectTaskDialog';
 import type { useUpcomingTasksData } from '../../hooks';
 import type { TaskView } from '../../types';
 
@@ -11,10 +12,11 @@ interface UpcomingTaskDetailProps {
   isMobile: boolean;
 }
 
-/** `TaskPanel` + `ConfirmDialog` de exclusão, já ligados aos callbacks de `useUpcomingTasksData`
- * — extraído pra ser reaproveitado sem duplicar entre `UpcomingTasksPage.tsx` (desktop) e
- * `MobileUpcomingTasksPage.tsx`, que só diferem em como a lista é apresentada (tabela x cards),
- * não em como uma tarefa é aberta/editada/excluída. */
+/** `TaskPanel` + `ConfirmDialog` de exclusão + `RejectTaskDialog` de reprovação, já ligados aos
+ * callbacks de `useUpcomingTasksData` — extraído pra ser reaproveitado sem duplicar entre
+ * `UpcomingTasksPage.tsx` (desktop), `MobileUpcomingTasksPage.tsx` e `PendingConfirmationsPage.tsx`,
+ * que só diferem em como a lista é apresentada, não em como uma tarefa é aberta/editada/excluída/
+ * reprovada. */
 export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: UpcomingTaskDetailProps) {
   const {
     projects,
@@ -29,16 +31,19 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
     updateTask,
     updateTaskActualDates,
     confirmTaskCompletion,
+    rejectTaskCompletion,
     setTaskPredecessors,
     replanTask,
     removeTask,
   } = data;
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
+  const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
 
   const selectedTask = selectedTaskId ? (allTasks.find((t) => t.id === selectedTaskId) ?? null) : null;
   const selectedTaskDependentCount = selectedTask
     ? allTasks.filter((t) => t.dependencies.some((d) => d.predecessorId === selectedTask.id)).length
     : 0;
+  const rejectingTask = rejectingTaskId ? (allTasks.find((t) => t.id === rejectingTaskId) ?? null) : null;
 
   return (
     <>
@@ -68,6 +73,7 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
           const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
           if (owningProjectId) confirmTaskCompletion(owningProjectId, taskId);
         }}
+        onRequestReject={(taskId) => setRejectingTaskId(taskId)}
         onSetPredecessors={(taskId, entries) => {
           const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
           if (!owningProjectId) return { valid: false, errors: ['Projeto não encontrado.'] };
@@ -97,6 +103,19 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
           if (deletingTask && owningProjectId) removeTask(owningProjectId, deletingTask.id);
           setDeletingTask(null);
           onClose();
+        }}
+      />
+
+      <RejectTaskDialog
+        open={Boolean(rejectingTask)}
+        taskName={rejectingTask?.name ?? ''}
+        onCancel={() => setRejectingTaskId(null)}
+        onConfirm={(motivo) => {
+          const owningProjectId = rejectingTask ? activityIdToProjectId.get(rejectingTask.activityId) : undefined;
+          if (!rejectingTask || !owningProjectId) return { valid: false, errors: ['Tarefa não encontrada.'] };
+          const result = rejectTaskCompletion(owningProjectId, rejectingTask.id, motivo);
+          if (result.valid) setRejectingTaskId(null);
+          return result;
         }}
       />
     </>

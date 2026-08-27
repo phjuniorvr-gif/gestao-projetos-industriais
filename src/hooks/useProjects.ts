@@ -3,6 +3,7 @@ import {
   fetchProjects,
   informarDataReal,
   replanTaskAtomic,
+  reprovarFinalizacao,
   restoreProjectRemote,
   saveProjectTree,
   softDeleteProjectRemote,
@@ -221,6 +222,8 @@ export function useProjects() {
           // Sem data real ainda — mesmo default do banco (NOT NULL DEFAULT true), seedado aqui
           // pra TaskView.pendingConfirmation calcular certo antes do primeiro refetch.
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         })),
       }));
       const project: Project = {
@@ -326,6 +329,8 @@ export function useProjects() {
             baseStart: period.plannedStart,
             baseEnd: period.plannedEnd,
             confirmedByAdmin: true,
+            rejected: false,
+            rejectionCount: 0,
           };
           nextRowNumber += 1;
           return task;
@@ -410,6 +415,8 @@ export function useProjects() {
           baseStart: input.plannedStart,
           baseEnd: input.plannedEnd,
           confirmedByAdmin: true,
+          rejected: false,
+          rejectionCount: 0,
         };
         return {
           ...project,
@@ -438,10 +445,14 @@ export function useProjects() {
   /**
    * "Informar real" (Fase 5, Commit 2; virou RPC atômica na Fase 7+) — único caminho de escrita
    * que um usuário sem privilégio de administrador pode alcançar depois do Commit 4: atualiza só
-   * `actual_start`/`actual_end`/`confirmed_by_admin` (`informarDataReal`, `projectsRepo.ts`),
-   * nunca a árvore inteira do projeto. Local otimista primeiro (UI não espera a rede), corrigido
-   * pelo `confirmedByAdmin` que a RPC devolve assim que a resposta chega — evita depender de um
-   * refetch pra saber se a finalização precisa de confirmação do administrador.
+   * `actual_start`/`actual_end`/`confirmed_by_admin`/`rejected` (`informarDataReal`,
+   * `projectsRepo.ts`), nunca a árvore inteira do projeto. Local otimista primeiro (UI não espera
+   * a rede), corrigido pelo `confirmedByAdmin` que a RPC devolve assim que a resposta chega —
+   * evita depender de um refetch pra saber se a finalização precisa de confirmação do
+   * administrador. `rejected` some sozinho (espelha a mesma regra da RPC) quando o novo
+   * `actualEnd` não é vazio — ressubmissão supera uma reprovação anterior. Refetch de
+   * `replanejamentos` no final: essa RPC grava linha(s) de log (Fase 7+), sem isso o histórico no
+   * painel da tarefa só apareceria depois de um refresh manual.
    */
   const updateTaskActualDates = useCallback(
     (projectId: string, taskId: string, patch: { actualStart?: string; actualEnd?: string }) => {
@@ -463,13 +474,49 @@ export function useProjects() {
             ...proj,
             activities: proj.activities.map((a) => ({
               ...a,
-              tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, confirmedByAdmin } : t)),
+              tasks: a.tasks.map((t) =>
+                t.id === taskId ? { ...t, confirmedByAdmin, rejected: resolved.actualEnd ? false : t.rejected } : t,
+              ),
             })),
           }));
+          return refetchReplanejamentos();
         })
         .catch((err) => console.error('Falha ao informar data real no Supabase', err));
     },
-    [rawProjects, updateProjectLocal],
+    [rawProjects, updateProjectLocal, refetchReplanejamentos],
+  );
+
+  /** Administrador reprova a finalização marcada por usuário comum (pedido do usuário: "quando
+   * eu não aprovar quero uma tratativa... apaga a data final até a pessoa colocar novamente") —
+   * `motivo` é a "tratativa", obrigatória (a RPC também barra vazio). Reaproveita o mesmo log de
+   * `replanejamentos` de "informar real" (campo='real', campo_data='fim', de=data antiga,
+   * para=null) — o histórico da tarefa mostra a reprovação junto com o resto, sem tabela nova. */
+  const rejectTaskCompletion = useCallback(
+    (projectId: string, taskId: string, motivo: string): ReplanValidation => {
+      if (!motivo.trim()) return { valid: false, errors: ['Informe o motivo da reprovação.'] };
+      const project = rawProjects.find((p) => p.id === projectId);
+      const task = project?.activities.flatMap((a) => a.tasks).find((t) => t.id === taskId);
+      if (!task) return { valid: false, errors: ['Tarefa não encontrada.'] };
+
+      updateProjectLocal(projectId, (p) => ({
+        ...p,
+        activities: p.activities.map((a) => ({
+          ...a,
+          tasks: a.tasks.map((t) =>
+            t.id === taskId
+              ? { ...t, actualEnd: undefined, confirmedByAdmin: true, rejected: true, rejectionCount: t.rejectionCount + 1 }
+              : t,
+          ),
+        })),
+      }));
+
+      reprovarFinalizacao(taskId, motivo.trim())
+        .then(refetchReplanejamentos)
+        .catch((err) => console.error('Falha ao reprovar finalização no Supabase', err));
+
+      return { valid: true, errors: [] };
+    },
+    [rawProjects, updateProjectLocal, refetchReplanejamentos],
   );
 
   /** Administrador confirma a finalização de uma tarefa marcada por usuário comum (pedido do
@@ -644,6 +691,7 @@ export function useProjects() {
     updateTask,
     updateTaskActualDates,
     confirmTaskCompletion,
+    rejectTaskCompletion,
     replanTask,
     removeTask,
     reorderTask,

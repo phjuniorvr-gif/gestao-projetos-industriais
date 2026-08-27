@@ -32,6 +32,8 @@ const baseTask: Task = {
   baseStart: '2026-08-01',
   baseEnd: '2026-08-10',
   confirmedByAdmin: true,
+  rejected: false,
+  rejectionCount: 0,
 };
 
 function taskView(overrides: Partial<TaskView> = {}): TaskView {

@@ -47,6 +47,8 @@ interface TaskRow {
   actual_start: string | null;
   actual_end: string | null;
   confirmed_by_admin: boolean;
+  rejected: boolean;
+  rejection_count: number;
 }
 
 /** Dependências (Fase 2.7) — tabela própria, não coluna de `tasks` (substitui
@@ -133,6 +135,8 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       actualStart: row.actual_start ?? undefined,
       actualEnd: row.actual_end ?? undefined,
       confirmedByAdmin: row.confirmed_by_admin,
+      rejected: row.rejected,
+      rejectionCount: row.rejection_count,
     };
     const list = tasksByActivity.get(row.activity_id) ?? [];
     list.push(task);
@@ -310,6 +314,21 @@ export async function informarDataReal(
   });
   if (error) throw error;
   return Boolean(data);
+}
+
+/**
+ * "Reprovar finalização" (Fase 7+) — RPC pra `reprovar_finalizacao_tarefa()` (Postgres): limpa
+ * `actual_end`, marca `rejected`, incrementa `rejection_count` e grava a "tratativa" (motivo) no
+ * mesmo log de `replanejamentos` (campo='real', campo_data='fim', de=data antiga, para=null) que
+ * "informar real" já usa — mesma transação, mesmo estilo `security invoker` das outras RPCs.
+ * Admin-only (a função barra explicitamente, reforçada pelo trigger de `tasks`).
+ */
+export async function reprovarFinalizacao(taskId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc('reprovar_finalizacao_tarefa', {
+    p_task_id: taskId,
+    p_motivo: motivo,
+  });
+  if (error) throw error;
 }
 
 /**

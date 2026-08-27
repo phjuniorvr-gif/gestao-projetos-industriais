@@ -11,6 +11,7 @@ import {
   getGanttLeftWidth,
   MobileScheduleList,
   offsetPx,
+  RejectTaskDialog,
   ScheduleLegend,
   TaskPanel,
   ZOOM_PX_PER_DAY,
@@ -49,6 +50,7 @@ export function ProjectSchedulePage() {
     updateActivityName,
     updateTaskActualDates,
     confirmTaskCompletion,
+    rejectTaskCompletion,
     replanTask,
     removeTask,
     setTaskPredecessors,
@@ -146,6 +148,7 @@ export function ProjectSchedulePage() {
   const [taskPanelState, setTaskPanelState] = useState<{ open: boolean; initialActivityId?: string }>({ open: false });
   const [deletingActivity, setDeletingActivity] = useState<ActivityView | null>(null);
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
+  const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
 
   const filteredGanttProjects = useMemo(() => {
     if (!categoryFilter && !responsavelFilterId && !hideCompleted) return visibleProjects;
@@ -564,6 +567,7 @@ export function ProjectSchedulePage() {
           );
           if (owningProjectId) confirmTaskCompletion(owningProjectId, taskId);
         }}
+        onRequestReject={(taskId) => setRejectingTaskId(taskId)}
         onSetPredecessors={(taskId, entries) => {
           const owningProjectId = activityIdToProjectId.get(
             allTasks.find((t) => t.id === taskId)?.activityId ?? '',
@@ -656,6 +660,20 @@ export function ProjectSchedulePage() {
           const owningProjectId = deletingTask ? activityIdToProjectId.get(deletingTask.activityId) : undefined;
           if (deletingTask && owningProjectId) removeTask(owningProjectId, deletingTask.id);
           setDeletingTask(null);
+        }}
+      />
+
+      <RejectTaskDialog
+        open={Boolean(rejectingTaskId)}
+        taskName={allTasks.find((t) => t.id === rejectingTaskId)?.name ?? ''}
+        onCancel={() => setRejectingTaskId(null)}
+        onConfirm={(motivo) => {
+          const rejectingTask = allTasks.find((t) => t.id === rejectingTaskId);
+          const owningProjectId = rejectingTask ? activityIdToProjectId.get(rejectingTask.activityId) : undefined;
+          if (!rejectingTask || !owningProjectId) return { valid: false, errors: ['Tarefa não encontrada.'] };
+          const result = rejectTaskCompletion(owningProjectId, rejectingTask.id, motivo);
+          if (result.valid) setRejectingTaskId(null);
+          return result;
         }}
       />
 
