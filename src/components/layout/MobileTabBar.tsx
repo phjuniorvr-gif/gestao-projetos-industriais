@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { CalendarClock, CalendarRange, FolderKanban, LayoutDashboard, Users } from 'lucide-react';
-import { usePerfil, useProjects } from '../../hooks';
+import { usePapel, useProjects } from '../../hooks';
 import { computeStatusDistribution } from '../../utils/portfolio';
 
 interface TabItem {
@@ -15,13 +15,14 @@ interface TabItem {
 export function MobileTabBar() {
   const { pathname } = useLocation();
   const { projects } = useProjects();
-  const isAdmin = usePerfil();
+  const papel = usePapel();
   const delayedCount = computeStatusDistribution(projects).find((d) => d.status === 'delayed')?.count ?? 0;
 
-  // Usuário comum só enxerga "Tarefas" (pedido do usuário) — `false` explícito, mesmo raciocínio
-  // do Sidebar desktop, pra não estreitar a barra do administrador por um instante ao carregar.
+  // Só 'usuario' fica restrito a "Tarefas" — administrador e visualizador (Fase 7+) enxergam a
+  // barra inteira. Mesmo raciocínio do Sidebar desktop: checa `=== 'usuario'` explícito pra não
+  // estreitar a barra por um instante enquanto o papel ainda não resolveu.
   const tabItems: TabItem[] =
-    isAdmin === false
+    papel === 'usuario'
       ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
       : [
           {

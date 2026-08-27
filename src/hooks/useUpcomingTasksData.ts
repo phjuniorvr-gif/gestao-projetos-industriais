@@ -4,8 +4,8 @@ import { diffDays } from '../utils';
 import { useAuth } from './useAuth';
 import { useCategories } from './useCategories';
 import { useHolidays } from './useHolidays';
+import { canViewAll, usePapel } from './usePapel';
 import { usePeople } from './usePeople';
-import { usePerfil } from './usePerfil';
 import { useProjects } from './useProjects';
 
 const WINDOW_DAYS = 15;
@@ -41,12 +41,17 @@ export function useUpcomingTasksData() {
   const { categories } = useCategories();
   const { holidays } = useHolidays();
   const { session } = useAuth();
-  const isAdmin = usePerfil();
-  // Usuário comum vê só as tarefas em que é o responsável (pedido do usuário) — administrador
-  // continua vendo tudo. `isAdmin !== true` cobre `false` E `undefined` (papel ainda carregando),
-  // pra não vazar as tarefas de todo mundo por um instante antes do papel resolver.
+  const papel = usePapel();
+  // Mesmo cálculo de `usePerfil()`, derivado do mesmo `papel` já buscado aqui — evita chamar os
+  // dois hooks (duas buscas independentes) só pra chegar no mesmo boolean. Tri-state preservado
+  // (`undefined` enquanto carrega, nunca vira `false` prematuro) pelo mesmo motivo de sempre.
+  const isAdmin = papel === undefined ? undefined : papel === 'administrador';
+  // Só 'usuario' vê só as próprias tarefas — administrador e visualizador (Fase 7+, enxerga tudo
+  // mas não escreve nada) veem todo mundo. `!canViewAll(papel)` cobre 'usuario' E `undefined`
+  // (papel ainda carregando), pra não vazar as tarefas de todo mundo por um instante antes do
+  // papel resolver.
   const myPerson = people.find((p) => p.userId === session?.user.id);
-  const restrictToMine = isAdmin !== true;
+  const restrictToMine = !canViewAll(papel);
 
   const [search, setSearch] = useState('');
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);

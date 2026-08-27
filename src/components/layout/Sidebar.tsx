@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
-import { useAuth, usePerfil } from '../../hooks';
+import { useAuth, usePapel } from '../../hooks';
 
 interface NavItem {
   to: string;
@@ -66,12 +66,13 @@ export function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { session, signOut } = useAuth();
-  const isAdmin = usePerfil();
+  const papel = usePapel();
   const [changingPassword, setChangingPassword] = useState(false);
-  // Usuário comum só enxerga "Próximas Tarefas" no menu inteiro (pedido do usuário) — `false`
-  // explícito (não `undefined`/carregando) pra não estreitar o menu do administrador por um
-  // instante a cada carregamento de página.
-  const navItems = isAdmin === false ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas') : NAV_ITEMS;
+  // Só 'usuario' fica restrito a "Próximas Tarefas" — administrador e visualizador (Fase 7+)
+  // enxergam o menu inteiro. Checa `=== 'usuario'` explícito (não o inverso de canViewAll) pra
+  // não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
+  // não resolveu (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
+  const navItems = papel === 'usuario' ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas') : NAV_ITEMS;
 
   return (
     <aside

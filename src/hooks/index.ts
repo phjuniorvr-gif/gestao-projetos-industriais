@@ -8,6 +8,7 @@ export * from './usePeople';
 export * from './useUsuarios';
 export * from './useAuth';
 export * from './usePerfil';
+export * from './usePapel';
 export * from './useUndoToast';
 export * from './useIsMobile';
 export * from './useUpcomingTasksData';

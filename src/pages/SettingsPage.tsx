@@ -4,7 +4,7 @@ import { PageHeader } from '../components/layout';
 import { Button, Card, Checkbox, FormField, Input, Select } from '../components/ui';
 import { getSettings as getStoredSettings, setSettings as persistSettings } from '../services/localSettings';
 import { useAuth, useCategories, usePeople, usePerfil, useUsuarios } from '../hooks';
-import { STATUS_LABEL, type Category, type Papel, type ProjectStatus } from '../types';
+import { PAPEL_LABEL, STATUS_LABEL, type Category, type Papel, type ProjectStatus } from '../types';
 
 interface Settings {
   defaultUnit: string;
@@ -246,6 +246,7 @@ export function SettingsPage() {
             <p className="text-sm font-semibold text-text">Usuários</p>
             <p className="mt-1 text-xs text-text-muted">
               Login e permissão de acesso ao sistema. Só administrador pode criar usuário ou trocar papel.
+              "Visualizador" enxerga todas as telas, mas não consegue criar/editar/excluir nada.
             </p>
           </div>
 
@@ -257,7 +258,7 @@ export function SettingsPage() {
                   <span className="flex-1 truncate text-sm text-text">{u.email}</span>
                   {isSelf ? (
                     <span className="text-xs font-medium text-text-muted" title="Você não pode trocar seu próprio papel por aqui.">
-                      {u.papel === 'administrador' ? 'Administrador' : 'Usuário'}
+                      {PAPEL_LABEL[u.papel]}
                     </span>
                   ) : (
                     <Select
@@ -267,6 +268,7 @@ export function SettingsPage() {
                     >
                       <option value="usuario">Usuário</option>
                       <option value="administrador">Administrador</option>
+                      <option value="visualizador">Visualizador</option>
                     </Select>
                   )}
                 </div>
@@ -295,6 +297,7 @@ export function SettingsPage() {
               <Select value={newUserPapel} onChange={(e) => setNewUserPapel(e.target.value as Papel)} className="w-40">
                 <option value="usuario">Usuário</option>
                 <option value="administrador">Administrador</option>
+                <option value="visualizador">Visualizador</option>
               </Select>
               <Select value={newUserPersonId} onChange={(e) => setNewUserPersonId(e.target.value)} className="w-48">
                 <option value="">Pessoa vinculada: nenhuma</option>

@@ -53,7 +53,17 @@ export interface Person {
 
 // Papel de acesso (Fase 5, tabela `perfis`) — login + permissão, diferente de `Person`
 // (que é só "quem é referenciado em tarefa/projeto", nem sempre tem login).
-export type Papel = 'usuario' | 'administrador';
+// 'visualizador' (não 'gerente') pra não colidir com o conceito já existente de "gerente de
+// projeto" (Project.gerenteId, responsabilidade de pessoa — assunto diferente de papel de
+// acesso) — enxerga tudo (mesma navegação que administrador), mas não escreve nada, igual ao
+// 'usuario' de antes da tela restrita existir (Fase 7+).
+export type Papel = 'usuario' | 'administrador' | 'visualizador';
+
+export const PAPEL_LABEL: Record<Papel, string> = {
+  usuario: 'Usuário',
+  administrador: 'Administrador',
+  visualizador: 'Visualizador',
+};
 
 export interface Usuario {
   userId: string;
