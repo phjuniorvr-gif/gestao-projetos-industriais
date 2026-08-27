@@ -48,6 +48,11 @@ const NAV_ITEMS: NavItem[] = [
     icon: UserCheck,
     isActive: (pathname) => pathname === '/confirmacoes',
   },
+];
+
+// Itens de configuração/manutenção, separados do fluxo principal (a pedido do usuário) — ficam
+// mais abaixo, perto do e-mail/rodapé, em vez de misturados com a navegação do dia a dia.
+const SECONDARY_NAV_ITEMS: NavItem[] = [
   {
     to: '/atividades',
     label: 'Atividades',
@@ -93,6 +98,41 @@ export function Sidebar() {
   // não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
   // não resolveu (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
   const navItems = papel === 'usuario' ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas') : NAV_ITEMS;
+  const secondaryItems = papel === 'usuario' ? [] : SECONDARY_NAV_ITEMS;
+
+  function renderNavItem(item: NavItem) {
+    const active = item.isActive(pathname);
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.label}
+        to={item.to}
+        title={collapsed ? item.label : undefined}
+        className={`flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+          collapsed ? 'justify-center px-0' : ''
+        } ${active ? 'bg-white/[.18] text-white' : 'text-white hover:bg-white/10'}`}
+      >
+        <span className="relative shrink-0">
+          <Icon className="h-4 w-4" />
+          {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && collapsed && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-status-delayed text-[8px] font-bold text-white">
+              {pendingConfirmationCount > 9 ? '9+' : pendingConfirmationCount}
+            </span>
+          )}
+        </span>
+        {!collapsed && (
+          <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+            <span className="truncate whitespace-nowrap">{item.label}</span>
+            {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && (
+              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-status-delayed px-1 text-[11px] font-bold text-white">
+                {pendingConfirmationCount}
+              </span>
+            )}
+          </span>
+        )}
+      </Link>
+    );
+  }
 
   return (
     <aside
@@ -122,44 +162,13 @@ export function Sidebar() {
         {!collapsed && (
           <p className="px-2.5 pb-2.5 pt-2 text-[11px] uppercase tracking-wider text-white/70">Páginas</p>
         )}
-        <nav className="flex flex-col gap-1.5">
-          {navItems.map((item) => {
-            const active = item.isActive(pathname);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                title={collapsed ? item.label : undefined}
-                className={`flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                  collapsed ? 'justify-center px-0' : ''
-                } ${active ? 'bg-white/[.18] text-white' : 'text-white hover:bg-white/10'}`}
-              >
-                <span className="relative shrink-0">
-                  <Icon className="h-4 w-4" />
-                  {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && collapsed && (
-                    <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-status-delayed text-[8px] font-bold text-white">
-                      {pendingConfirmationCount > 9 ? '9+' : pendingConfirmationCount}
-                    </span>
-                  )}
-                </span>
-                {!collapsed && (
-                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                    <span className="truncate whitespace-nowrap">{item.label}</span>
-                    {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-status-delayed px-1 text-[11px] font-bold text-white">
-                        {pendingConfirmationCount}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <nav className="flex flex-col gap-1.5">{navItems.map(renderNavItem)}</nav>
       </div>
 
       <div className="mt-auto px-2.5 py-4">
+        {secondaryItems.length > 0 && (
+          <nav className="mb-2 flex flex-col gap-1.5 border-t border-white/15 pt-3">{secondaryItems.map(renderNavItem)}</nav>
+        )}
         {!collapsed && session?.user.email && (
           <p className="truncate px-3 pb-2 text-xs text-white/60" title={session.user.email}>
             {session.user.email}
