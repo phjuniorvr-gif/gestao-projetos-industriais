@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Hourglass } from 'lucide-react';
+import { AlertTriangle, Clock, Hourglass, UserCheck } from 'lucide-react';
 import { Badge } from '../ui';
 import { STATUS_COLOR, STATUS_LABEL, type ProjectStatus } from '../../types';
 import { shouldShowStartDelayedBadge } from '../../utils/status';
@@ -14,6 +14,10 @@ interface StatusBadgeProps {
   lateCompletion?: boolean;
   /** Dias úteis de atraso; sem isso (feriados ainda carregando) mostra só o ícone. */
   lateCompletionDays?: number;
+  /** Fase 7+ — `TaskView.pendingConfirmation`: tem data real preenchida por usuário comum,
+   * ainda sem confirmação do administrador. Enquanto isso, `status` já não é 'completed' — este
+   * selo é o que explica a aparente contradição pra quem olha. */
+  pendingConfirmation?: boolean;
 }
 
 const iconClass = 'h-3 w-3 text-status-delayed';
@@ -26,6 +30,7 @@ export function StatusBadge({
   startDelayedCount,
   lateCompletion,
   lateCompletionDays,
+  pendingConfirmation,
 }: StatusBadgeProps) {
   const showStartDelayed = shouldShowStartDelayedBadge({ isStartDelayed: startDelayed, isBlocked: blocked, status });
 
@@ -79,6 +84,17 @@ export function StatusBadge({
             <Clock className={iconClass} aria-hidden="true" />
           </span>
         ))}
+
+      {pendingConfirmation && (
+        <span
+          aria-label="Aguardando confirmação do administrador"
+          title="Aguardando confirmação do administrador"
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-page px-1.5 py-0.5 text-[10px] font-semibold text-text-muted2"
+        >
+          <UserCheck className="h-3 w-3" aria-hidden="true" />
+          Aguardando confirmação
+        </span>
+      )}
     </span>
   );
 }

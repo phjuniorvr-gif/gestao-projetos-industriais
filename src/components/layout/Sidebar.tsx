@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
-import { AppLogo } from '../ui';
-import { useAuth } from '../../hooks';
+import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2 } from 'lucide-react';
+import { AppLogo, ChangePasswordDialog } from '../ui';
+import { useAuth, usePerfil } from '../../hooks';
 
 interface NavItem {
   to: string;
@@ -66,6 +66,12 @@ export function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { session, signOut } = useAuth();
+  const isAdmin = usePerfil();
+  const [changingPassword, setChangingPassword] = useState(false);
+  // Usuário comum só enxerga "Próximas Tarefas" no menu inteiro (pedido do usuário) — `false`
+  // explícito (não `undefined`/carregando) pra não estreitar o menu do administrador por um
+  // instante a cada carregamento de página.
+  const navItems = isAdmin === false ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas') : NAV_ITEMS;
 
   return (
     <aside
@@ -96,7 +102,7 @@ export function Sidebar() {
           <p className="px-2.5 pb-2.5 pt-2 text-[11px] uppercase tracking-wider text-white/70">Páginas</p>
         )}
         <nav className="flex flex-col gap-1.5">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = item.isActive(pathname);
             const Icon = item.icon;
             return (
@@ -124,6 +130,17 @@ export function Sidebar() {
         )}
         <button
           type="button"
+          onClick={() => setChangingPassword(true)}
+          title={collapsed ? 'Trocar senha' : undefined}
+          className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10 ${
+            collapsed ? 'justify-center px-0' : ''
+          }`}
+        >
+          <KeyRound className="h-4 w-4 shrink-0" />
+          {!collapsed && <span className="whitespace-nowrap">Trocar senha</span>}
+        </button>
+        <button
+          type="button"
           onClick={() => signOut()}
           title={collapsed ? 'Sair' : undefined}
           className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10 ${
@@ -134,6 +151,8 @@ export function Sidebar() {
           {!collapsed && <span className="whitespace-nowrap">Sair</span>}
         </button>
       </div>
+
+      <ChangePasswordDialog open={changingPassword} onClose={() => setChangingPassword(false)} />
     </aside>
   );
 }

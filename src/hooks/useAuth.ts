@@ -28,5 +28,14 @@ export function useAuth() {
     await supabase.auth.signOut();
   }, []);
 
-  return { session, loading, signIn, signOut };
+  /** Troca a própria senha (pedido do usuário — qualquer papel, inclusive usuário comum restrito
+   * só a "/tarefas-proximas"). `supabase.auth.updateUser` já opera sobre a sessão logada, sem
+   * precisar de senha atual nem de Admin API/Edge Function — não é "trocar senha de outra
+   * pessoa" (isso continua exclusivo da Edge Function `criar-usuario`, admin-only). */
+  const changePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    return error ? error.message : null;
+  }, []);
+
+  return { session, loading, signIn, signOut, changePassword };
 }

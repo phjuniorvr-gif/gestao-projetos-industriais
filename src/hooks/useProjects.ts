@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchProjects,
+  informarDataReal,
   replanTaskAtomic,
   restoreProjectRemote,
   saveProjectTree,
   softDeleteProjectRemote,
-  updateTaskActual,
 } from '../services/projectsRepo';
 import type { Activity, Category, Project, ProjectView, Task, TaskDependency } from '../types';
 import {
@@ -13,6 +13,7 @@ import {
   computeDatesFromDuration,
   nextProjectCode,
   recomputeProject,
+  resolveActualDatesPatch,
   todayISO,
   validateReplanMotivo,
   validateTaskDependencies,
@@ -217,6 +218,9 @@ export function useProjects() {
           // tocado automaticamente depois — só via replanTask().
           baseStart: t.plannedStart,
           baseEnd: t.plannedEnd,
+          // Sem data real ainda — mesmo default do banco (NOT NULL DEFAULT true), seedado aqui
+          // pra TaskView.pendingConfirmation calcular certo antes do primeiro refetch.
+          confirmedByAdmin: true,
         })),
       }));
       const project: Project = {
@@ -321,6 +325,7 @@ export function useProjects() {
             // Linha de base (Fase 2.5): seed = previsto no instante de criação.
             baseStart: period.plannedStart,
             baseEnd: period.plannedEnd,
+            confirmedByAdmin: true,
           };
           nextRowNumber += 1;
           return task;
@@ -404,6 +409,7 @@ export function useProjects() {
           // computeDatesFromDuration, então o seed precisa estar aqui também.
           baseStart: input.plannedStart,
           baseEnd: input.plannedEnd,
+          confirmedByAdmin: true,
         };
         return {
           ...project,
@@ -430,22 +436,55 @@ export function useProjects() {
   );
 
   /**
-   * "Informar real" (Fase 5, Commit 2) — único caminho de escrita que um usuário sem privilégio
-   * de administrador pode alcançar depois do Commit 4: atualiza só `actual_start`/`actual_end`
-   * (`updateTaskActual`, `projectsRepo.ts`), nunca a árvore inteira do projeto.
+   * "Informar real" (Fase 5, Commit 2; virou RPC atômica na Fase 7+) — único caminho de escrita
+   * que um usuário sem privilégio de administrador pode alcançar depois do Commit 4: atualiza só
+   * `actual_start`/`actual_end`/`confirmed_by_admin` (`informarDataReal`, `projectsRepo.ts`),
+   * nunca a árvore inteira do projeto. Local otimista primeiro (UI não espera a rede), corrigido
+   * pelo `confirmedByAdmin` que a RPC devolve assim que a resposta chega — evita depender de um
+   * refetch pra saber se a finalização precisa de confirmação do administrador.
    */
   const updateTaskActualDates = useCallback(
     (projectId: string, taskId: string, patch: { actualStart?: string; actualEnd?: string }) => {
-      updateProjectLocal(projectId, (project) => ({
-        ...project,
-        activities: project.activities.map((a) => ({
+      const project = rawProjects.find((p) => p.id === projectId);
+      const oldTask = project?.activities.flatMap((a) => a.tasks).find((t) => t.id === taskId);
+      const resolved = resolveActualDatesPatch(oldTask ?? {}, patch);
+
+      updateProjectLocal(projectId, (proj) => ({
+        ...proj,
+        activities: proj.activities.map((a) => ({
           ...a,
           tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
         })),
       }));
-      updateTaskActual(taskId, patch).catch((err) => console.error('Falha ao informar data real no Supabase', err));
+
+      informarDataReal(taskId, resolved.actualStart, resolved.actualEnd)
+        .then((confirmedByAdmin) => {
+          updateProjectLocal(projectId, (proj) => ({
+            ...proj,
+            activities: proj.activities.map((a) => ({
+              ...a,
+              tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, confirmedByAdmin } : t)),
+            })),
+          }));
+        })
+        .catch((err) => console.error('Falha ao informar data real no Supabase', err));
     },
-    [updateProjectLocal],
+    [rawProjects, updateProjectLocal],
+  );
+
+  /** Administrador confirma a finalização de uma tarefa marcada por usuário comum (pedido do
+   * usuário: "o adm confirme a finalização") — reaproveita `informar_data_real` passando as
+   * mesmas datas já gravadas (nenhum campo muda de verdade, então não gera linha nova no log),
+   * só pra virar `confirmed_by_admin = true`. Vazio quando a tarefa ainda não existe (defensivo,
+   * mesmo padrão de `replanTask`/`setTaskPredecessors`). */
+  const confirmTaskCompletion = useCallback(
+    (projectId: string, taskId: string) => {
+      const project = rawProjects.find((p) => p.id === projectId);
+      const task = project?.activities.flatMap((a) => a.tasks).find((t) => t.id === taskId);
+      if (!task) return;
+      updateTaskActualDates(projectId, taskId, { actualStart: task.actualStart, actualEnd: task.actualEnd });
+    },
+    [rawProjects, updateTaskActualDates],
   );
 
   /**
@@ -604,6 +643,7 @@ export function useProjects() {
     addTask,
     updateTask,
     updateTaskActualDates,
+    confirmTaskCompletion,
     replanTask,
     removeTask,
     reorderTask,

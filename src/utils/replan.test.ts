@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeDateChanges, computeReplanCount, validateDateOrder, validateReplanMotivo } from './replan';
+import { computeDateChanges, computeReplanCount, resolveActualDatesPatch, validateDateOrder, validateReplanMotivo } from './replan';
 
 describe('computeReplanCount', () => {
   it('log vazio: 0', () => {
@@ -102,5 +102,44 @@ describe('validateDateOrder', () => {
   it('início ou fim vazio: válido (nada a comparar ainda)', () => {
     expect(validateDateOrder('', '2026-01-10').valid).toBe(true);
     expect(validateDateOrder('2026-01-10', '').valid).toBe(true);
+  });
+});
+
+// Fase 7+ — a RPC informar_data_real sempre recebe o par completo (start+end): é aqui, no
+// cliente, que "chave não veio no patch" (mantém o valor atual) se distingue de "chave veio
+// undefined" (limpa o campo).
+describe('resolveActualDatesPatch', () => {
+  const current = { actualStart: '2026-08-12', actualEnd: '2026-08-20' };
+
+  it('só actualStart no patch: actualEnd mantém o valor atual', () => {
+    expect(resolveActualDatesPatch(current, { actualStart: '2026-08-13' })).toEqual({
+      actualStart: '2026-08-13',
+      actualEnd: '2026-08-20',
+    });
+  });
+
+  it('só actualEnd no patch: actualStart mantém o valor atual', () => {
+    expect(resolveActualDatesPatch(current, { actualEnd: '2026-08-21' })).toEqual({
+      actualStart: '2026-08-12',
+      actualEnd: '2026-08-21',
+    });
+  });
+
+  it('patch vazio: os dois mantêm o valor atual', () => {
+    expect(resolveActualDatesPatch(current, {})).toEqual(current);
+  });
+
+  it('chave presente com undefined explícito: limpa o campo (não mantém o valor atual)', () => {
+    expect(resolveActualDatesPatch(current, { actualStart: undefined })).toEqual({
+      actualStart: undefined,
+      actualEnd: '2026-08-20',
+    });
+  });
+
+  it('tarefa sem nenhuma data real ainda (current vazio): patch parcial não inventa a outra', () => {
+    expect(resolveActualDatesPatch({}, { actualStart: '2026-08-12' })).toEqual({
+      actualStart: '2026-08-12',
+      actualEnd: undefined,
+    });
   });
 });

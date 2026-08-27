@@ -54,10 +54,11 @@ export async function createPerson(name: string): Promise<Person> {
   return fromRow(data);
 }
 
-export async function updatePerson(id: string, patch: { name?: string; active?: boolean }): Promise<void> {
+export async function updatePerson(id: string, patch: { name?: string; active?: boolean; userId?: string }): Promise<void> {
   const payload: Record<string, unknown> = {};
   if (patch.name !== undefined) payload.name = patch.name.trim();
   if (patch.active !== undefined) payload.active = patch.active;
+  if (patch.userId !== undefined) payload.user_id = patch.userId;
   const { error } = await supabase.from('pessoas').update(payload).eq('id', id);
   if (error) throw error;
 }

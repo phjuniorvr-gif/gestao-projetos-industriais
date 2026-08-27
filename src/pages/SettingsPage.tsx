@@ -39,6 +39,9 @@ export function SettingsPage() {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserPapel, setNewUserPapel] = useState<Papel>('usuario');
+  // Vincula o login à pessoa (responsável) correspondente na mesma criação — sem isso não teria
+  // como a tela de Tarefas próximas saber de quem filtrar (pedido do usuário).
+  const [newUserPersonId, setNewUserPersonId] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const [createUserError, setCreateUserError] = useState('');
 
@@ -50,10 +53,12 @@ export function SettingsPage() {
     }
     setCreatingUser(true);
     try {
-      await createUsuario(newUserEmail.trim(), newUserPassword, newUserPapel);
+      const created = await createUsuario(newUserEmail.trim(), newUserPassword, newUserPapel);
+      if (newUserPersonId) await updatePerson(newUserPersonId, { userId: created.userId });
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserPapel('usuario');
+      setNewUserPersonId('');
     } catch (err) {
       setCreateUserError(err instanceof Error ? err.message : 'Não foi possível criar o usuário.');
     } finally {
@@ -291,10 +296,24 @@ export function SettingsPage() {
                 <option value="usuario">Usuário</option>
                 <option value="administrador">Administrador</option>
               </Select>
+              <Select value={newUserPersonId} onChange={(e) => setNewUserPersonId(e.target.value)} className="w-48">
+                <option value="">Pessoa vinculada: nenhuma</option>
+                {people
+                  .filter((p) => p.active)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </Select>
               <Button variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={handleCreateUser} disabled={creatingUser}>
                 Criar
               </Button>
             </div>
+            <p className="text-xs text-text-muted">
+              A pessoa vinculada é quem esse login enxerga como "responsável" na tela de Tarefas dos próximos 15
+              dias — sem vínculo, um usuário comum não vê nenhuma tarefa lá.
+            </p>
             {createUserError && <p className="text-xs text-status-delayed">{createUserError}</p>}
           </div>
         </Card>

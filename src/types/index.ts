@@ -94,6 +94,14 @@ export interface Task {
    * (createProject/addTask) garantem os dois sempre preenchidos. */
   baseStart: string;
   baseEnd: string;
+  /** Fase 7+ — `true` quando o real (se houver) não precisa de confirmação do administrador.
+   * Fica `false` só quando um usuário comum informa data real (RPC `informar_data_real`); volta
+   * a `true` quando o administrador confirma ou edita a data real ele mesmo. Default `true` no
+   * banco (`NOT NULL DEFAULT true`) — cobre tarefa sem data real (irrelevante) e tarefa
+   * concluída pelo próprio administrador (não precisa confirmar a si mesmo). Só a RPC escreve
+   * esta coluna — `saveProjectTree` nunca inclui no upsert, pra não sobrescrever com um valor
+   * desatualizado do estado local quando o administrador edita outra coisa da tarefa. */
+  confirmedByAdmin: boolean;
 }
 
 /** Os quatro tipos de dependência (Fase 2.7, spec 2.7) — regra em dias úteis de cada um em
@@ -155,6 +163,12 @@ export interface TaskView extends Task {
   /** Número de linha de cada dependência, derivado de `dependencies` só pra exibição (GanttRow,
    * "Predecessora(s)", editor) — `dependencies` (id) continua a fonte de verdade persistida. */
   predecessorRowNumbers: number[];
+  /** Fase 7+ — tem data real preenchida mas ainda não foi confirmada pelo administrador (pedido
+   * do usuário: "quando eles concluírem... o adm confirme a finalização"). Enquanto `true`,
+   * `status` NÃO é 'completed' (`computeTaskStatus` volta a calcular como se `actualEnd` não
+   * existisse) — o selo é o que explica pra quem olha por que uma tarefa com data real ainda não
+   * aparece como Concluída. */
+  pendingConfirmation: boolean;
 }
 
 export interface ActivityView extends Omit<Activity, 'tasks'> {
@@ -211,10 +225,10 @@ export interface ActivityTemplate {
 }
 
 // Auditoria de replanejamento (Fase 2.5) — toda mudança de previsto OU de linha de base grava
-// uma linha aqui, com motivo obrigatório. campo diz qual conceito mudou (previsto/base);
-// campoData diz qual das duas datas (início/fim) — sem essa segunda dimensão uma linha do log
-// não diz o que exatamente mudou.
-export type ReplanCampo = 'previsto' | 'base';
+// uma linha aqui, com motivo obrigatório. campo diz qual conceito mudou (previsto/base/real —
+// 'real' desde a Fase 7+, RPC informar_data_real); campoData diz qual das duas datas
+// (início/fim) — sem essa segunda dimensão uma linha do log não diz o que exatamente mudou.
+export type ReplanCampo = 'previsto' | 'base' | 'real';
 export type ReplanCampoData = 'inicio' | 'fim';
 
 export interface Replanejamento {
@@ -224,14 +238,13 @@ export interface Replanejamento {
   quemUserId: string;
   campo: ReplanCampo;
   campoData: ReplanCampoData;
-  de: string;
-  para: string;
+  /** Opcional só pra campo='real' — "informar real" pode logar a partir de/pra null (tarefa sem
+   * data real ainda, ou data real removida). previsto/base sempre têm valor dos dois lados. */
+  de?: string;
+  para?: string;
   motivo: string;
-  /** Pendente de migration (`replanejamentos.por_administrador`, ainda não aplicada — conexão
-   * com o Supabase caiu na sessão em que isso foi escrito). Até a migration existir, sempre
-   * `false` (a coluna não existe no banco, `fetchReplanejamentos` não tem o que mapear) — o R{n}
-   * continua contando tudo, comportamento inalterado até a migration entrar. Quando aplicada, a
-   * RPC `replanejar_tarefa()` grava esse campo com base em `eh_administrador()` no momento da
-   * edição; `computeReplanCount` (`replan.ts`) passa a ignorar as linhas marcadas aqui. */
+  /** `true` quando quem gerou a linha era administrador no momento — `computeReplanCount`
+   * (`replan.ts`) ignora essas linhas no selo R{n} (edição do administrador não conta como
+   * "replanejamento" pro selo, só o log continua registrando normalmente). */
   porAdministrador: boolean;
 }

@@ -48,6 +48,7 @@ export function ProjectSchedulePage() {
     updateTask,
     updateActivityName,
     updateTaskActualDates,
+    confirmTaskCompletion,
     replanTask,
     removeTask,
     setTaskPredecessors,
@@ -556,6 +557,12 @@ export function ProjectSchedulePage() {
           );
           if (!owningProjectId) return;
           updateTaskActualDates(owningProjectId, taskId, patch);
+        }}
+        onConfirmCompletion={(taskId) => {
+          const owningProjectId = activityIdToProjectId.get(
+            allTasks.find((t) => t.id === taskId)?.activityId ?? '',
+          );
+          if (owningProjectId) confirmTaskCompletion(owningProjectId, taskId);
         }}
         onSetPredecessors={(taskId, entries) => {
           const owningProjectId = activityIdToProjectId.get(

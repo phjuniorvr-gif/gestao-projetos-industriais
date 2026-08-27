@@ -23,7 +23,9 @@ interface StatusedItem {
  * chamador, nunca lido internamente — determinístico e testável sem mockar relógio.
  */
 export function computeTaskStatus(task: Task, today: string): ProjectStatus {
-  if (task.actualEnd) return 'completed';
+  // Fase 7+ — data real preenchida por usuário comum e ainda não confirmada pelo administrador
+  // não conta como concluída (pedido do usuário) — calcula como se actualEnd não existisse.
+  if (task.actualEnd && task.confirmedByAdmin) return 'completed';
   if (today > task.plannedEnd) return 'delayed';
   if (task.actualStart) return 'in_progress';
   return 'planned';
@@ -250,6 +252,7 @@ export function recomputeProject(
       replanCount: replanejamentos ? computeReplanCount(task.id, replanejamentos) : undefined,
       hasDependencyViolation: computeTaskDependencyViolated(task, tasksById, safeHolidays, project.unit),
       predecessorRowNumbers,
+      pendingConfirmation: Boolean(task.actualEnd) && !task.confirmedByAdmin,
     };
     recomputedTasks.set(task.id, view);
   }

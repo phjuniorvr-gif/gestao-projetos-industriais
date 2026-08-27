@@ -39,6 +39,7 @@ const project: Project = {
           plannedEnd: '2026-07-15',
           baseStart: '2026-07-01',
           baseEnd: '2026-07-15',
+          confirmedByAdmin: true,
         },
         {
           // cenário 1: dentro do prazo, mas bloqueada pela predecessora (t1) ainda não concluída.
@@ -52,6 +53,7 @@ const project: Project = {
           plannedEnd: '2026-08-20',
           baseStart: '2026-08-01',
           baseEnd: '2026-08-20',
+          confirmedByAdmin: true,
         },
       ],
     },
@@ -73,6 +75,7 @@ const project: Project = {
           plannedEnd: '2026-08-20',
           baseStart: '2026-08-01',
           baseEnd: '2026-08-20',
+          confirmedByAdmin: true,
         },
         {
           // cenário 3: concluída 3 dias úteis depois do previsto (Tiradentes descontado — ver
@@ -89,6 +92,7 @@ const project: Project = {
           baseEnd: '2026-04-17',
           actualStart: '2026-04-01',
           actualEnd: '2026-04-23',
+          confirmedByAdmin: true,
         },
         {
           id: 't5',
@@ -103,6 +107,7 @@ const project: Project = {
           baseEnd: '2026-05-10',
           actualStart: '2026-05-01',
           actualEnd: '2026-05-08',
+          confirmedByAdmin: true,
         },
       ],
     },
@@ -191,5 +196,64 @@ describe('recomputeProject — cenários de ponta a ponta (substitui o teste man
     expect(view.plannedEnd).toBe('2026-08-20');
     expect(view.actualStart).toBe('2026-04-01');
     expect(view.actualEnd).toBeUndefined();
+  });
+});
+
+// Fase 7+ — "informar real" por usuário comum não confirmada ainda pelo administrador: a tarefa
+// tem actualEnd preenchido, mas nem status vira 'completed' nem a atividade/projeto que a contém
+// viram "Concluído" à toa — pendingConfirmation é o selo que explica a aparente contradição.
+describe('recomputeProject — pendingConfirmation (Fase 7+)', () => {
+  function pendingProject(confirmedByAdmin: boolean): Project {
+    return {
+      id: 'p2',
+      code: 'P02',
+      name: 'Projeto pendência',
+      unit: 'Matriz',
+      sector: '',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      activities: [
+        {
+          id: 'a1',
+          projectId: 'p2',
+          name: 'Atividade única',
+          tasks: [
+            {
+              id: 't1',
+              rowNumber: 1,
+              activityId: 'a1',
+              name: 'Marcada por usuário comum',
+              category: 'eletrica',
+              dependencies: [],
+              plannedStart: '2026-08-01',
+              plannedEnd: '2026-08-10',
+              baseStart: '2026-08-01',
+              baseEnd: '2026-08-10',
+              actualStart: '2026-08-01',
+              actualEnd: '2026-08-09',
+              confirmedByAdmin,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  it('confirmedByAdmin false: status NÃO é completed, pendingConfirmation true, atividade/projeto não viram Concluído', () => {
+    const view = recomputeProject(pendingProject(false), '2026-08-10', []);
+    const task = view.activities[0].tasks[0];
+    expect(task.status).not.toBe('completed');
+    expect(task.pendingConfirmation).toBe(true);
+    expect(view.activities[0].status).not.toBe('completed');
+    expect(view.status).not.toBe('completed');
+  });
+
+  it('confirmedByAdmin true (administrador confirmou): status completed, pendingConfirmation false', () => {
+    const view = recomputeProject(pendingProject(true), '2026-08-10', []);
+    const task = view.activities[0].tasks[0];
+    expect(task.status).toBe('completed');
+    expect(task.pendingConfirmation).toBe(false);
+    expect(view.activities[0].status).toBe('completed');
+    expect(view.status).toBe('completed');
   });
 });

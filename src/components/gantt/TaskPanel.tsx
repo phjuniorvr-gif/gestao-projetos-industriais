@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2, UserCheck, X } from 'lucide-react';
 import { Button, Card, FormField, Input, LockBadge, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
 import type { Category, CategoryEntry, DependencyType, Holiday, Person, Replanejamento, Task, TaskView } from '../../types';
@@ -25,7 +25,7 @@ interface DependencyEntry {
   folgaDias: number;
 }
 
-const REPLAN_CAMPO_LABEL: Record<Replanejamento['campo'], string> = { previsto: 'Previsto', base: 'Linha de base' };
+const REPLAN_CAMPO_LABEL: Record<Replanejamento['campo'], string> = { previsto: 'Previsto', base: 'Linha de base', real: 'Real' };
 const REPLAN_CAMPO_DATA_LABEL: Record<Replanejamento['campoData'], string> = { inicio: 'início', fim: 'fim' };
 const DEPENDENCY_TYPES: DependencyType[] = ['FS', 'SS', 'FF', 'SF'];
 
@@ -57,6 +57,9 @@ interface TaskPanelProps {
   /** Só PEDE a exclusão — quem decide bloquear (dependentCount > 0) ou confirmar antes de
    * remover de verdade é quem chama (`ProjectSchedulePage.tsx`, `ConfirmDialog` próprio). */
   onDelete: (taskId: string) => void;
+  /** Fase 7+ — administrador confirma a finalização marcada por um usuário comum
+   * (`task.pendingConfirmation`). Botão só aparece pra administrador; qualquer papel vê o aviso. */
+  onConfirmCompletion: (taskId: string) => void;
   /** Cabeçalho/rodapé ganham a cor navy do resto do app no mobile — no desktop este painel
    * continua com o visual de gaveta lateral de sempre (mesmo componente serve os dois). */
   isMobile?: boolean;
@@ -79,6 +82,7 @@ export function TaskPanel({
   onReplan,
   dependentCount,
   onDelete,
+  onConfirmCompletion,
   isMobile = false,
 }: TaskPanelProps) {
   // `undefined` (carregando) conta como travado — nunca libera por engano antes de saber o
@@ -407,6 +411,23 @@ export function TaskPanel({
               />
             </FormField>
           </div>
+
+          {task.pendingConfirmation && (
+            <div className="space-y-2 rounded-md border border-action/30 bg-action/5 p-3">
+              <p className="flex items-center gap-1.5 text-sm text-text">
+                <UserCheck className="h-4 w-4 shrink-0 text-action" aria-hidden="true" />
+                Marcado como concluído (fim real {formatDatePtBr(task.actualEnd)}) — aguardando confirmação do
+                administrador.
+              </p>
+              {!locked && (
+                <div className="flex justify-end">
+                  <Button variant="primary" onClick={() => onConfirmCompletion(task.id)}>
+                    Confirmar finalização
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           <FormField label={<>Predecessora(s) {locked && <LockBadge />}</>}>
             <div className="space-y-2">

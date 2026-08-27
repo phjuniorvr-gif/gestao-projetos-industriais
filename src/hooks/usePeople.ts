@@ -30,7 +30,7 @@ export function usePeople() {
     [people],
   );
 
-  const updatePerson = useCallback(async (id: string, patch: { name?: string; active?: boolean }) => {
+  const updatePerson = useCallback(async (id: string, patch: { name?: string; active?: boolean; userId?: string }) => {
     await updatePersonRemote(id, patch);
     setPeople((current) => current.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }, []);

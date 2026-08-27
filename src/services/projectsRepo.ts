@@ -46,6 +46,7 @@ interface TaskRow {
   base_end: string;
   actual_start: string | null;
   actual_end: string | null;
+  confirmed_by_admin: boolean;
 }
 
 /** Dependências (Fase 2.7) — tabela própria, não coluna de `tasks` (substitui
@@ -65,8 +66,8 @@ interface ReplanejamentoRow {
   quem_user_id: string;
   campo: ReplanCampo;
   campo_data: ReplanCampoData;
-  de: string;
-  para: string;
+  de: string | null;
+  para: string | null;
   motivo: string;
   /** Coluna pendente de migration — ver comentário em `Replanejamento` (types/index.ts).
    * `undefined` enquanto a coluna não existe no banco; `orFalse` abaixo trata isso como `false`. */
@@ -131,6 +132,7 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       baseEnd: row.base_end,
       actualStart: row.actual_start ?? undefined,
       actualEnd: row.actual_end ?? undefined,
+      confirmedByAdmin: row.confirmed_by_admin,
     };
     const list = tasksByActivity.get(row.activity_id) ?? [];
     list.push(task);
@@ -277,37 +279,37 @@ export async function fetchReplanejamentos(): Promise<Replanejamento[]> {
     quemUserId: row.quem_user_id,
     campo: row.campo,
     campoData: row.campo_data,
-    de: row.de,
-    para: row.para,
+    de: row.de ?? undefined,
+    para: row.para ?? undefined,
     motivo: row.motivo,
     porAdministrador: orFalse(row.por_administrador),
   }));
 }
 
 /**
- * "Informar real" (Fase 5, Commit 2) — único `update` de 1 linha, nunca toca `activities`/
- * `dependencias`/outras colunas de `tasks`. Isto é o que torna essa ação possível pra quem não é
- * administrador depois do Commit 4: qualquer gravação que passasse por `saveProjectTree` (todo
- * o resto do app) reescreveria o projeto inteiro, incluindo o delete+reinsert de dependências —
- * barrado por RLS pra quem só tem permissão de informar data real. Só as chaves presentes no
- * patch entram no payload (cada campo tem seu próprio `onBlur` em `TaskPanel.tsx`, um por vez).
+ * "Informar real" (Fase 5 Commit 2; virou RPC atômica na Fase 7+) — RPC `informar_data_real`
+ * (Postgres), que atualiza `tasks.actual_start`/`actual_end`/`confirmed_by_admin` e grava o log
+ * em `replanejamentos` (campo='real') na MESMA transação — mesmo raciocínio de
+ * `replanTaskAtomic`/`replanejar_tarefa()`. Sem `security definer` — corre com o papel de quem
+ * chama, respeita o trigger/RLS de `tasks` (Fase 5) e a RLS de `replanejamentos` (que libera
+ * INSERT com campo='real' pra qualquer autenticado, não só administrador). Recebe sempre o par
+ * completo (start+end) já resolvido pelo chamador (`useProjects.ts` mescla com o valor atual
+ * antes de chamar) — só assim a RPC sabe se cada campo mudou de verdade, sem confundir "não
+ * veio no patch" com "veio null". Retorna o `confirmed_by_admin` resultante, pro estado local
+ * espelhar sem precisar refetch.
  */
-/** Extraída da função remota só pra ser testável sem mockar o cliente Supabase (o projeto não
- * tem infra de mock pra isso — mesma decisão de preferir função pura testável já registrada na
- * Fase 3). Só as chaves presentes no patch entram — nunca as duas, nunca nenhuma coluna a mais. */
-export function buildTaskActualPayload(patch: { actualStart?: string; actualEnd?: string }): Record<string, string | null> {
-  const payload: Record<string, string | null> = {};
-  if ('actualStart' in patch) payload.actual_start = orNull(patch.actualStart);
-  if ('actualEnd' in patch) payload.actual_end = orNull(patch.actualEnd);
-  return payload;
-}
-
-export async function updateTaskActual(
+export async function informarDataReal(
   taskId: string,
-  patch: { actualStart?: string; actualEnd?: string },
-): Promise<void> {
-  const { error } = await supabase.from('tasks').update(buildTaskActualPayload(patch)).eq('id', taskId);
+  actualStart: string | undefined,
+  actualEnd: string | undefined,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('informar_data_real', {
+    p_task_id: taskId,
+    p_actual_start: actualStart ?? null,
+    p_actual_end: actualEnd ?? null,
+  });
   if (error) throw error;
+  return Boolean(data);
 }
 
 /**

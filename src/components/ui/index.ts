@@ -9,6 +9,7 @@ export * from './Textarea';
 export * from './Checkbox';
 export * from './FormField';
 export * from './ConfirmDialog';
+export * from './ChangePasswordDialog';
 export * from './UndoToast';
 export * from './LockBadge';
 export * from './BottomSheet';

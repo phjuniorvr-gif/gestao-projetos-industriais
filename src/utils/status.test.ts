@@ -31,6 +31,7 @@ const baseTask: Task = {
   plannedEnd: '2026-08-10',
   baseStart: '2026-08-01',
   baseEnd: '2026-08-10',
+  confirmedByAdmin: true,
 };
 
 function taskView(overrides: Partial<TaskView> = {}): TaskView {
@@ -42,6 +43,7 @@ function taskView(overrides: Partial<TaskView> = {}): TaskView {
     isLateCompletion: false,
     hasDependencyViolation: false,
     predecessorRowNumbers: [],
+    pendingConfirmation: false,
     ...overrides,
   };
 }
@@ -67,6 +69,18 @@ describe('computeTaskStatus', () => {
 
   it('planned quando nada real e dentro do prazo', () => {
     expect(computeTaskStatus(baseTask, '2026-08-05')).toBe('planned');
+  });
+
+  // Fase 7+ — usuário comum marcou concluída (actualEnd preenchido), mas confirmedByAdmin ainda
+  // false: NÃO conta como completed até o administrador confirmar.
+  it('NÃO é completed quando actualEnd existe mas confirmedByAdmin é false (aguardando confirmação)', () => {
+    const task: Task = { ...baseTask, actualEnd: '2026-08-05', confirmedByAdmin: false };
+    expect(computeTaskStatus(task, '2026-08-05')).toBe('planned');
+  });
+
+  it('cai pra delayed (não completed) quando actualEnd pendente de confirmação e today > plannedEnd', () => {
+    const task: Task = { ...baseTask, actualEnd: '2026-08-05', confirmedByAdmin: false };
+    expect(computeTaskStatus(task, '2026-08-11')).toBe('delayed');
   });
 });
 

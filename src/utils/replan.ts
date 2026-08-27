@@ -79,3 +79,22 @@ export function validateDateOrder(start: string, end: string): ReplanValidation 
 // client) foram removidas na Fase 5, Commit 2 — substituídas pela RPC `replanejar_tarefa()`
 // (Postgres), que faz o update de `tasks` e o insert em `replanejamentos` na mesma transação.
 // As duas chamadas independentes daqui não eram atômicas: uma podia ter sucesso sem a outra.
+
+interface ActualDateFields {
+  actualStart?: string;
+  actualEnd?: string;
+}
+
+/**
+ * "Informar real" (Fase 7+) — a RPC `informar_data_real` sempre recebe o par completo
+ * (start+end), sem jeito de distinguir "esse campo não veio no patch" de "esse campo virou
+ * null" só com os dois parâmetros de data. Resolve isso aqui, no cliente, ANTES de chamar a
+ * RPC: só as chaves PRESENTES no patch substituem o valor atual (mesmo raciocínio de
+ * `buildTaskActualPayload`, que fazia essa checagem pra montar o `update` direto de 1 coluna —
+ * removida quando a escrita virou RPC atômica, mas a distinção continua precisando existir). */
+export function resolveActualDatesPatch(current: ActualDateFields, patch: ActualDateFields): ActualDateFields {
+  return {
+    actualStart: 'actualStart' in patch ? patch.actualStart : current.actualStart,
+    actualEnd: 'actualEnd' in patch ? patch.actualEnd : current.actualEnd,
+  };
+}

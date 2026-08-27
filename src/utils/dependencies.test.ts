@@ -27,6 +27,7 @@ const baseTask: Task = {
   plannedEnd: '2026-08-10',
   baseStart: '2026-08-03',
   baseEnd: '2026-08-10',
+  confirmedByAdmin: true,
 };
 
 describe('validateTaskDependencies', () => {

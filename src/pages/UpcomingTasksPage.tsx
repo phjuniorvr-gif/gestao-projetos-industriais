@@ -4,7 +4,7 @@ import { PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { Card, ConfirmDialog, EmptyState, Input, MultiSelectFilter } from '../components/ui';
 import { TaskPanel } from '../components/gantt';
-import { useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects } from '../hooks';
+import { useAuth, useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects } from '../hooks';
 import { diffDays, formatDatePtBr } from '../utils';
 import { STATUS_COLOR } from '../types';
 import type { ActivityView, ProjectStatus, ProjectView, TaskView } from '../types';
@@ -31,13 +31,28 @@ interface UpcomingRow {
  * cujo fim só cai muito depois dos 15 dias, mas que precisa aparecer porque está pra começar —
  * pedido do usuário: "tarefas que não começou"). Ordenado do mais urgente pro menos urgente. */
 export function UpcomingTasksPage() {
-  const { projects, today, replanejamentos, updateTask, updateTaskActualDates, replanTask, setTaskPredecessors, removeTask } =
-    useProjects();
+  const {
+    projects,
+    today,
+    replanejamentos,
+    updateTask,
+    updateTaskActualDates,
+    confirmTaskCompletion,
+    replanTask,
+    setTaskPredecessors,
+    removeTask,
+  } = useProjects();
   const { people, createPerson } = usePeople();
   const { categories } = useCategories();
   const { holidays } = useHolidays();
+  const { session } = useAuth();
   const isAdmin = usePerfil();
   const isMobile = useIsMobile();
+  // Usuário comum vê só as tarefas em que é o responsável (pedido do usuário) — administrador
+  // continua vendo tudo. `isAdmin !== true` cobre `false` E `undefined` (papel ainda carregando),
+  // pra não vazar as tarefas de todo mundo por um instante antes do papel resolver.
+  const myPerson = people.find((p) => p.userId === session?.user.id);
+  const restrictToMine = isAdmin !== true;
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
   const [search, setSearch] = useState('');
@@ -84,6 +99,7 @@ export function UpcomingTasksPage() {
       for (const activity of project.activities) {
         for (const task of activity.tasks) {
           if (task.status === 'completed') continue;
+          if (restrictToMine && (!myPerson || task.responsavelId !== myPerson.id)) continue;
 
           if (task.plannedEnd) {
             const daysToEnd = diffDays(today, task.plannedEnd);
@@ -103,7 +119,7 @@ export function UpcomingTasksPage() {
       }
     }
     return list;
-  }, [projects, today]);
+  }, [projects, today, restrictToMine, myPerson]);
 
   // Portfólio inteiro (não só as linhas dos próximos 15 dias) — pra clicar numa linha e abrir o
   // mesmo `TaskPanel` do Cronograma, que precisa enxergar todas as tarefas (predecessoras
@@ -293,18 +309,25 @@ export function UpcomingTasksPage() {
       {filtered.length === 0 ? (
         <EmptyState
           title="Nenhuma tarefa nos próximos 15 dias"
-          description={rows.length > 0 ? 'Ajuste a busca para encontrar o que procura.' : 'Nada com prazo previsto vencendo em breve.'}
+          description={
+            restrictToMine && !myPerson
+              ? 'Seu usuário ainda não está vinculado a uma pessoa responsável — fale com o administrador.'
+              : rows.length > 0
+                ? 'Ajuste a busca para encontrar o que procura.'
+                : 'Nada com prazo previsto vencendo em breve.'
+          }
         />
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full table-fixed text-sm">
             <colgroup>
-              <col className="w-[24%]" />
-              <col className="w-[20%]" />
-              <col className="w-[20%]" />
+              <col className="w-[22%]" />
+              <col className="w-[15%]" />
+              <col className="w-[18%]" />
+              <col className="w-[9%]" />
+              <col className="w-[10%]" />
               <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[8%]" />
+              <col className="w-[9%]" />
               <col className="w-[6%]" />
             </colgroup>
             <thead>
@@ -315,7 +338,8 @@ export function UpcomingTasksPage() {
                 <th className="px-4 py-2.5">Atividade</th>
                 <th className="px-4 py-2.5">Tarefa</th>
                 <th className="px-4 py-2.5">Responsável</th>
-                <th className="px-4 py-2.5">Prazo previsto</th>
+                <th className="px-4 py-2.5 text-center">Início previsto</th>
+                <th className="px-4 py-2.5 text-center">Término previsto</th>
                 <th className="px-4 py-2.5">
                   <SortableHeader label="Status" active={sortColumn === 'status'} dir={statusSortDir} onClick={toggleStatusSort} />
                 </th>
@@ -331,7 +355,7 @@ export function UpcomingTasksPage() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map(({ project, activity, task, kind, daysLeft }) => {
+              {sorted.map(({ project, activity, task, daysLeft }) => {
                 const responsavel = people.find((p) => p.id === task.responsavelId);
                 return (
                   <tr
@@ -351,13 +375,19 @@ export function UpcomingTasksPage() {
                       <p className="truncate text-text">{task.name}</p>
                     </td>
                     <td className="overflow-hidden truncate px-4 py-2.5 text-text-muted">{responsavel?.name ?? '—'}</td>
-                    <td className="overflow-hidden truncate px-4 py-2.5 text-text-muted">
-                      {formatDatePtBr(kind === 'start' ? task.plannedStart : task.plannedEnd)}
-                      {kind === 'start' && <span className="ml-1 text-[10px] text-text-muted2">(início)</span>}
+                    <td className="overflow-hidden truncate px-4 py-2.5 text-center text-text-muted">
+                      {formatDatePtBr(task.plannedStart)}
                     </td>
-                    <td className="overflow-hidden px-2 py-2.5">
+                    <td className="overflow-hidden truncate px-4 py-2.5 text-center text-text-muted">
+                      {formatDatePtBr(task.plannedEnd)}
+                    </td>
+                    <td className="overflow-hidden px-4 py-2.5">
                       <div className="flex flex-wrap items-center gap-1">
-                        <StatusBadge status={task.status} startDelayed={task.isStartDelayed} />
+                        <StatusBadge
+                          status={task.status}
+                          startDelayed={task.isStartDelayed}
+                          pendingConfirmation={task.pendingConfirmation}
+                        />
                         {task.isStartDelayed && (
                           <span className="whitespace-nowrap rounded-full bg-page px-1.5 py-0.5 text-[10px] font-semibold text-text-muted2">
                             não iniciada
@@ -366,7 +396,7 @@ export function UpcomingTasksPage() {
                       </div>
                     </td>
                     <td
-                      className={`overflow-hidden px-2 py-2.5 text-right font-mono text-xs font-semibold ${
+                      className={`overflow-hidden px-4 py-2.5 text-right font-mono text-xs font-semibold ${
                         daysLeft < 0 ? 'text-status-delayed' : daysLeft <= 3 ? 'text-status-delayed' : 'text-text-muted'
                       }`}
                     >
@@ -401,6 +431,10 @@ export function UpcomingTasksPage() {
           const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
           if (!owningProjectId) return;
           updateTaskActualDates(owningProjectId, taskId, patch);
+        }}
+        onConfirmCompletion={(taskId) => {
+          const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+          if (owningProjectId) confirmTaskCompletion(owningProjectId, taskId);
         }}
         onSetPredecessors={(taskId, entries) => {
           const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');

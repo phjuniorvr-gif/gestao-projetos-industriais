@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { KeyRound, LogOut } from 'lucide-react';
 import { FilterSelect } from '../projects';
-import { AppLogo } from '../ui';
+import { AppLogo, ChangePasswordDialog } from '../ui';
 import { MobileTabBar } from './MobileTabBar';
 import { useAuth, useProjects } from '../../hooks';
 
@@ -11,6 +11,7 @@ const TITLE_BY_PATH: { test: (pathname: string) => boolean; title: string }[] = 
   { test: (p) => p === '/' || p === '/projetos' || p === '/novo-projeto', title: 'Projetos' },
   { test: (p) => p.includes('/cronograma'), title: 'Cronograma' },
   { test: (p) => p === '/equipe', title: 'Equipe' },
+  { test: (p) => p === '/tarefas-proximas', title: 'Tarefas' },
 ];
 
 /** Filtro de ano só faz sentido nas duas abas com lista de projeto (Projetos/Cronograma) —
@@ -36,6 +37,7 @@ export function MobileLayout() {
   const { signOut } = useAuth();
   const { projects } = useProjects();
   const [year, setYear] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
   const title = TITLE_BY_PATH.find((entry) => entry.test(pathname))?.title ?? 'Projetos';
   const years = useMemo(
     () =>
@@ -59,6 +61,15 @@ export function MobileLayout() {
           )}
           <button
             type="button"
+            onClick={() => setChangingPassword(true)}
+            aria-label="Trocar senha"
+            title="Trocar senha"
+            className="flex h-11 w-11 shrink-0 items-center justify-center text-white/80 hover:text-white"
+          >
+            <KeyRound className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
             onClick={() => signOut()}
             aria-label="Sair"
             title="Sair"
@@ -72,6 +83,8 @@ export function MobileLayout() {
       <main className="flex-1 overflow-y-auto px-4 py-4 pb-20">
         <Outlet context={{ year, setYear } satisfies MobileOutletContext} />
       </main>
+
+      <ChangePasswordDialog open={changingPassword} onClose={() => setChangingPassword(false)} />
 
       {/* key=pathname: useProjects() não tem store compartilhado (nenhuma página do app tem —
           cada uma busca fresco no mount, mesmo padrão de ProjectsPage/DashboardPage). Sem isso,

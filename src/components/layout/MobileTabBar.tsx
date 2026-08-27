@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarRange, FolderKanban, LayoutDashboard, Users } from 'lucide-react';
-import { useProjects } from '../../hooks';
+import { CalendarClock, CalendarRange, FolderKanban, LayoutDashboard, Users } from 'lucide-react';
+import { usePerfil, useProjects } from '../../hooks';
 import { computeStatusDistribution } from '../../utils/portfolio';
 
 interface TabItem {
@@ -15,35 +15,41 @@ interface TabItem {
 export function MobileTabBar() {
   const { pathname } = useLocation();
   const { projects } = useProjects();
+  const isAdmin = usePerfil();
   const delayedCount = computeStatusDistribution(projects).find((d) => d.status === 'delayed')?.count ?? 0;
 
-  const tabItems: TabItem[] = [
-    {
-      to: '/dashboard',
-      label: 'Resumo',
-      icon: LayoutDashboard,
-      isActive: (p) => p === '/dashboard',
-    },
-    {
-      to: '/projetos',
-      label: 'Projetos',
-      icon: FolderKanban,
-      isActive: (p) => p === '/' || p === '/projetos' || p === '/novo-projeto',
-      badgeCount: delayedCount,
-    },
-    {
-      to: '/cronograma',
-      label: 'Cronograma',
-      icon: CalendarRange,
-      isActive: (p) => p.includes('/cronograma'),
-    },
-    {
-      to: '/equipe',
-      label: 'Equipe',
-      icon: Users,
-      isActive: (p) => p === '/equipe',
-    },
-  ];
+  // Usuário comum só enxerga "Tarefas" (pedido do usuário) — `false` explícito, mesmo raciocínio
+  // do Sidebar desktop, pra não estreitar a barra do administrador por um instante ao carregar.
+  const tabItems: TabItem[] =
+    isAdmin === false
+      ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
+      : [
+          {
+            to: '/dashboard',
+            label: 'Resumo',
+            icon: LayoutDashboard,
+            isActive: (p) => p === '/dashboard',
+          },
+          {
+            to: '/projetos',
+            label: 'Projetos',
+            icon: FolderKanban,
+            isActive: (p) => p === '/' || p === '/projetos' || p === '/novo-projeto',
+            badgeCount: delayedCount,
+          },
+          {
+            to: '/cronograma',
+            label: 'Cronograma',
+            icon: CalendarRange,
+            isActive: (p) => p.includes('/cronograma'),
+          },
+          {
+            to: '/equipe',
+            label: 'Equipe',
+            icon: Users,
+            isActive: (p) => p === '/equipe',
+          },
+        ];
 
   return (
     <nav
