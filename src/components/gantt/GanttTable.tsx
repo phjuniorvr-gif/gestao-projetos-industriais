@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
-import { STATUS_LABEL, type ActivityView, type CategoryEntry, type Holiday, type Person, type ProjectView, type TaskView } from '../../types';
+import { STATUS_LABEL, type ActivityView, type Holiday, type Person, type ProjectView, type TaskView } from '../../types';
 import { Input } from '../ui';
 import {
   addDays,
-  businessDaysBetween,
+  calendarDaysBetween,
   computeDependencyRuleDate,
   computeProgressRatio,
   computeScheduleDeviationDays,
@@ -75,7 +75,6 @@ interface GanttTableProps {
   projects: ProjectView[];
   collapsedProjectIds: Set<string>;
   collapsedActivityIds: Set<string>;
-  categories: CategoryEntry[];
   people: Person[];
   holidays: Holiday[];
   /** Quando verdadeiro, mostra só Linha / Estrutura / Avanço. */
@@ -163,7 +162,6 @@ export function GanttTable({
   projects,
   collapsedProjectIds,
   collapsedActivityIds,
-  categories,
   people,
   holidays,
   compact,
@@ -363,8 +361,9 @@ export function GanttTable({
   // de `Math.floor`), preenchido com uma célula sem data em vez de mais um dia pela metade.
   const ganttFillerWidth = showGantt ? Math.max(0, containerWidth - (totalLeftWidth + width)) : 0;
   // Sem Gantt: a sobra de espaço (fillerWidth) não fica isolada numa coluna em branco no fim —
-  // a pedido do usuário, é dividida entre Categoria/Responsável/datas/Duração/Avanço (tudo menos
-  // Linha/Estrutura, que têm tamanho pensado pro conteúdo — número de linha e nome da tarefa).
+  // a pedido do usuário, é dividida entre Responsável/datas/Duração/Avanço (tudo menos
+  // Linha/Estrutura, que têm tamanho pensado pro conteúdo — número de linha e nome da tarefa;
+  // Categoria foi removida do Gantt inteiramente numa sessão posterior).
   // `left` de cada coluna, calculado a partir dessas larguras ajustadas, fica sem sentido nesse
   // modo (nada rola horizontalmente, a tabela cabe inteira), mas não atrapalha: `position:
   // sticky` só aplica o offset quando o scroll de verdade cruza o limiar — em repouso, a célula
@@ -544,7 +543,6 @@ export function GanttTable({
                   </td>
                   {!compact && (
                     <>
-                      <td className={frozenTdClass} style={columnStyle('categoria')} />
                       <td className={frozenTdClass} style={columnStyle('responsavel')} />
                       <td
                         className={`${frozenTdClass} text-center text-xs text-text-muted`}
@@ -568,11 +566,9 @@ export function GanttTable({
                         {formatDatePtBr(project.actualEnd)}
                       </td>
                       <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('duracao')}>
-                        {formatDuration(
-                          project.activities
-                            .flatMap((a) => a.tasks)
-                            .reduce((sum, t) => sum + businessDaysBetween(t.plannedStart, t.plannedEnd, holidays, project.unit), 0),
-                        )}
+                        {project.plannedStart && project.plannedEnd
+                          ? formatDuration(calendarDaysBetween(project.plannedStart, project.plannedEnd))
+                          : '—'}
                       </td>
                     </>
                   )}
@@ -702,7 +698,6 @@ export function GanttTable({
                           </td>
                           {!compact && (
                             <>
-                              <td className={frozenTdClass} style={columnStyle('categoria')} />
                               <td className={frozenTdClass} style={columnStyle('responsavel')} />
                               <td
                                 className={`${frozenTdClass} text-center text-xs text-text-muted`}
@@ -732,12 +727,9 @@ export function GanttTable({
                                 className={`${frozenTdClass} text-center text-xs text-text-muted`}
                                 style={columnStyle('duracao')}
                               >
-                                {formatDuration(
-                                  activity.tasks.reduce(
-                                    (sum, t) => sum + businessDaysBetween(t.plannedStart, t.plannedEnd, holidays, project.unit),
-                                    0,
-                                  ),
-                                )}
+                                {activity.plannedStart && activity.plannedEnd
+                                  ? formatDuration(calendarDaysBetween(activity.plannedStart, activity.plannedEnd))
+                                  : '—'}
                               </td>
                             </>
                           )}
@@ -784,10 +776,7 @@ export function GanttTable({
                               range={range}
                               pxPerDay={pxPerDay}
                               timelineBackground={timelineBackground}
-                              categories={categories}
                               people={people}
-                              holidays={holidays}
-                              unit={project.unit}
                               columns={displayColumns}
                               compact={compact}
                               showGantt={showGantt}

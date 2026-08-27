@@ -137,7 +137,17 @@ export function addBusinessDays(dateISO: string, n: number, holidays: HolidayLik
   return current;
 }
 
-/** Exibe duração em dias úteis com o sufixo "du" (ex.: "10du"). */
+/** Dias CORRIDOS entre start e end, inclusive (mesma convenção de `businessDaysBetween`, mas sem
+ * descontar fim de semana/feriado) — Fase 7+, pedido do usuário: a coluna "Duração" (Gantt/painel
+ * de projeto) passou a mostrar dia corrido, não mais dia útil. Escopo deliberadamente estreito:
+ * peso de tarefa/avanço ponderado (Fase 2.2, `taskWeight`/`computeProgress`) e o cálculo de fim
+ * previsto a partir de duração (wizard/`AddTaskPanel`, `computeDatesFromDuration`) continuam em
+ * dias úteis — o pedido foi só sobre o rótulo de duração exibido. */
+export function calendarDaysBetween(startISO: string, endISO: string): number {
+  return diffDays(startISO, endISO) + 1;
+}
+
+/** Exibe duração em dias corridos com o sufixo "d" (ex.: "10d") — ver `calendarDaysBetween`. */
 export function formatDuration(days: number): string {
-  return `${days}du`;
+  return `${days}d`;
 }

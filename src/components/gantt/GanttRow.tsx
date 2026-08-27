@@ -1,8 +1,7 @@
 import type { CSSProperties } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import type { CategoryEntry, Holiday, Person, TaskView } from '../../types';
-import { businessDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
-import { Badge } from '../ui';
+import type { Person, TaskView } from '../../types';
+import { calendarDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
 import { StatusEmoji } from '../shared/StatusEmoji';
 import { getColumnRect, type GanttColumn } from './ganttColumns';
@@ -17,10 +16,7 @@ interface GanttRowProps {
   range: DateRange;
   pxPerDay: number;
   timelineBackground: CSSProperties;
-  categories: CategoryEntry[];
   people: Person[];
-  holidays: Holiday[];
-  unit: string;
   columns: GanttColumn[];
   compact: boolean;
   /** "Visão completa" sem Gantt (a pedido do usuário) — quando falso, não desenha a célula de
@@ -46,10 +42,7 @@ export function GanttRow({
   range,
   pxPerDay,
   timelineBackground,
-  categories,
   people,
-  holidays,
-  unit,
   columns,
   compact,
   showGantt,
@@ -60,7 +53,6 @@ export function GanttRow({
   onHoverEnd,
 }: GanttRowProps) {
   const width = totalWidth(range, pxPerDay);
-  const category = categories.find((c) => c.id === task.category);
   const responsavel = people.find((p) => p.id === task.responsavelId);
   const estrutura = getColumnRect(columns, 'estrutura');
   const avanco = getColumnRect(columns, 'avanco');
@@ -107,9 +99,6 @@ export function GanttRow({
       </td>
       {!compact && (
         <>
-          <td className={cellClass} style={{ width: getColumnRect(columns, 'categoria').width }}>
-            <Badge color={category?.color}>{category?.label ?? task.category}</Badge>
-          </td>
           <td className={cellClass} style={{ width: getColumnRect(columns, 'responsavel').width }}>
             {responsavel?.name ?? '—'}
           </td>
@@ -126,7 +115,7 @@ export function GanttRow({
             {formatDatePtBr(task.actualEnd)}
           </td>
           <td className={cellClass} style={{ width: getColumnRect(columns, 'duracao').width }}>
-            {formatDuration(businessDaysBetween(task.plannedStart, task.plannedEnd, holidays, unit))}
+            {formatDuration(calendarDaysBetween(task.plannedStart, task.plannedEnd))}
           </td>
         </>
       )}

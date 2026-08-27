@@ -178,7 +178,11 @@ describe('recomputeProject — cenários de ponta a ponta (substitui o teste man
   });
 
   it('cenário 5 — projeto com tarefas concluídas e não-concluídas não vira "Concluído" à toa', () => {
-    expect(view.status).toBe('delayed'); // atividade A está delayed — precedência mais alta
+    // Fase 7+ — projeto NÃO herda "delayed" de uma atividade atrasada (diferente de atividade,
+    // que ainda herda de tarefa): o prazo do projeto (2026-08-20) ainda não passou de `today`
+    // (2026-08-10), então vira 'in_progress' (alguma atividade já não está mais 'planned'), não
+    // 'delayed' — ver `computeProjectStatus`.
+    expect(view.status).toBe('in_progress');
     expect(view.blockedCount).toBe(1);
     expect(view.startDelayedCount).toBe(3);
     expect(view.isLateCompletion).toBe(true);

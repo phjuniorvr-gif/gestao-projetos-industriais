@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { Holiday, ProjectView, TaskView } from '../../types';
-import { businessDaysBetween, formatPeriod, todayISO } from '../../utils';
+import { calendarDaysBetween, formatPeriod, todayISO } from '../../utils';
 import { computeExpectedProgress, computeScheduleDeviationDays } from '../../utils/portfolio';
 import { BottomSheet, Button } from '../ui';
 import { MiniGantt } from './MiniGantt';
@@ -45,9 +45,7 @@ export function MobileProjectSheet({
   const expected = computeExpectedProgress(allTasks, today, holidays, project.unit);
   const deviation = computeScheduleDeviationDays(project, today, holidays);
   const durationDays =
-    project.plannedStart && project.plannedEnd
-      ? businessDaysBetween(project.plannedStart, project.plannedEnd, holidays, project.unit)
-      : undefined;
+    project.plannedStart && project.plannedEnd ? calendarDaysBetween(project.plannedStart, project.plannedEnd) : undefined;
 
   function handleComplete(task: TaskView) {
     const hoje = todayISO();
@@ -95,7 +93,7 @@ export function MobileProjectSheet({
           </div>
           <div>
             <p className="text-xs text-text-muted2">Duração</p>
-            <p className="font-mono font-semibold text-text">{durationDays !== undefined ? `${durationDays}d úteis` : '—'}</p>
+            <p className="font-mono font-semibold text-text">{durationDays !== undefined ? `${durationDays}d` : '—'}</p>
           </div>
         </div>
 

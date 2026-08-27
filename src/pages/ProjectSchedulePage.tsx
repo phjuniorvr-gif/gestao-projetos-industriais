@@ -26,7 +26,7 @@ import {
 } from '../components/projects';
 import { useCatalog, useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectStatus, type ProjectView, type TaskView } from '../types';
-import { rollUpDates, rollUpStatus, todayISO } from '../utils';
+import { computeProjectStatus, rollUpDates, rollUpStatus, todayISO } from '../utils';
 
 const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
   { value: 'dia', label: 'Dia' },
@@ -43,6 +43,7 @@ export function ProjectSchedulePage() {
   const responsavelFilterId = searchParams.get('responsavel');
   const {
     projects,
+    today,
     loaded,
     replanejamentos,
     addTask,
@@ -167,10 +168,11 @@ export function ProjectSchedulePage() {
           })
           .filter((a): a is ActivityView => a !== null);
         if (activities.length === 0) return null;
-        return { ...p, activities, ...rollUpDates(activities), status: rollUpStatus(activities) };
+        const projectDates = rollUpDates(activities);
+        return { ...p, activities, ...projectDates, status: computeProjectStatus(activities, projectDates.plannedEnd, today) };
       })
       .filter((p): p is ProjectView => p !== null);
-  }, [visibleProjects, categoryFilter, responsavelFilterId, hideCompleted]);
+  }, [visibleProjects, categoryFilter, responsavelFilterId, hideCompleted, today]);
 
   const ganttProjects = useMemo(() => {
     const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
@@ -511,7 +513,6 @@ export function ProjectSchedulePage() {
               projects={ganttProjects}
               collapsedProjectIds={collapsedProjectIds}
               collapsedActivityIds={collapsedActivityIds}
-              categories={categories}
               people={people}
               holidays={holidays}
               compact={compact}

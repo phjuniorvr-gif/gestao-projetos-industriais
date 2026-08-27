@@ -3,6 +3,7 @@ import {
   computeLateCompletionDays,
   computeProgress,
   computeProgressRatio,
+  computeProjectStatus,
   computeTaskStartDelayed,
   computeTaskStatus,
   isLateCompletion,
@@ -116,6 +117,49 @@ describe('rollUpStatus', () => {
 
   it('planned quando nenhuma começou', () => {
     expect(rollUpStatus([{ status: 'planned' }, { status: 'planned' }])).toBe('planned');
+  });
+});
+
+// Fase 7+ — pedido do usuário: status de PROJETO não deve herdar "delayed" de uma atividade
+// atrasada (diferente de `rollUpStatus`, usado por atividade) — só fica delayed quando o prazo
+// do PRÓPRIO projeto (plannedEnd, roll-up das atividades) já passou de `today`.
+describe('computeProjectStatus', () => {
+  it('planned quando não há atividades', () => {
+    expect(computeProjectStatus([], '2026-08-20', '2026-08-10')).toBe('planned');
+  });
+
+  it('completed quando todas as atividades são completed, mesmo com today bem depois do prazo', () => {
+    expect(computeProjectStatus([{ status: 'completed' }, { status: 'completed' }], '2026-08-01', '2027-01-01')).toBe(
+      'completed',
+    );
+  });
+
+  it('NÃO fica delayed só porque uma atividade está delayed — prazo do projeto ainda não passou', () => {
+    expect(computeProjectStatus([{ status: 'delayed' }, { status: 'planned' }], '2026-08-20', '2026-08-10')).toBe(
+      'in_progress',
+    );
+  });
+
+  it('fica delayed quando today > prazo do projeto, mesmo sem nenhuma atividade individualmente delayed', () => {
+    expect(computeProjectStatus([{ status: 'in_progress' }, { status: 'planned' }], '2026-08-05', '2026-08-10')).toBe(
+      'delayed',
+    );
+  });
+
+  it('sem plannedEnd (projeto sem tarefa com data): nunca delayed só pela data', () => {
+    expect(computeProjectStatus([{ status: 'delayed' }], undefined, '2026-08-10')).toBe('in_progress');
+  });
+
+  it('in_progress quando alguma atividade já não está planned e o prazo não passou', () => {
+    expect(computeProjectStatus([{ status: 'in_progress' }, { status: 'planned' }], '2026-08-20', '2026-08-10')).toBe(
+      'in_progress',
+    );
+  });
+
+  it('planned quando nenhuma atividade começou e o prazo não passou', () => {
+    expect(computeProjectStatus([{ status: 'planned' }, { status: 'planned' }], '2026-08-20', '2026-08-10')).toBe(
+      'planned',
+    );
   });
 });
 

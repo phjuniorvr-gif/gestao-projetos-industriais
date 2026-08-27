@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { Holiday, Person, Project, ProjectView, Task } from '../../types';
 import { STATUS_COLOR } from '../../types';
-import { businessDaysBetween, formatDatePtBr, formatPeriod } from '../../utils';
+import { calendarDaysBetween, formatDatePtBr, formatPeriod } from '../../utils';
 import { computeActivityTeam, computeExpectedProgress, computeScheduleDeviationDays } from '../../utils/portfolio';
 import { Button, FormField, Input, LockBadge, Select, Textarea } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
@@ -87,9 +87,7 @@ export function ProjectDetailPanel({
   const allTasks = project.activities.flatMap((a) => a.tasks);
   const dependencyCount = allTasks.reduce((sum, t) => sum + t.predecessorRowNumbers.length, 0);
   const durationDays =
-    project.plannedStart && project.plannedEnd
-      ? businessDaysBetween(project.plannedStart, project.plannedEnd, holidays, project.unit)
-      : undefined;
+    project.plannedStart && project.plannedEnd ? calendarDaysBetween(project.plannedStart, project.plannedEnd) : undefined;
   const expected = computeExpectedProgress(allTasks, today, holidays, project.unit);
 
   function handleSaveIdentificacao() {
@@ -236,7 +234,7 @@ export function ProjectDetailPanel({
               {dependencyCount} dependência{dependencyCount === 1 ? '' : 's'} entre tarefas
             </p>
             <p className="text-sm text-text-muted">
-              {durationDays !== undefined ? `${durationDays} dias úteis previstos` : 'Duração ainda não definida'}
+              {durationDays !== undefined ? `${durationDays} dias previstos` : 'Duração ainda não definida'}
             </p>
           </section>
 

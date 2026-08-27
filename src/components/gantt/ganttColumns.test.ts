@@ -8,12 +8,11 @@ describe('getGanttColumns', () => {
     expect(getGanttLeftWidth(columns)).toBe(784);
   });
 
-  it('modo completo: soma das 11 colunas (datas em 4 colunas separadas) = 1458px', () => {
+  it('modo completo: soma das 10 colunas (datas em 4 colunas separadas, sem Categoria) = 1458px', () => {
     const columns = getGanttColumns(true);
     expect(columns.map((c) => c.key)).toEqual([
       'linha',
       'estrutura',
-      'categoria',
       'responsavel',
       'inicioPrevisto',
       'fimPrevisto',
@@ -23,6 +22,8 @@ describe('getGanttColumns', () => {
       'avanco',
       'status',
     ]);
+    // Estrutura (580) absorveu os 100px que a coluna Categoria usava antes de ser removida a
+    // pedido do usuário — soma total continua 1458.
     expect(getGanttLeftWidth(columns)).toBe(1458);
   });
 });
@@ -43,7 +44,7 @@ describe('getColumnLeft', () => {
 
   it('acumula a largura das colunas anteriores', () => {
     const columns = getGanttColumns(true);
-    // linha(64) + estrutura(480) + categoria(100) + responsavel(110) = 754
+    // linha(64) + estrutura(580) + responsavel(110) = 754
     expect(getColumnLeft(columns, 'inicioPrevisto')).toBe(754);
   });
 
@@ -61,6 +62,6 @@ describe('getColumnRect', () => {
   });
 
   it('width 0 quando a coluna não existe no modo atual', () => {
-    expect(getColumnRect(getGanttColumns(false), 'categoria')).toEqual({ width: 0, left: 784 });
+    expect(getColumnRect(getGanttColumns(false), 'responsavel')).toEqual({ width: 0, left: 784 });
   });
 });

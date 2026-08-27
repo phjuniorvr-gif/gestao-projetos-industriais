@@ -36,13 +36,32 @@ export function computeTaskStatus(task: Task, today: string): ProjectStatus {
  * concluído > andamento > planejado" é ambíguo o bastante pra sair errado): delayed se ALGUMA
  * filha é delayed; completed se TODAS são completed; in_progress se ALGUMA já começou
  * (in_progress ou completed); senão planned. Atividade sem tarefas / projeto sem atividades:
- * planned.
+ * planned. Usada pro status de ATIVIDADE (rollup de tarefas) — status de PROJETO usa
+ * `computeProjectStatus` (abaixo), que não herda "delayed" de uma filha atrasada.
  */
 export function rollUpStatus(children: StatusedItem[]): ProjectStatus {
   if (children.length === 0) return 'planned';
   if (children.some((c) => c.status === 'delayed')) return 'delayed';
   if (children.every((c) => c.status === 'completed')) return 'completed';
   if (children.some((c) => c.status === 'in_progress' || c.status === 'completed')) return 'in_progress';
+  return 'planned';
+}
+
+/**
+ * Status de PROJETO (Fase 7+, pedido do usuário) — deixa de herdar "delayed" de uma atividade
+ * atrasada (`rollUpStatus` fazia isso, mesma regra de atividade/tarefa) e passa a comparar o
+ * FIM PREVISTO do próprio projeto (roll-up das atividades) contra `today`, mesmo raciocínio que
+ * `computeTaskStatus` já usa pra uma tarefa individual. Antes disso, um projeto com prazo final
+ * confortavelmente no futuro aparecia "Atrasado" só porque uma tarefa isolada, bem no meio do
+ * cronograma, estourou o próprio prazo — mesmo o projeto como um todo não estando realmente
+ * atrasado ainda. `completed` continua por precedência mais alta que a data (todas as atividades
+ * concluídas nunca vira "Atrasado" só por causa de arredondamento de data).
+ */
+export function computeProjectStatus(activities: StatusedItem[], plannedEnd: string | undefined, today: string): ProjectStatus {
+  if (activities.length === 0) return 'planned';
+  if (activities.every((a) => a.status === 'completed')) return 'completed';
+  if (plannedEnd && today > plannedEnd) return 'delayed';
+  if (activities.some((a) => a.status !== 'planned')) return 'in_progress';
   return 'planned';
 }
 
@@ -283,7 +302,7 @@ export function recomputeProject(
     ...project,
     activities,
     ...projectDates,
-    status: rollUpStatus(activities),
+    status: computeProjectStatus(activities, projectDates.plannedEnd, today),
     blockedCount: rollUpBlockedCount(activities),
     startDelayedCount: rollUpStartDelayedCount(activities),
     isLateCompletion: rollUpLateCompletion(activities),
