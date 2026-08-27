@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { Skeleton } from '../ui';
 import { canViewAll, usePapel } from '../../hooks';
 
@@ -9,9 +9,17 @@ import { canViewAll, usePapel } from '../../hooks';
  * (`eh_administrador()`/RLS), não este guard. `undefined` (papel ainda carregando) conta como
  * travado, mesmo padrão do resto do código — evita renderizar a tela protegida por um instante
  * antes de saber o papel de verdade.
+ *
+ * `useOutletContext()`/`<Outlet context={...}>`: este componente virou uma camada extra de
+ * layout ENTRE `MobileLayout` (que passa `{ year, setYear }` pro `<Outlet>` dele) e as páginas
+ * mobile (`MobileProjectsPage`/`MobileSchedulePage`, que leem esse contexto via
+ * `useOutletContext<MobileOutletContext>()`). Sem repassar explicitamente, o `<Outlet />` daqui
+ * criaria um contexto NOVO (`undefined`), e as páginas mobile quebravam ao desestruturar
+ * `{ year }` de `undefined` — achado ao investigar tela em branco reportada pelo usuário.
  */
 export function RequireAdmin() {
   const papel = usePapel();
+  const outletContext = useOutletContext();
 
   if (papel === undefined) {
     return (
@@ -23,5 +31,5 @@ export function RequireAdmin() {
 
   if (!canViewAll(papel)) return <Navigate to="/tarefas-proximas" replace />;
 
-  return <Outlet />;
+  return <Outlet context={outletContext} />;
 }

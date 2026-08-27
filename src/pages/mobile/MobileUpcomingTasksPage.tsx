@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { UpcomingTaskDetail } from '../../components/gantt';
-import { Card, EmptyState, Input } from '../../components/ui';
+import { Card, EmptyState, Input, MultiSelectFilter } from '../../components/ui';
 import { useUpcomingTasksData } from '../../hooks';
 import { formatDatePtBr } from '../../utils';
 import { STATUS_COLOR } from '../../types';
@@ -12,9 +12,11 @@ import type { UpcomingRow } from '../../hooks';
  * "Tarefas dos próximos 15 dias" no mobile — cards empilhados em vez da tabela larga do desktop
  * (mesmo raciocínio de `MobileScheduleList.tsx`: a tabela desktop não cabe numa tela estreita).
  * É a ÚNICA tela que um usuário comum restrito enxerga (`MobileTabBar.tsx`), então tende a ser
- * usada por quem está em campo — sem filtro de Projeto/Atividade/Responsável (o usuário comum já
- * vê só as próprias tarefas; a busca cobre o resto). Ordenação sempre por urgência (mais atrasado
- * primeiro) — sem cabeçalho de coluna pra clicar, então sem o toggle de ordenação do desktop.
+ * usada por quem está em campo — sem filtro de Projeto/Atividade (o usuário comum já vê só as
+ * próprias tarefas; a busca cobre o resto), mas COM filtro de Responsável (pedido do usuário —
+ * administrador/visualizador usam pra ver a fila de uma pessoa específica). Ordenação sempre por
+ * urgência (mais atrasado primeiro) — sem cabeçalho de coluna pra clicar, então sem o toggle de
+ * ordenação do desktop.
  */
 export function MobileUpcomingTasksPage() {
   const data = useUpcomingTasksData();
@@ -25,6 +27,9 @@ export function MobileUpcomingTasksPage() {
     rows,
     search,
     setSearch,
+    responsavelOptions,
+    selectedResponsaveis,
+    setSelectedResponsaveis,
     onlyNotStarted,
     setOnlyNotStarted,
     urgencyFilter,
@@ -44,6 +49,14 @@ export function MobileUpcomingTasksPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Buscar por projeto, atividade ou tarefa"
+        className="min-h-11 w-full"
+      />
+
+      <MultiSelectFilter
+        label="Responsável"
+        options={responsavelOptions}
+        selected={selectedResponsaveis}
+        onChange={setSelectedResponsaveis}
         className="min-h-11 w-full"
       />
 

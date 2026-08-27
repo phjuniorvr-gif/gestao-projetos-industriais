@@ -1,26 +1,22 @@
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, LayoutDashboard, Users } from 'lucide-react';
-import { usePapel, useProjects } from '../../hooks';
-import { computeStatusDistribution } from '../../utils/portfolio';
+import { CalendarClock, CalendarRange, LayoutDashboard, Users, type LucideIcon } from 'lucide-react';
+import { usePapel } from '../../hooks';
 
 interface TabItem {
   to: string;
   label: string;
-  icon: typeof FolderKanban;
+  icon: LucideIcon;
   isActive: (pathname: string) => boolean;
-  /** Só a aba Projetos tem badge — contagem de atrasados (mesmo dado da faixa de saúde). */
-  badgeCount?: number;
 }
 
 export function MobileTabBar() {
   const { pathname } = useLocation();
-  const { projects } = useProjects();
   const papel = usePapel();
-  const delayedCount = computeStatusDistribution(projects).find((d) => d.status === 'delayed')?.count ?? 0;
 
   // Só 'usuario' fica restrito a "Tarefas" — administrador e visualizador (Fase 7+) enxergam a
   // barra inteira. Mesmo raciocínio do Sidebar desktop: checa `=== 'usuario'` explícito pra não
-  // estreitar a barra por um instante enquanto o papel ainda não resolveu.
+  // estreitar a barra por um instante enquanto o papel ainda não resolveu. Sem aba "Projetos" —
+  // a pedido do usuário, não precisa dela no mobile.
   const tabItems: TabItem[] =
     papel === 'usuario'
       ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
@@ -32,17 +28,16 @@ export function MobileTabBar() {
             isActive: (p) => p === '/dashboard',
           },
           {
-            to: '/projetos',
-            label: 'Projetos',
-            icon: FolderKanban,
-            isActive: (p) => p === '/' || p === '/projetos' || p === '/novo-projeto',
-            badgeCount: delayedCount,
-          },
-          {
             to: '/cronograma',
             label: 'Cronograma',
             icon: CalendarRange,
             isActive: (p) => p.includes('/cronograma'),
+          },
+          {
+            to: '/tarefas-proximas',
+            label: 'Tarefas',
+            icon: CalendarClock,
+            isActive: (p) => p === '/tarefas-proximas',
           },
           {
             to: '/equipe',
@@ -68,14 +63,7 @@ export function MobileTabBar() {
               active ? 'text-white' : 'text-white/60'
             }`}
           >
-            <span className="relative">
-              <Icon className="h-5 w-5" />
-              {!!item.badgeCount && (
-                <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-delayed px-1 text-[9px] font-bold text-white">
-                  {item.badgeCount}
-                </span>
-              )}
-            </span>
+            <Icon className="h-5 w-5" />
             <span>{item.label}</span>
           </Link>
         );
