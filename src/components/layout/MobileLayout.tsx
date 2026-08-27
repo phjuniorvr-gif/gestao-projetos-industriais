@@ -9,6 +9,7 @@ import { useAuth, useProjects } from '../../hooks';
 const TITLE_BY_PATH: { test: (pathname: string) => boolean; title: string }[] = [
   { test: (p) => p === '/dashboard', title: 'Resumo Próximos 90 dias' },
   { test: (p) => p === '/' || p === '/projetos' || p === '/novo-projeto', title: 'Projetos' },
+  { test: (p) => p.startsWith('/pipeline'), title: 'Pipeline' },
   { test: (p) => p.includes('/cronograma'), title: 'Cronograma' },
   { test: (p) => p === '/equipe', title: 'Equipe' },
   { test: (p) => p === '/tarefas-proximas', title: 'Tarefas' },

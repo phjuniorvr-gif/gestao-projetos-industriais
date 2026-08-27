@@ -6,14 +6,16 @@ import {
   DashboardPage,
   DeletedProjectsPage,
   LoginPage,
+  NewPipelinePage,
   NewProjectPage,
   PendingConfirmationsPage,
+  PipelinesPage,
   ProjectSchedulePage,
   ProjectsPage,
   SettingsPage,
   UpcomingTasksPage,
 } from './pages';
-import { MobileDashboardPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage, MobileUpcomingTasksPage } from './pages/mobile';
+import { MobileDashboardPage, MobilePipelinesPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage, MobileUpcomingTasksPage } from './pages/mobile';
 import { useIsMobile } from './hooks';
 
 export default function App() {
@@ -32,6 +34,8 @@ export default function App() {
               <Route index element={<Navigate to="/projetos" replace />} />
               <Route path="projetos" element={isMobile ? <MobileProjectsPage /> : <ProjectsPage />} />
               <Route path="novo-projeto" element={<NewProjectPage />} />
+              <Route path="pipeline" element={isMobile ? <MobilePipelinesPage /> : <PipelinesPage />} />
+              <Route path="pipeline/novo" element={<NewPipelinePage />} />
               <Route path="dashboard" element={isMobile ? <MobileDashboardPage /> : <DashboardPage />} />
               <Route path="cronograma" element={isMobile ? <MobileSchedulePage /> : <ProjectSchedulePage />} />
               <Route path="projetos/:id/cronograma" element={<ProjectSchedulePage />} />

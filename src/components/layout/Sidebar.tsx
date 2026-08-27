@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2, UserCheck } from 'lucide-react';
+import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2, UserCheck, Workflow } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
 import { useAuth, usePapel, useProjects } from '../../hooks';
 
@@ -17,6 +17,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Projetos',
     icon: FolderKanban,
     isActive: (pathname) => pathname === '/' || pathname === '/projetos' || pathname === '/novo-projeto',
+  },
+  {
+    to: '/pipeline',
+    label: 'Pipeline',
+    icon: Workflow,
+    isActive: (pathname) => pathname.startsWith('/pipeline'),
   },
   {
     to: '/dashboard',

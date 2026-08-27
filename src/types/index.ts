@@ -158,6 +158,18 @@ export interface Project {
   deletedAt?: string;
 }
 
+/** "Pipeline" (Fase 7+, pedido do usuário) — lista simples de projetos em prospecção, ainda sem
+ * atividades/cronograma (só nome/descrição/unidade, sem código). Administrador OU visualizador
+ * criam e excluem (exceção deliberada — visualizador normalmente só lê; aqui também escreve, a
+ * pedido explícito do usuário). Sem edição ainda — só criar, listar e excluir. */
+export interface Pipeline {
+  id: string;
+  name: string;
+  description?: string;
+  unit: string;
+  createdAt: string;
+}
+
 // Condições derivadas (Fase 2.3, decisão no CLAUDE.md): blocked/completed_late/to_start não
 // desaparecem — viram selo ao lado do status. No nível de tarefa são booleanos simples; no
 // nível de atividade/projeto, isBlocked/isStartDelayed viram CONTAGEM (não booleano — some()

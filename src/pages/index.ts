@@ -9,3 +9,5 @@ export * from './ActivitiesPage';
 export * from './UpcomingTasksPage';
 export * from './SettingsPage';
 export * from './PendingConfirmationsPage';
+export * from './PipelinesPage';
+export * from './NewPipelinePage';

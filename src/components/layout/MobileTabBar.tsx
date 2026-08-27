@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, LayoutDashboard, Users, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CalendarRange, LayoutDashboard, Users, Workflow, type LucideIcon } from 'lucide-react';
 import { usePapel } from '../../hooks';
 
 interface TabItem {
@@ -16,7 +16,8 @@ export function MobileTabBar() {
   // Só 'usuario' fica restrito a "Tarefas" — administrador e visualizador (Fase 7+) enxergam a
   // barra inteira. Mesmo raciocínio do Sidebar desktop: checa `=== 'usuario'` explícito pra não
   // estreitar a barra por um instante enquanto o papel ainda não resolveu. Sem aba "Projetos" —
-  // a pedido do usuário, não precisa dela no mobile.
+  // a pedido do usuário, não precisa dela no mobile. "Pipeline" (a pedido do usuário) segue a
+  // mesma exceção de permissão do desktop (administrador OU visualizador, não é admin-only).
   const tabItems: TabItem[] =
     papel === 'usuario'
       ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
@@ -26,6 +27,12 @@ export function MobileTabBar() {
             label: 'Resumo',
             icon: LayoutDashboard,
             isActive: (p) => p === '/dashboard',
+          },
+          {
+            to: '/pipeline',
+            label: 'Pipeline',
+            icon: Workflow,
+            isActive: (p) => p.startsWith('/pipeline'),
           },
           {
             to: '/cronograma',
