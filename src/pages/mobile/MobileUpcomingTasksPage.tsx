@@ -3,13 +3,13 @@ import { X } from 'lucide-react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { UpcomingTaskDetail } from '../../components/gantt';
 import { Card, EmptyState, Input, MultiSelectFilter } from '../../components/ui';
-import { useUpcomingTasksData } from '../../hooks';
+import { useUpcomingTasksData, WINDOW_DAY_OPTIONS } from '../../hooks';
 import { formatDatePtBr } from '../../utils';
 import { STATUS_COLOR } from '../../types';
 import type { UpcomingRow } from '../../hooks';
 
 /**
- * "Tarefas dos próximos 15 dias" no mobile — cards empilhados em vez da tabela larga do desktop
+ * "Tarefas por vencer" no mobile — cards empilhados em vez da tabela larga do desktop
  * (mesmo raciocínio de `MobileScheduleList.tsx`: a tabela desktop não cabe numa tela estreita).
  * É a ÚNICA tela que um usuário comum restrito enxerga (`MobileTabBar.tsx`), então tende a ser
  * usada por quem está em campo — sem filtro de Projeto/Atividade (o usuário comum já vê só as
@@ -25,6 +25,8 @@ export function MobileUpcomingTasksPage() {
     myPerson,
     restrictToMine,
     rows,
+    windowDays,
+    setWindowDays,
     search,
     setSearch,
     responsavelOptions,
@@ -45,6 +47,22 @@ export function MobileUpcomingTasksPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-1 rounded-md border border-border bg-white p-1">
+        {WINDOW_DAY_OPTIONS.map((days) => (
+          <button
+            key={days}
+            type="button"
+            onClick={() => setWindowDays(days)}
+            aria-pressed={windowDays === days}
+            className={`min-h-9 flex-1 rounded text-xs font-semibold transition-colors ${
+              windowDays === days ? 'bg-sidebar text-white' : 'text-text-muted'
+            }`}
+          >
+            {days === 0 ? 'Hoje' : `${days}d`}
+          </button>
+        ))}
+      </div>
+
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -101,7 +119,7 @@ export function MobileUpcomingTasksPage() {
 
       {sorted.length === 0 ? (
         <EmptyState
-          title="Nenhuma tarefa nos próximos 15 dias"
+          title="Nenhuma tarefa no período selecionado"
           description={
             restrictToMine && !myPerson
               ? 'Seu usuário ainda não está vinculado a uma pessoa responsável — fale com o administrador.'

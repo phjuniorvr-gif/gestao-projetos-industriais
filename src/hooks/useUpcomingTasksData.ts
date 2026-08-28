@@ -8,7 +8,15 @@ import { canViewAll, usePapel } from './usePapel';
 import { usePeople } from './usePeople';
 import { useProjects } from './useProjects';
 
-const WINDOW_DAYS = 15;
+/** Opções do seletor de período (a pedido do usuário — antes era fixo em 15 dias, ficando
+ * poluído com muita tarefa distante). Atrasadas (`daysLeft < 0`) e "hoje" (`daysLeft === 0`)
+ * sempre aparecem pra qualquer opção, porque `daysLeft <= windowDays` já cobre os dois casos
+ * (negativo e zero) sem precisar de exceção separada. `0` = "Hoje" (só atrasadas + hoje, nenhuma
+ * futura) — pedido seguinte do usuário, mesma regra de `<=`, sem caso especial no cálculo. */
+export const WINDOW_DAY_OPTIONS = [0, 7, 15, 30, 60] as const;
+// Abre sempre em "Hoje" (a pedido do usuário) — o período mais amplo fica um clique de distância,
+// mas a tela não começa poluída com tarefa distante.
+const DEFAULT_WINDOW_DAYS = 0;
 
 // Ordem por urgência (não alfabética) — mesmo raciocínio de outras listas de status do app.
 export const STATUS_RANK: Record<ProjectStatus, number> = { delayed: 0, in_progress: 1, planned: 2, completed: 3 };
@@ -25,14 +33,17 @@ export interface UpcomingRow {
 }
 
 /**
- * "Tarefas dos próximos 15 dias" — lógica de dados compartilhada entre a versão desktop
+ * "Tarefas por vencer" — lógica de dados compartilhada entre a versão desktop
  * (`UpcomingTasksPage.tsx`, tabela com ordenação por coluna) e a mobile (`MobileUpcomingTasksPage.tsx`,
  * cards com ordenação fixa por urgência) — sem isso as duas telas divergiriam em silêncio a cada
  * ajuste de filtro/restrição (mesmo raciocínio de reuso já aplicado a `computeWorkload` na Fase 6).
  * Uma linha por tarefa (não atividade/projeto), ainda não concluída. Dois jeitos de entrar na
  * lista: fim previsto dentro da janela (inclui atrasadas, `daysLeft < 0`), OU início previsto
- * dentro da janela pra quem ainda não começou (tarefa longa, cujo fim só cai muito depois dos 15
- * dias, mas que precisa aparecer porque está pra começar).
+ * dentro da janela pra quem ainda não começou (tarefa longa, cujo fim só cai muito depois da
+ * janela, mas que precisa aparecer porque está pra começar). Janela em dias é escolhida pelo
+ * usuário (`windowDays`/`WINDOW_DAY_OPTIONS`, a pedido do usuário — antes fixa em 15 dias);
+ * atrasadas e "hoje" sempre aparecem em qualquer janela, de graça, porque `daysLeft <= windowDays`
+ * já é verdadeiro pra qualquer valor negativo ou zero.
  */
 export function useUpcomingTasksData() {
   const {
@@ -63,6 +74,7 @@ export function useUpcomingTasksData() {
   const myPerson = people.find((p) => p.userId === session?.user.id);
   const restrictToMine = !canViewAll(papel);
 
+  const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW_DAYS);
   const [search, setSearch] = useState('');
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
@@ -82,7 +94,7 @@ export function useUpcomingTasksData() {
 
           if (task.plannedEnd) {
             const daysToEnd = diffDays(today, task.plannedEnd);
-            if (daysToEnd <= WINDOW_DAYS) {
+            if (daysToEnd <= windowDays) {
               list.push({ project, activity, task, kind: 'end', daysLeft: daysToEnd });
               continue;
             }
@@ -90,7 +102,7 @@ export function useUpcomingTasksData() {
 
           if (!task.actualStart && task.plannedStart) {
             const daysToStart = diffDays(today, task.plannedStart);
-            if (daysToStart <= WINDOW_DAYS) {
+            if (daysToStart <= windowDays) {
               list.push({ project, activity, task, kind: 'start', daysLeft: daysToStart });
             }
           }
@@ -98,9 +110,9 @@ export function useUpcomingTasksData() {
       }
     }
     return list;
-  }, [projects, today, restrictToMine, myPerson]);
+  }, [projects, today, restrictToMine, myPerson, windowDays]);
 
-  // Portfólio inteiro (não só as linhas dos próximos 15 dias) — pra clicar numa linha e abrir o
+  // Portfólio inteiro (não só as linhas dentro da janela) — pra clicar numa linha e abrir o
   // mesmo `TaskPanel` do Cronograma, que precisa enxergar todas as tarefas (predecessoras
   // candidatas, contagem de dependentes) e não só as visíveis nesta lista filtrada.
   const allTasks = useMemo(() => projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [projects]);
@@ -109,7 +121,7 @@ export function useUpcomingTasksData() {
     [projects],
   );
 
-  // Opções derivadas de `rows` (só quem aparece nos próximos 15 dias) — não a lista de
+  // Opções derivadas de `rows` (só quem aparece dentro da janela selecionada) — não a lista de
   // projetos/pessoas do portfólio inteiro, senão a maioria das opções nunca bateria com nada.
   const projectOptions = useMemo(() => {
     const byId = new Map(rows.map((r) => [r.project.id, r.project]));
@@ -198,6 +210,8 @@ export function useUpcomingTasksData() {
     isAdmin,
     myPerson,
     restrictToMine,
+    windowDays,
+    setWindowDays,
     rows,
     allTasks,
     activityIdToProjectId,

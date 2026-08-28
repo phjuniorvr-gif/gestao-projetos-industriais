@@ -4,11 +4,11 @@ import { PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { Card, EmptyState, Input, MultiSelectFilter } from '../components/ui';
 import { UpcomingTaskDetail } from '../components/gantt';
-import { useIsMobile, useUpcomingTasksData, STATUS_RANK } from '../hooks';
+import { useIsMobile, useUpcomingTasksData, STATUS_RANK, WINDOW_DAY_OPTIONS } from '../hooks';
 import { formatDatePtBr } from '../utils';
 import { STATUS_COLOR } from '../types';
 
-/** "Tarefas dos próximos 15 dias" (desktop) — tabela com ordenação por coluna. A lógica de dados
+/** "Tarefas por vencer" (desktop) — tabela com ordenação por coluna. A lógica de dados
  * (linhas, filtros, restrição por responsável) mora em `useUpcomingTasksData` — compartilhada com
  * `MobileUpcomingTasksPage.tsx`, que só troca a apresentação (cards, sem ordenação por coluna). */
 export function UpcomingTasksPage() {
@@ -18,6 +18,8 @@ export function UpcomingTasksPage() {
     myPerson,
     restrictToMine,
     rows,
+    windowDays,
+    setWindowDays,
     projectOptions,
     activityOptions,
     responsavelOptions,
@@ -88,7 +90,31 @@ export function UpcomingTasksPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Tarefas dos próximos 15 dias" subtitle="Tarefas com prazo previsto vencendo em breve (ou já vencido), ainda não concluídas" />
+      <PageHeader
+        title="Tarefas por vencer"
+        subtitle={
+          windowDays === 0
+            ? 'Só atrasadas e de hoje, ainda não concluídas'
+            : `Atrasadas e de hoje sempre aparecem; demais, dentro dos próximos ${windowDays} dias — ainda não concluídas`
+        }
+        actions={
+          <div className="flex items-center gap-1 rounded-md border border-border bg-white p-1">
+            {WINDOW_DAY_OPTIONS.map((days) => (
+              <button
+                key={days}
+                type="button"
+                onClick={() => setWindowDays(days)}
+                aria-pressed={windowDays === days}
+                className={`rounded px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                  windowDays === days ? 'bg-sidebar text-white' : 'text-text-muted hover:bg-page'
+                }`}
+              >
+                {days === 0 ? 'Hoje' : `${days}d`}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <SummaryCard label="Total de Tarefas" value={summary.total} icon={ListChecks} color="#0F172A" />
@@ -165,7 +191,7 @@ export function UpcomingTasksPage() {
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="Nenhuma tarefa nos próximos 15 dias"
+          title="Nenhuma tarefa no período selecionado"
           description={
             restrictToMine && !myPerson
               ? 'Seu usuário ainda não está vinculado a uma pessoa responsável — fale com o administrador.'

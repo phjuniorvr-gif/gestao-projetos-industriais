@@ -38,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     to: '/tarefas-proximas',
-    label: 'Próximas Tarefas',
+    label: 'Tarefas por vencer',
     icon: CalendarClock,
     isActive: (pathname) => pathname === '/tarefas-proximas',
   },
@@ -93,7 +93,7 @@ export function Sidebar() {
     (sum, p) => sum + p.activities.reduce((s, a) => s + a.tasks.filter((t) => t.pendingConfirmation).length, 0),
     0,
   );
-  // Só 'usuario' fica restrito a "Próximas Tarefas" — administrador e visualizador (Fase 7+)
+  // Só 'usuario' fica restrito a "Tarefas por vencer" — administrador e visualizador (Fase 7+)
   // enxergam o menu inteiro. Checa `=== 'usuario'` explícito (não o inverso de canViewAll) pra
   // não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
   // não resolveu (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
