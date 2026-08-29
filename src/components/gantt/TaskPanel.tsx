@@ -350,8 +350,8 @@ export function TaskPanel({
           <div className="grid grid-cols-2 gap-3">
             <FormField label={<>Início previsto {locked && <LockBadge />}</>}>
               <Input
-                type="date"
-                value={draftPlannedStart}
+                type={locked ? 'text' : 'date'}
+                value={locked ? formatDatePtBr(draftPlannedStart) : draftPlannedStart}
                 onChange={(e) => setDraftPlannedStart(e.target.value)}
                 disabled={locked}
                 className="w-full"
@@ -359,8 +359,8 @@ export function TaskPanel({
             </FormField>
             <FormField label={<>Fim previsto {locked && <LockBadge />}</>}>
               <Input
-                type="date"
-                value={draftPlannedEnd}
+                type={locked ? 'text' : 'date'}
+                value={locked ? formatDatePtBr(draftPlannedEnd) : draftPlannedEnd}
                 onChange={(e) => setDraftPlannedEnd(e.target.value)}
                 disabled={locked}
                 className="w-full"
@@ -371,8 +371,8 @@ export function TaskPanel({
           <div className="grid grid-cols-2 gap-3">
             <FormField label={<>Início base {locked && <LockBadge />}</>}>
               <Input
-                type="date"
-                value={draftBaseStart}
+                type={locked ? 'text' : 'date'}
+                value={locked ? formatDatePtBr(draftBaseStart) : draftBaseStart}
                 onChange={(e) => setDraftBaseStart(e.target.value)}
                 disabled={locked}
                 className="w-full"
@@ -380,8 +380,8 @@ export function TaskPanel({
             </FormField>
             <FormField label={<>Fim base {locked && <LockBadge />}</>}>
               <Input
-                type="date"
-                value={draftBaseEnd}
+                type={locked ? 'text' : 'date'}
+                value={locked ? formatDatePtBr(draftBaseEnd) : draftBaseEnd}
                 onChange={(e) => setDraftBaseEnd(e.target.value)}
                 disabled={locked}
                 className="w-full"
