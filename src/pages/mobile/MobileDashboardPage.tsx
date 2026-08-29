@@ -91,6 +91,7 @@ export function MobileDashboardPage() {
           if (openProject) updateTaskActualDates(openProject.id, taskId, patch);
         }}
         onShowUndo={(message, onUndo) => show(message, onUndo)}
+        readOnly
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />

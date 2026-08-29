@@ -18,6 +18,9 @@ interface MobileProjectSheetProps {
    * vez de todas as tarefas do projeto — `responsavelName` só troca o texto do título da seção. */
   filterResponsavelId?: string;
   filterResponsavelName?: string;
+  /** Some com o botão "✓ Concluir" de cada tarefa (a pedido do usuário) — Cronograma e Resumo só
+   * consultam, não escrevem; Projetos e Equipe continuam com a ação (default `false`). */
+  readOnly?: boolean;
 }
 
 /**
@@ -35,6 +38,7 @@ export function MobileProjectSheet({
   onShowUndo,
   filterResponsavelId,
   filterResponsavelName,
+  readOnly = false,
 }: MobileProjectSheetProps) {
   if (!project) return null;
 
@@ -129,13 +133,15 @@ export function MobileProjectSheet({
                   className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
                 >
                   <span className="min-w-0 truncate text-sm text-text">{task.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleComplete(task)}
-                    className="flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-action"
-                  >
-                    ✓ Concluir
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleComplete(task)}
+                      className="flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-action"
+                    >
+                      ✓ Concluir
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

@@ -87,6 +87,7 @@ export function MobileTeamPage() {
         onShowUndo={(message, onUndo) => show(message, onUndo)}
         filterResponsavelId={openTarget?.personId}
         filterResponsavelName={openTarget?.personName}
+        readOnly
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />
