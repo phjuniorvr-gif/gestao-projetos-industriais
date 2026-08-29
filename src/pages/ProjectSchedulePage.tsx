@@ -274,6 +274,7 @@ export function ProjectSchedulePage() {
   const selectedTaskDependentCount = liveSelectedTask
     ? allPortfolioTasks.filter((t) => t.dependencies.some((d) => d.predecessorId === liveSelectedTask.id)).length
     : 0;
+  const selectedTaskProject = ganttProjects.find((p) => p.id === activityIdToProjectId.get(liveSelectedTask?.activityId ?? ''));
 
   /** Fase 7 (Parte A) — dispara na hora (sem ConfirmDialog, mesmo padrão de exclusão sem
    * confirmação prévia da Fase 3) + Desfazer de 6s restaurando o projeto inteiro de antes
@@ -545,7 +546,8 @@ export function ProjectSchedulePage() {
         replanejamentos={replanejamentos}
         isAdmin={isAdmin}
         holidays={holidays}
-        unit={ganttProjects.find((p) => p.id === activityIdToProjectId.get(liveSelectedTask?.activityId ?? ''))?.unit ?? ''}
+        unit={selectedTaskProject?.unit ?? ''}
+        projectName={selectedTaskProject ? `${selectedTaskProject.code} — ${selectedTaskProject.name}` : undefined}
         onCreatePerson={createPerson}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, patch) => {

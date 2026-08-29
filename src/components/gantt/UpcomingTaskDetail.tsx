@@ -40,6 +40,7 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
   const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
 
   const selectedTask = selectedTaskId ? (allTasks.find((t) => t.id === selectedTaskId) ?? null) : null;
+  const selectedTaskProject = projects.find((p) => p.id === activityIdToProjectId.get(selectedTask?.activityId ?? ''));
   const selectedTaskDependentCount = selectedTask
     ? allTasks.filter((t) => t.dependencies.some((d) => d.predecessorId === selectedTask.id)).length
     : 0;
@@ -56,7 +57,8 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
         replanejamentos={replanejamentos}
         isAdmin={isAdmin}
         holidays={holidays}
-        unit={projects.find((p) => p.id === activityIdToProjectId.get(selectedTask?.activityId ?? ''))?.unit ?? ''}
+        unit={selectedTaskProject?.unit ?? ''}
+        projectName={selectedTaskProject ? `${selectedTaskProject.code} — ${selectedTaskProject.name}` : undefined}
         onCreatePerson={createPerson}
         onClose={onClose}
         onSave={(taskId, patch) => {

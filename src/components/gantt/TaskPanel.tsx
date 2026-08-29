@@ -66,6 +66,10 @@ interface TaskPanelProps {
   /** Cabeçalho/rodapé ganham a cor navy do resto do app no mobile — no desktop este painel
    * continua com o visual de gaveta lateral de sempre (mesmo componente serve os dois). */
   isMobile?: boolean;
+  /** Nome do projeto dono da tarefa (a pedido do usuário) — mostrado só no cabeçalho mobile, uma
+   * linha abaixo de "Tarefa N". No desktop é redundante (`ProjectSchedulePage.tsx` já mostra o
+   * projeto no cabeçalho da página; `UpcomingTasksPage.tsx` já tem coluna "Projeto" na tabela). */
+  projectName?: string;
 }
 
 export function TaskPanel({
@@ -88,6 +92,7 @@ export function TaskPanel({
   onConfirmCompletion,
   onRequestReject,
   isMobile = false,
+  projectName,
 }: TaskPanelProps) {
   // `undefined` (carregando) conta como travado — nunca libera por engano antes de saber o
   // papel de verdade (ver usePerfil.ts).
@@ -276,18 +281,23 @@ export function TaskPanel({
             isMobile ? 'shrink-0 bg-gradient-to-b from-sidebar to-sidebar-dark px-4 py-3' : 'mb-4'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <p className={`text-sm font-semibold ${isMobile ? 'text-white' : 'text-text'}`}>Tarefa {task.rowNumber}</p>
-            {!!task.replanCount && (
-              <span
-                title={`Previsto replanejado ${task.replanCount} ${task.replanCount === 1 ? 'vez' : 'vezes'}`}
-                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  isMobile ? 'bg-white/15 text-white' : 'bg-action/10 text-action'
-                }`}
-              >
-                R{task.replanCount}
-              </span>
-            )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className={`text-sm font-semibold ${isMobile ? 'text-white' : 'text-text'}`}>
+                {isMobile ? 'Tarefa' : `Tarefa ${task.rowNumber}`}
+              </p>
+              {!!task.replanCount && (
+                <span
+                  title={`Previsto replanejado ${task.replanCount} ${task.replanCount === 1 ? 'vez' : 'vezes'}`}
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    isMobile ? 'bg-white/15 text-white' : 'bg-action/10 text-action'
+                  }`}
+                >
+                  R{task.replanCount}
+                </span>
+              )}
+            </div>
+            {isMobile && projectName && <p className="truncate text-xs text-white/70">{projectName}</p>}
           </div>
           <button
             type="button"
@@ -409,6 +419,7 @@ export function TaskPanel({
                 onChange={(e) => setDraftActualStart(e.target.value)}
                 onBlur={handleBlurActualStart}
                 className="w-full"
+                style={draftActualStart ? undefined : { borderColor: 'var(--color-action)', backgroundColor: 'rgba(37, 99, 235, 0.06)' }}
               />
             </FormField>
             <FormField label="Fim real" error={actualErrors[0]}>
@@ -418,6 +429,7 @@ export function TaskPanel({
                 onChange={(e) => setDraftActualEnd(e.target.value)}
                 onBlur={handleBlurActualEnd}
                 className="w-full"
+                style={draftActualEnd ? undefined : { borderColor: 'var(--color-action)', backgroundColor: 'rgba(37, 99, 235, 0.06)' }}
               />
             </FormField>
           </div>
