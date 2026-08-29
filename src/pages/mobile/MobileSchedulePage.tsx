@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { X } from 'lucide-react';
-import { MobileProjectSheet, StatusGrid } from '../../components/projects';
+import { ArrowUpDown, X } from 'lucide-react';
+import { FilterSelect, MobileProjectSheet, StatusGrid } from '../../components/projects';
 import { MiniGantt } from '../../components/projects/MiniGantt';
 import { Card, EmptyState, Input, UndoToast } from '../../components/ui';
 import type { MobileOutletContext } from '../../components/layout';
@@ -52,7 +52,12 @@ export function MobileSchedulePage() {
   const { toast, show, dismiss } = useUndoToast();
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<ProjectStatus | null>(null);
+  const [unitFilter, setUnitFilter] = useState('');
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  // Ordenação padrão continua por criticidade (sortProjectsByCriticality) — o botão "Ordenar"
+  // alterna pra nome A→Z/Z→A e volta, mesmo ciclo de 3 estados já usado em MobileProjectsPage.tsx
+  // (lá por código; aqui por nome, a pedido do usuário).
+  const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
 
   const safeHolidays = holidaysLoaded ? holidays : [];
   // Sem o filtro de status — base pros chips contarem por status dentro do ano selecionado, sem
@@ -63,12 +68,22 @@ export function MobileSchedulePage() {
     [projects, year],
   );
   const distribution = computeStatusDistribution(projectsForDistribution);
+  const units = useMemo(() => Array.from(new Set(projects.map((p) => p.unit).filter(Boolean))).sort(), [projects]);
 
   const filtered = useMemo(
     () =>
       projects.filter((p) => {
-        if (activeStatus && p.status !== activeStatus) return false;
+        // Sem chip de status selecionado, concluído fica escondido por padrão (a pedido do
+        // usuário — 36 dos 50 projetos concluídos poluíam a lista). Selecionar "Concluído" (ou
+        // qualquer outro chip) sobrepõe isso — o filtro explícito decide sozinho quem aparece.
+        // Mesmo raciocínio (e mesma preferência, confirmada pelo usuário) de `MobileScheduleList.tsx`.
+        if (activeStatus) {
+          if (p.status !== activeStatus) return false;
+        } else if (p.status === 'completed') {
+          return false;
+        }
         if (year && p.plannedStart?.slice(0, 4) !== year) return false;
+        if (unitFilter && p.unit !== unitFilter) return false;
         if (search.trim()) {
           const term = search.trim().toLowerCase();
           const gerente = people.find((person) => person.id === p.gerenteId)?.name ?? '';
@@ -77,13 +92,16 @@ export function MobileSchedulePage() {
         }
         return true;
       }),
-    [projects, activeStatus, year, search, people],
+    [projects, activeStatus, year, unitFilter, search, people],
   );
 
-  const sorted = useMemo(
-    () => sortProjectsByCriticality(filtered, today, safeHolidays),
-    [filtered, today, safeHolidays],
-  );
+  const sorted = useMemo(() => {
+    if (nameSort) {
+      const ranked = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+      return nameSort === 'desc' ? ranked.reverse() : ranked;
+    }
+    return sortProjectsByCriticality(filtered, today, safeHolidays);
+  }, [filtered, today, safeHolidays, nameSort]);
 
   const openProject = projects.find((p) => p.id === openProjectId) ?? null;
 
@@ -96,17 +114,30 @@ export function MobileSchedulePage() {
         className="min-h-11 w-full"
       />
 
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setNameSort((current) => (current === null ? 'asc' : current === 'asc' ? 'desc' : null))}
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-white px-3 text-xs font-semibold text-text-muted"
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          {nameSort === 'asc' ? 'Nome: A → Z' : nameSort === 'desc' ? 'Nome: Z → A' : 'Ordenado por criticidade'}
+        </button>
+        <FilterSelect label="Unidade" value={unitFilter} onChange={setUnitFilter} options={units} className="min-h-11 flex-1" />
+      </div>
+
       <StatusGrid
         distribution={distribution}
         isActive={(status) => activeStatus === status}
         onToggleStatus={(status) => setActiveStatus((current) => (current === status ? null : status))}
       />
-      {(activeStatus || year || search.trim()) && (
+      {(activeStatus || year || unitFilter || search.trim()) && (
         <button
           type="button"
           onClick={() => {
             setActiveStatus(null);
             setYear('');
+            setUnitFilter('');
             setSearch('');
           }}
           className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
@@ -134,6 +165,7 @@ export function MobileSchedulePage() {
           if (openProject) updateTaskActualDates(openProject.id, taskId, patch);
         }}
         onShowUndo={(message, onUndo) => show(message, onUndo)}
+        readOnly
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />

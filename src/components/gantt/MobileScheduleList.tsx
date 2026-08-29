@@ -44,6 +44,11 @@ interface MobileScheduleListProps {
  */
 export function MobileScheduleList({ projects, collapsedActivityIds, onToggleActivity, onOpenTask }: MobileScheduleListProps) {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>([]);
+  // Tarefa concluída fica escondida por padrão (a pedido do usuário, mesmo raciocínio do "Ocultar
+  // concluídos" da lista de projetos em MobileSchedulePage.tsx) — só some quando NENHUM chip de
+  // status está selecionado; tocar em "Concluído" (ou qualquer combinação de chips) sempre
+  // sobrepõe esse padrão, porque nesse caso o filtro explícito já decide sozinho quem aparece.
+  const hideCompletedByDefault = statusFilter.length === 0;
 
   function toggleStatusFilter(status: ProjectStatus) {
     setStatusFilter((current) => (current.includes(status) ? current.filter((s) => s !== status) : [...current, status]));
@@ -78,10 +83,14 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
         const activitiesWithVisibleTasks = project.activities
           .map((activity) => ({
             activity,
-            visibleTasks:
-              statusFilter.length === 0 ? activity.tasks : activity.tasks.filter((t) => statusFilter.includes(t.status)),
+            visibleTasks: activity.tasks.filter((t) =>
+              statusFilter.length > 0 ? statusFilter.includes(t.status) : !hideCompletedByDefault || t.status !== 'completed',
+            ),
           }))
-          .filter(({ visibleTasks }) => statusFilter.length === 0 || visibleTasks.length > 0);
+          // Atividade sem NENHUMA tarefa cadastrada continua aparecendo (não tem o que esconder);
+          // atividade com tarefa mas tudo escondido (ex.: todas concluídas, ocultas por padrão)
+          // some da lista — é exatamente o "mais fácil de visualizar" que o usuário pediu.
+          .filter(({ activity, visibleTasks }) => activity.tasks.length === 0 || visibleTasks.length > 0);
 
         return (
           <div key={project.id} className="space-y-2">
