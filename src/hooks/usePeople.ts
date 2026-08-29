@@ -30,9 +30,22 @@ export function usePeople() {
     [people],
   );
 
-  const updatePerson = useCallback(async (id: string, patch: { name?: string; active?: boolean; userId?: string }) => {
+  // `userId: null` desvincula de propósito (a pessoa deixa de ter login associado) — diferente de
+  // `undefined`, que significa "não mexer nesse campo" (mesma convenção de patch parcial de sempre).
+  const updatePerson = useCallback(async (id: string, patch: { name?: string; active?: boolean; userId?: string | null }) => {
     await updatePersonRemote(id, patch);
-    setPeople((current) => current.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    setPeople((current) =>
+      current.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              name: patch.name ?? p.name,
+              active: patch.active ?? p.active,
+              userId: patch.userId === null ? undefined : (patch.userId ?? p.userId),
+            }
+          : p,
+      ),
+    );
   }, []);
 
   return { people, createPerson, updatePerson };

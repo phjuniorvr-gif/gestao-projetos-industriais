@@ -54,7 +54,7 @@ export async function createPerson(name: string): Promise<Person> {
   return fromRow(data);
 }
 
-export async function updatePerson(id: string, patch: { name?: string; active?: boolean; userId?: string }): Promise<void> {
+export async function updatePerson(id: string, patch: { name?: string; active?: boolean; userId?: string | null }): Promise<void> {
   const payload: Record<string, unknown> = {};
   if (patch.name !== undefined) payload.name = patch.name.trim();
   if (patch.active !== undefined) payload.active = patch.active;

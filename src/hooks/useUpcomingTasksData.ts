@@ -4,7 +4,7 @@ import { diffDays } from '../utils';
 import { useAuth } from './useAuth';
 import { useCategories } from './useCategories';
 import { useHolidays } from './useHolidays';
-import { canViewAll, usePapel } from './usePapel';
+import { usePapel } from './usePapel';
 import { usePeople } from './usePeople';
 import { useProjects } from './useProjects';
 
@@ -67,12 +67,14 @@ export function useUpcomingTasksData() {
   // dois hooks (duas buscas independentes) só pra chegar no mesmo boolean. Tri-state preservado
   // (`undefined` enquanto carrega, nunca vira `false` prematuro) pelo mesmo motivo de sempre.
   const isAdmin = papel === undefined ? undefined : papel === 'administrador';
-  // Só 'usuario' vê só as próprias tarefas — administrador e visualizador (Fase 7+, enxerga tudo
-  // mas não escreve nada) veem todo mundo. `!canViewAll(papel)` cobre 'usuario' E `undefined`
-  // (papel ainda carregando), pra não vazar as tarefas de todo mundo por um instante antes do
-  // papel resolver.
+  // Só administrador vê o portfólio inteiro nesta tela — 'usuario' E 'visualizador' (pedido do
+  // usuário, revertendo o `canViewAll` que valia aqui até então) veem só as próprias tarefas.
+  // `papel !== 'administrador'` cobre os dois papéis E `undefined` (papel ainda carregando), pra
+  // não vazar as tarefas de todo mundo por um instante antes do papel resolver. `canViewAll`
+  // continua governando NAVEGAÇÃO (Sidebar/MobileTabBar/RequireAdmin) — só essa tela ficou mais
+  // restrita que a navegação, por pedido explícito.
   const myPerson = people.find((p) => p.userId === session?.user.id);
-  const restrictToMine = !canViewAll(papel);
+  const restrictToMine = papel !== 'administrador';
 
   const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW_DAYS);
   const [search, setSearch] = useState('');

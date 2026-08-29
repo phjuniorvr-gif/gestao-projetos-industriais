@@ -45,6 +45,20 @@ export function SettingsPage() {
   const [creatingUser, setCreatingUser] = useState(false);
   const [createUserError, setCreateUserError] = useState('');
 
+  // Troca a pessoa vinculada de um login JÁ existente (pedido do usuário — antes só dava pra
+  // vincular na hora de criar; não tinha como corrigir depois um login criado sem vínculo).
+  // Desvincula a pessoa anterior (se houver) antes de vincular a nova, senão duas pessoas
+  // ficariam apontando pro mesmo `userId` ao mesmo tempo.
+  function handleChangePersonLink(userId: string, newPersonId: string) {
+    const currentPerson = people.find((p) => p.userId === userId);
+    if (currentPerson && currentPerson.id !== newPersonId) {
+      updatePerson(currentPerson.id, { userId: null });
+    }
+    if (newPersonId) {
+      updatePerson(newPersonId, { userId });
+    }
+  }
+
   async function handleCreateUser() {
     setCreateUserError('');
     if (!newUserEmail.trim() || !newUserPassword) {
@@ -253,9 +267,25 @@ export function SettingsPage() {
           <div className="space-y-2">
             {usuarios.map((u) => {
               const isSelf = u.userId === session?.user.id;
+              const linkedPersonId = people.find((p) => p.userId === u.userId)?.id ?? '';
               return (
-                <div key={u.userId} className="flex items-center gap-3">
-                  <span className="flex-1 truncate text-sm text-text">{u.email}</span>
+                <div key={u.userId} className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-[160px] flex-1 truncate text-sm text-text">{u.email}</span>
+                  <Select
+                    value={linkedPersonId}
+                    onChange={(e) => handleChangePersonLink(u.userId, e.target.value)}
+                    className="w-48"
+                    title="Pessoa vinculada — é quem esse login enxerga como responsável em Tarefas por vencer"
+                  >
+                    <option value="">Pessoa vinculada: nenhuma</option>
+                    {people
+                      .filter((p) => p.active || p.id === linkedPersonId)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </Select>
                   {isSelf ? (
                     <span className="text-xs font-medium text-text-muted" title="Você não pode trocar seu próprio papel por aqui.">
                       {PAPEL_LABEL[u.papel]}
@@ -314,8 +344,8 @@ export function SettingsPage() {
               </Button>
             </div>
             <p className="text-xs text-text-muted">
-              A pessoa vinculada é quem esse login enxerga como "responsável" na tela de Tarefas dos próximos 15
-              dias — sem vínculo, um usuário comum não vê nenhuma tarefa lá.
+              A pessoa vinculada é quem esse login enxerga como "responsável" na tela de Tarefas por vencer — sem
+              vínculo, usuário comum ou visualizador não vê nenhuma tarefa lá.
             </p>
             {createUserError && <p className="text-xs text-status-delayed">{createUserError}</p>}
           </div>
