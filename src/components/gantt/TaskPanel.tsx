@@ -419,7 +419,7 @@ export function TaskPanel({
                 onChange={(e) => setDraftActualStart(e.target.value)}
                 onBlur={handleBlurActualStart}
                 className="w-full"
-                style={draftActualStart ? undefined : { borderColor: 'var(--color-action)', backgroundColor: 'rgba(37, 99, 235, 0.06)' }}
+                style={draftActualStart ? undefined : { borderColor: 'var(--color-action)', borderWidth: 2 }}
               />
             </FormField>
             <FormField label="Fim real" error={actualErrors[0]}>
@@ -429,7 +429,7 @@ export function TaskPanel({
                 onChange={(e) => setDraftActualEnd(e.target.value)}
                 onBlur={handleBlurActualEnd}
                 className="w-full"
-                style={draftActualEnd ? undefined : { borderColor: 'var(--color-action)', backgroundColor: 'rgba(37, 99, 235, 0.06)' }}
+                style={draftActualEnd ? undefined : { borderColor: 'var(--color-action)', borderWidth: 2 }}
               />
             </FormField>
           </div>
