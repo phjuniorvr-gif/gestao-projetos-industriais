@@ -412,24 +412,25 @@ export function TaskPanel({
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Início real">
+            <FormField label={draftActualStart ? 'Início real' : <span className="font-semibold text-action">Início real</span>}>
               <Input
                 type="date"
                 value={draftActualStart}
                 onChange={(e) => setDraftActualStart(e.target.value)}
                 onBlur={handleBlurActualStart}
                 className="w-full"
-                style={draftActualStart ? undefined : { borderColor: 'var(--color-action)', borderWidth: 2 }}
               />
             </FormField>
-            <FormField label="Fim real" error={actualErrors[0]}>
+            <FormField
+              label={draftActualEnd ? 'Fim real' : <span className="font-semibold text-action">Fim real</span>}
+              error={actualErrors[0]}
+            >
               <Input
                 type="date"
                 value={draftActualEnd}
                 onChange={(e) => setDraftActualEnd(e.target.value)}
                 onBlur={handleBlurActualEnd}
                 className="w-full"
-                style={draftActualEnd ? undefined : { borderColor: 'var(--color-action)', borderWidth: 2 }}
               />
             </FormField>
           </div>
