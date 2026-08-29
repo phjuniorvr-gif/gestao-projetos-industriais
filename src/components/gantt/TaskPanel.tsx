@@ -216,6 +216,25 @@ export function TaskPanel({
     }
   }
 
+  /** Botão "Limpar" próprio (achado com print do usuário) — o botão nativo "Redefinir" do
+   * seletor de data do iOS não dispara `input`/`change` num campo controlado, então o React nunca
+   * fica sabendo que o valor foi apagado e o campo "volta" sozinho depois de fechar o seletor.
+   * Chama `onSaveActual` direto (não passa por `handleBlurActualStart`, que só salva quando o
+   * rascunho já mudou por um `onChange` de verdade). */
+  function handleClearActualStart() {
+    if (!task) return;
+    setDraftActualStart('');
+    setActualErrors([]);
+    if (task.actualStart) onSaveActual(task.id, { actualStart: undefined });
+  }
+
+  function handleClearActualEnd() {
+    if (!task) return;
+    setDraftActualEnd('');
+    setActualErrors([]);
+    if (task.actualEnd) onSaveActual(task.id, { actualEnd: undefined });
+  }
+
   /** "Aplicar" (Fase 4, Commit 7) — só popula o rascunho (mantendo a duração atual, desloca
    * início OU fim conforme o tipo), nunca grava sozinho: o rascunho já preenchido revela a faixa
    * de motivo obrigatório (acima), mesmo fluxo da Fase 2.5. Duração em dias corridos (não úteis)
@@ -420,6 +439,15 @@ export function TaskPanel({
                 onBlur={handleBlurActualStart}
                 className="w-full"
               />
+              {draftActualStart && (
+                <button
+                  type="button"
+                  onClick={handleClearActualStart}
+                  className="mt-1 text-xs font-semibold text-action hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
             </FormField>
             <FormField
               label={draftActualEnd ? 'Fim real' : <span className="font-semibold text-action">Fim real</span>}
@@ -432,6 +460,15 @@ export function TaskPanel({
                 onBlur={handleBlurActualEnd}
                 className="w-full"
               />
+              {draftActualEnd && (
+                <button
+                  type="button"
+                  onClick={handleClearActualEnd}
+                  className="mt-1 text-xs font-semibold text-action hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
             </FormField>
           </div>
 
