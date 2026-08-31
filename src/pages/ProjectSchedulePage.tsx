@@ -130,7 +130,10 @@ export function ProjectSchedulePage() {
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
-  const [allExpanded, setAllExpanded] = useState(false);
+  // Botão "Expandir/Recolher tudo" — ciclo de 3 níveis (pedido do usuário), não mais um toggle
+  // binário: 'project' (só projeto, tudo recolhido) → 'activity' (mostra atividade, tarefa
+  // continua escondida) → 'task' (mostra tudo) → volta pra 'project'.
+  const [expandLevel, setExpandLevel] = useState<'project' | 'activity' | 'task'>('project');
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
   // Ordena por código (P01→P99), não pelo cabeçalho "Estrutura" (que é a árvore inteira, não uma
@@ -223,13 +226,23 @@ export function ProjectSchedulePage() {
     return <EmptyState title="Projeto não encontrado" description="Verifique o link ou volte para a lista de projetos." />;
   }
 
-  function toggleExpandAll() {
-    if (allExpanded) {
-      setCollapsedProjectIds(new Set(visibleProjects.map((p) => p.id)));
-      setAllExpanded(false);
-    } else {
+  function cycleExpandLevel() {
+    const allActivityIds = new Set(visibleProjects.flatMap((p) => p.activities.map((a) => a.id)));
+    if (expandLevel === 'project') {
+      // nível atividade: projeto expandido, atividade ainda recolhida (tarefa some)
       setCollapsedProjectIds(new Set());
-      setAllExpanded(true);
+      setCollapsedActivityIds(allActivityIds);
+      setExpandLevel('activity');
+    } else if (expandLevel === 'activity') {
+      // nível tarefa: tudo expandido
+      setCollapsedProjectIds(new Set());
+      setCollapsedActivityIds(new Set());
+      setExpandLevel('task');
+    } else {
+      // recolhe tudo, só o projeto fica visível
+      setCollapsedProjectIds(new Set(visibleProjects.map((p) => p.id)));
+      setCollapsedActivityIds(allActivityIds);
+      setExpandLevel('project');
     }
   }
 
@@ -439,11 +452,11 @@ export function ProjectSchedulePage() {
                     )}
                   </div>
                   <Button
-                    variant={allExpanded ? 'secondary' : 'primary'}
-                    icon={allExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
-                    onClick={toggleExpandAll}
+                    variant={expandLevel === 'task' ? 'secondary' : 'primary'}
+                    icon={expandLevel === 'task' ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
+                    onClick={cycleExpandLevel}
                   >
-                    {allExpanded ? 'Recolher tudo' : 'Expandir tudo'}
+                    {expandLevel === 'project' ? 'Expandir atividades' : expandLevel === 'activity' ? 'Expandir tarefas' : 'Recolher tudo'}
                   </Button>
                   <Button
                     variant={editMode ? 'secondary' : 'primary'}
