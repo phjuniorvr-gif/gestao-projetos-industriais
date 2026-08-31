@@ -131,22 +131,35 @@ export function computeCriticality(project: CriticalityInput, deviationDays: num
 }
 
 /**
- * Ordena por criticidade (score desc), com 2 camadas de desempate determinístico: maior desvio
- * primeiro, depois prazo previsto mais próximo primeiro, depois id (estável, nunca reordena à
- * toa entre renders com dado idêntico). Score/desvio/esperado calculados uma vez por projeto,
- * não a cada comparação do sort.
+ * Ordena por criticidade — mesma regra de `computeAttentionItems` (o card "Atenção nos próximos
+ * 90 dias"), estendida a TODOS os projetos em vez de só um recorte de 90 dias/top 10 (pedido do
+ * usuário: o comportamento divergia, a tabela de Projetos usava um score diferente do card).
+ * 3 grupos, nessa ordem: atrasado (pior desvio primeiro), em andamento/planejado (prazo previsto
+ * mais próximo primeiro, sem janela de dias — o mais distante só fica no fim da lista, não
+ * desaparece) e concluído (por último, sem urgência). Desempate dentro do mesmo grupo por prazo
+ * previsto, depois id (estável, nunca reordena à toa entre renders com dado idêntico).
  */
 export function sortProjectsByCriticality(projects: ProjectView[], today: string, holidays: Holiday[]): ProjectView[] {
   const ranked = projects.map((project) => {
     const deviationDays = computeScheduleDeviationDays(project, today, holidays);
-    const expectedProgress = computeExpectedProgress(project.activities.flatMap((a) => a.tasks), today, holidays, project.unit);
-    const score = computeCriticality(project, deviationDays, expectedProgress);
-    return { project, deviationDays, score };
+    let group: number;
+    let orderKey: number;
+    if (project.status === 'delayed') {
+      group = 0;
+      orderKey = -deviationDays; // pior desvio primeiro
+    } else if (project.status === 'completed') {
+      group = 2;
+      orderKey = 0;
+    } else {
+      group = 1;
+      orderKey = project.plannedEnd ? diffDays(today, project.plannedEnd) : Number.MAX_SAFE_INTEGER;
+    }
+    return { project, group, orderKey };
   });
 
   ranked.sort((a, b) => {
-    if (a.score !== b.score) return b.score - a.score;
-    if (a.deviationDays !== b.deviationDays) return b.deviationDays - a.deviationDays;
+    if (a.group !== b.group) return a.group - b.group;
+    if (a.orderKey !== b.orderKey) return a.orderKey - b.orderKey;
     const endA = a.project.plannedEnd ?? '';
     const endB = b.project.plannedEnd ?? '';
     if (endA !== endB) return endA < endB ? -1 : 1;

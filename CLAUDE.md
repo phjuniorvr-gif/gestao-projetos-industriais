@@ -284,6 +284,15 @@ Pedido do usuário, com print do Cronograma desktop (`ProjectSchedulePage.tsx`) 
 - **Rótulo do botão descreve a AÇÃO do próximo clique, não o estado atual** (mesma convenção do botão binário anterior) — "Expandir atividades" (em `'project'`) → "Expandir tarefas" (em `'activity'`) → "Recolher tudo" (em `'task'`).
 - **Não sincroniza com toggle manual de linha** (`toggleProject`/`toggleActivity`, clique no chevron de uma linha específica) — mesmo comportamento de antes (o `allExpanded` binário anterior também não rastreava esse detalhe): `expandLevel` só reflete o que o PRÓPRIO botão fez da última vez, é um atalho de 3 estados, não um espelho fiel do estado de cada linha individual.
 
+## Decisões da sessão de 2026-08-29 (ordenação por criticidade igual ao card "Atenção nos próximos 90 dias")
+
+Pedido do usuário, com print da tabela de Projetos mostrando P14 em 2º lugar quando o card "Atenção nos próximos 90 dias" (mesma página) mostrava P50 em 2º — a tabela usava `computeCriticality` (score combinando desvio + avanço esperado), diferente da regra mais simples do card (`computeAttentionItems`). Sem migração — mudança só na função pura de ordenação (`portfolio.ts`).
+
+- **`sortProjectsByCriticality` reescrita pra usar a MESMA regra do card**, generalizada pra todo o portfólio (o card só mostra os 10 primeiros dentro de 90 dias; a tabela precisa de uma ordem completa, sem cap nem janela). 3 grupos, nessa ordem: atrasado (pior desvio primeiro) → em andamento/planejado (prazo previsto mais próximo primeiro, sem limite de 90 dias — o mais distante só cai no fim da lista, nunca desaparece) → concluído (por último). Desempate dentro do grupo por prazo previsto, depois id.
+- **`computeCriticality` não é mais chamada por `sortProjectsByCriticality`** — fica como função pura órfã, ainda exportada e com teste próprio (`portfolio.test.ts`), só não alimenta mais nenhuma ordenação. Não removida (não foi pedido, e continua sendo uma referência de comportamento antigo documentada pelo próprio teste).
+- **Reaproveitamento automático**: `sortProjectsByCriticality` é a mesma função usada em `ProjectsPage.tsx` (desktop), `MobileProjectsPage.tsx` e `MobileSchedulePage.tsx` — as três telas passam a concordar com o card de Atenção de graça, sem precisar de mudança em cada uma.
+- **3 testes existentes de `sortProjectsByCriticality` continuaram passando sem alteração** — já cobriam exatamente a mesma forma (`delayed` → `planned` → `completed`, desempate por prazo mais próximo, desempate por id) que a nova implementação também produz, só chegando lá por um caminho diferente (grupo+prazo em vez de score).
+
 ## Permissões
 
 Configuradas em `.claude/settings.local.json` (local, fora do git) para não precisar aprovar comando por comando. Regras:
