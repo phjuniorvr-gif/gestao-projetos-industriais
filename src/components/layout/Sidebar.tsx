@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2, UserCheck, Workflow } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
-import { useAuth, usePapel, useProjects } from '../../hooks';
+import { useAuth, usePapel, usePipelines, useProjects } from '../../hooks';
 
 interface NavItem {
   to: string;
@@ -85,6 +85,7 @@ export function Sidebar() {
   const { session, signOut } = useAuth();
   const papel = usePapel();
   const { projects } = useProjects();
+  const { pipelines } = usePipelines();
   const [changingPassword, setChangingPassword] = useState(false);
   // Badge em "Confirmações" — mesma contagem que popula PendingConfirmationsPage.tsx, calculada
   // aqui de novo (sem store compartilhado nesta app, ver useUpcomingTasksData.ts) só pra saber o
@@ -93,6 +94,12 @@ export function Sidebar() {
     (sum, p) => sum + p.activities.reduce((s, a) => s + a.tasks.filter((t) => t.pendingConfirmation).length, 0),
     0,
   );
+  // Badge em "Pipeline" (a pedido do usuário, mesmo padrão de "Confirmações") — quantidade de
+  // itens aguardando virar projeto.
+  const badgeCountByPath: Record<string, number> = {
+    '/confirmacoes': pendingConfirmationCount,
+    '/pipeline': pipelines.length,
+  };
   // Só 'usuario' fica restrito a "Tarefas por vencer" — administrador e visualizador (Fase 7+)
   // enxergam o menu inteiro. Checa `=== 'usuario'` explícito (não o inverso de canViewAll) pra
   // não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
@@ -103,6 +110,7 @@ export function Sidebar() {
   function renderNavItem(item: NavItem) {
     const active = item.isActive(pathname);
     const Icon = item.icon;
+    const badgeCount = badgeCountByPath[item.to] ?? 0;
     return (
       <Link
         key={item.label}
@@ -114,18 +122,18 @@ export function Sidebar() {
       >
         <span className="relative shrink-0">
           <Icon className="h-4 w-4" />
-          {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && collapsed && (
+          {badgeCount > 0 && collapsed && (
             <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-status-delayed text-[8px] font-bold text-white">
-              {pendingConfirmationCount > 9 ? '9+' : pendingConfirmationCount}
+              {badgeCount > 9 ? '9+' : badgeCount}
             </span>
           )}
         </span>
         {!collapsed && (
           <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
             <span className="truncate whitespace-nowrap">{item.label}</span>
-            {item.to === '/confirmacoes' && pendingConfirmationCount > 0 && (
+            {badgeCount > 0 && (
               <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-status-delayed px-1 text-[11px] font-bold text-white">
-                {pendingConfirmationCount}
+                {badgeCount}
               </span>
             )}
           </span>
