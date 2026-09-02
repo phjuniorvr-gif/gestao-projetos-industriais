@@ -1,29 +1,42 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout';
 import { Badge, Button, Card, EmptyState, FormField, Input, Select, Textarea } from '../components/ui';
 import { ActivitySourceForm, SelectedActivitiesList } from '../components/wizard';
 import type { DraftActivity } from '../components/wizard';
 import { PersonSelect } from '../components/shared/PersonSelect';
-import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects } from '../hooks';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, usePipelines, useProjects } from '../hooks';
 import { computeDatesFromDuration, nextProjectCode, todayISO } from '../utils';
 import type { NewActivityInput } from '../hooks';
 
 export const UNIT_OPTIONS = ['Matriz', 'MEC', 'Feira', 'Amélia'];
 
+interface FromPipelineState {
+  id: string;
+  name: string;
+  description?: string;
+  unit: string;
+}
+
 export function NewProjectPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // "Transformar em projeto" (Pipeline, pedido do usuário) — chega via router state, não URL,
+  // pra não expor dado de pipeline numa query string. Só pré-preenche o step 0; some do estado da
+  // página assim que os campos entram nos `useState` abaixo (não precisa ficar sincronizado).
+  const fromPipeline = (location.state as { fromPipeline?: FromPipelineState } | null)?.fromPipeline;
   const { projects, createProject } = useProjects();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
   const { holidays } = useHolidays();
   const { people, createPerson } = usePeople();
+  const { deletePipeline } = usePipelines();
   const isAdmin = usePerfil();
   const [step, setStep] = useState<0 | 1>(0);
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [unit, setUnit] = useState(UNIT_OPTIONS[0]);
+  const [name, setName] = useState(fromPipeline?.name ?? '');
+  const [description, setDescription] = useState(fromPipeline?.description ?? '');
+  const [unit, setUnit] = useState(fromPipeline?.unit ?? UNIT_OPTIONS[0]);
   const [gerenteId, setGerenteId] = useState<string | undefined>(undefined);
   const [nameError, setNameError] = useState('');
 
@@ -162,6 +175,7 @@ export function NewProjectPage() {
       gerenteId,
       activities,
     });
+    if (fromPipeline) deletePipeline(fromPipeline.id);
     navigate('/projetos');
   }
 
@@ -184,7 +198,10 @@ export function NewProjectPage() {
       {step === 0 ? (
         <Card className="max-w-3xl p-6">
           <div className="space-y-4">
-            <Badge color="#2563EB">Código do projeto: {code}</Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge color="#2563EB">Código do projeto: {code}</Badge>
+              {fromPipeline && <Badge color="#7C3AED">Convertido do Pipeline</Badge>}
+            </div>
 
             <FormField label="Nome do projeto" required error={nameError}>
               <Input value={name} onChange={(e) => setName(e.target.value)} className="w-full" placeholder="Nome do projeto" />

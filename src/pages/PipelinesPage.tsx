@@ -1,18 +1,30 @@
 import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout';
 import { Button, Card, ConfirmDialog, EmptyState } from '../components/ui';
-import { usePipelines } from '../hooks';
+import { usePerfil, usePipelines } from '../hooks';
 import type { Pipeline } from '../types';
 import { formatDatePtBr } from '../utils';
 
 /** "Pipeline" (Fase 7+, pedido do usuário) — lista de projetos em prospecção, ainda sem
  * atividades/cronograma. Administrador e visualizador criam (`NewPipelinePage.tsx`) e excluem
- * (exceção deliberada, mesmo grupo nos dois casos — ver CLAUDE.md); sem edição ainda. */
+ * (exceção deliberada, mesmo grupo nos dois casos — ver CLAUDE.md); sem edição ainda.
+ * "Transformar em projeto" é admin-only (criar projeto sempre foi, Fase 5) — diferente da
+ * exceção de criar/excluir pipeline, essa ação vira um projeto de verdade. */
 export function PipelinesPage() {
+  const navigate = useNavigate();
+  const isAdmin = usePerfil();
   const { pipelines, loaded, deletePipeline } = usePipelines();
   const [deletingPipeline, setDeletingPipeline] = useState<Pipeline | null>(null);
+
+  function handleConvertToProject(pipeline: Pipeline) {
+    navigate('/novo-projeto', {
+      state: {
+        fromPipeline: { id: pipeline.id, name: pipeline.name, description: pipeline.description, unit: pipeline.unit },
+      },
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -53,15 +65,28 @@ export function PipelinesPage() {
                   <td className="max-w-0 truncate px-4 py-2.5 text-text-muted">{pipeline.description ?? '—'}</td>
                   <td className="px-4 py-2.5 text-right text-text-muted">{formatDatePtBr(pipeline.createdAt.slice(0, 10))}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setDeletingPipeline(pipeline)}
-                      className="rounded-lg p-1.5 text-text-muted hover:bg-status-delayed/10 hover:text-status-delayed"
-                      title="Excluir pipeline"
-                      aria-label="Excluir pipeline"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {isAdmin === true && (
+                        <button
+                          type="button"
+                          onClick={() => handleConvertToProject(pipeline)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-action hover:bg-action/10"
+                          title="Transformar em projeto"
+                        >
+                          Transformar em projeto
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setDeletingPipeline(pipeline)}
+                        className="rounded-lg p-1.5 text-text-muted hover:bg-status-delayed/10 hover:text-status-delayed"
+                        title="Excluir pipeline"
+                        aria-label="Excluir pipeline"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
