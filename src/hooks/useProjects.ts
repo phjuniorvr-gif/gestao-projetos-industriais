@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   fetchProjects,
   informarDataReal,
@@ -101,8 +101,14 @@ function removeActivityFromProject(project: Project, activityId: string): Projec
  * `rawProjects` (estado) é a forma persistida — nunca tem status. `projects` (retornado) é
  * derivado via `useMemo` + `recomputeProject`, uma vez só, num lugar só — nem o repo nem os
  * updaters recalculam nada (ver CLAUDE.md, Fase 2.3: recompute só aqui, nunca no repo).
+ *
+ * Interna — não exportada diretamente. `useProjects()` (abaixo) lê essa mesma instância via
+ * Context (`ProjectsProvider`, montado uma vez em `App.tsx`), não chama isto de novo a cada
+ * página: sem isso, cada tela teria sua PRÓPRIA cópia de `rawProjects`, e uma mutação numa tela
+ * (ex.: confirmar uma tarefa em Confirmações) nunca apareceria no menu lateral (outra instância)
+ * até um F5 — achado com relato do usuário sobre o badge de "Confirmações" não atualizando.
  */
-export function useProjects() {
+function useProjectsState() {
   const [rawProjects, setRawProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
   const { holidays, loaded: holidaysLoaded } = useHolidays();
@@ -697,4 +703,21 @@ export function useProjects() {
     reorderTask,
     setTaskPredecessors,
   };
+}
+
+const ProjectsContext = createContext<ReturnType<typeof useProjectsState> | undefined>(undefined);
+
+/** Monta `useProjectsState()` uma vez só, no topo da árvore (`App.tsx`, dentro de
+ * `ProtectedRoute`) — todo consumidor de `useProjects()` passa a enxergar a MESMA instância viva,
+ * em vez de cada tela buscar sua própria cópia (ver comentário de `useProjectsState`). `createElement`
+ * em vez de JSX porque este arquivo é `.ts`, não `.tsx`. */
+export function ProjectsProvider({ children }: { children: ReactNode }) {
+  const state = useProjectsState();
+  return createElement(ProjectsContext.Provider, { value: state }, children);
+}
+
+export function useProjects() {
+  const ctx = useContext(ProjectsContext);
+  if (!ctx) throw new Error('useProjects precisa ser chamado dentro de <ProjectsProvider>.');
+  return ctx;
 }
