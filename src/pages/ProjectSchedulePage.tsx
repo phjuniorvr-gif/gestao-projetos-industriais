@@ -171,9 +171,9 @@ export function ProjectSchedulePage() {
   const [expandLevel, setExpandLevel] = useState<'project' | 'activity' | 'task'>('project');
   // Aba Importação (pedido do usuário) — sem nível Projeto, então o ciclo de 3 níveis não se
   // aplica; toggle de 2 estados só entre Atividade (tarefa escondida) e Tarefa (tudo aberto).
-  // Começa `true` (tudo expandido) — combina com `collapsedOnLoadRef` pulando o recolhimento
-  // inicial nessa rota.
-  const [importacaoExpanded, setImportacaoExpanded] = useState(true);
+  // Começa `false` (recolhido em Atividade, pedido do usuário) — combina com `collapsedOnLoadRef`
+  // recolhendo as atividades ao carregar essa rota.
+  const [importacaoExpanded, setImportacaoExpanded] = useState(false);
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
   // Aba Importação (pedido do usuário) sempre em modo Tabela, sem alternar — o toggle Tabela⇄Gantt
@@ -275,19 +275,23 @@ export function ProjectSchedulePage() {
   // MOBILE (`MobileScheduleList`, sem o nível "projeto" pra recolher) só existe o nível atividade.
   const collapsedOnLoadRef = useRef(false);
   useEffect(() => {
-    if (loaded && !collapsedOnLoadRef.current && projectsToShow.length > 0) {
-      // Aba Importação (pedido do usuário) pula o recolhimento — atividade/tarefa já aparecem
-      // abertas de cara, sem a linha de Projeto (escondida via `hideProjectRow`) pra reabrir uma
-      // por uma.
-      if (!isImportacaoView) {
-        setCollapsedActivityIds(new Set(projectsToShow.flatMap((p) => p.activities.map((a) => a.id))));
-        if (!isMobile) {
-          setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
-        }
+    if (!loaded || collapsedOnLoadRef.current || projectsToShow.length === 0) return;
+    if (isImportacaoView) {
+      // Sem nível Projeto nessa aba (escondido via `hideProjectRow`) — recolhe só Atividade,
+      // pedido do usuário. Espera a categoria "Importação" carregar antes de recolher: sem isso
+      // `ganttProjects` ainda estaria vazio (`filteredGanttProjects` retorna `[]` enquanto
+      // `importacaoCategoryId` é `undefined`) e o recolhimento inicial não pegaria nenhuma
+      // atividade, ficando preso em "não recolhido" pra sempre (o `ref` só deixa rodar uma vez).
+      if (!categoriesLoaded) return;
+      setCollapsedActivityIds(new Set(ganttProjects.flatMap((p) => p.activities.map((a) => a.id))));
+    } else {
+      setCollapsedActivityIds(new Set(projectsToShow.flatMap((p) => p.activities.map((a) => a.id))));
+      if (!isMobile) {
+        setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
       }
-      collapsedOnLoadRef.current = true;
     }
-  }, [loaded, projectsToShow, isMobile, isImportacaoView]);
+    collapsedOnLoadRef.current = true;
+  }, [loaded, projectsToShow, isMobile, isImportacaoView, categoriesLoaded, ganttProjects]);
 
   if (!loaded) {
     return (
