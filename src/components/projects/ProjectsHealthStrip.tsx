@@ -1,6 +1,6 @@
 import { ListChecks } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import type { ProjectStatus, ProjectView } from '../../types';
+import type { ProjectStatus } from '../../types';
 import { STATUS_COLOR, STATUS_LABEL } from '../../types';
 import { computeStatusDistribution } from '../../utils/portfolio';
 import { Card } from '../ui';
@@ -8,11 +8,16 @@ import { StatusEmoji } from '../shared/StatusEmoji';
 
 interface ProjectsHealthStripProps {
   /** Já filtrado por busca/unidade/ano, mas NUNCA por status — é a base que os 4 cards de status
-   * usam pra contar (senão selecionar "Atrasado" zeraria os outros em vez de só filtrar a tabela). */
-  projects: ProjectView[];
+   * usam pra contar (senão selecionar "Atrasado" zeraria os outros em vez de só filtrar a tabela).
+   * Só o `status` importa aqui (`computeStatusDistribution` é genérica) — aceita tanto projeto
+   * quanto atividade (aba Importação conta atividade, não projeto). */
+  projects: { status: ProjectStatus }[];
   /** Contagem do card "Total" — essa sim reflete o filtro de status também, pra bater com o que a
    * tabela mostra (pedido do usuário: total conta só o que está selecionado). */
   totalCount: number;
+  /** Rótulo do card "Total" — "Total de Projetos" por padrão; aba Importação passa "Total de
+   * Atividades", já que ali a contagem é de atividade, não de projeto. */
+  totalLabel?: string;
   activeStatuses: ProjectStatus[];
   /** `multi` vem do Ctrl/Cmd+clique — acrescenta/remove o status da seleção em vez de trocar. */
   onToggleStatus: (status: ProjectStatus, multi: boolean) => void;
@@ -24,14 +29,20 @@ const STATUS_CARD_ORDER: ProjectStatus[] = ['completed', 'in_progress', 'delayed
  * empilhada + chips (Fase 3) por um resumo mais direto, a pedido do usuário. Reflete busca/
  * unidade/ano (recebe a lista já filtrada por esses três); status é tratado à parte, ver
  * `totalCount` acima. */
-export function ProjectsHealthStrip({ projects, totalCount, activeStatuses, onToggleStatus }: ProjectsHealthStripProps) {
+export function ProjectsHealthStrip({
+  projects,
+  totalCount,
+  totalLabel = 'Total de Projetos',
+  activeStatuses,
+  onToggleStatus,
+}: ProjectsHealthStripProps) {
   const distribution = computeStatusDistribution(projects);
   const countOf = (status: ProjectStatus) => distribution.find((d) => d.status === status)?.count ?? 0;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
       <Card className="overflow-hidden p-0">
-        <div className="bg-text px-3 py-1.5 text-xs font-semibold text-white">Total de Projetos</div>
+        <div className="bg-text px-3 py-1.5 text-xs font-semibold text-white">{totalLabel}</div>
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-2xl font-bold text-text">{totalCount}</span>
           <ListChecks className="h-6 w-6 text-text" />

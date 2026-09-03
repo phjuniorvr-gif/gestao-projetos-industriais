@@ -1,9 +1,10 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { Person, TaskView } from '../../types';
 import { calendarDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
 import { StatusEmoji } from '../shared/StatusEmoji';
+import { Input } from '../ui';
 import { getColumnRect, type GanttColumn } from './ganttColumns';
 import { totalWidth, type DateRange } from './ganttMath';
 import { GanttBars } from './GanttBars';
@@ -13,6 +14,13 @@ import { TodayLine } from './TodayLine';
 
 interface GanttRowProps {
   task: TaskView;
+  /** Código do projeto dono da tarefa (aba Importação, coluna "Projeto") — zero-width fora do
+   * conjunto `IMPORTACAO_COLUMNS`, então sempre repassado sem custo pras outras telas. */
+  projectCode: string;
+  /** "Processo" da atividade dona da tarefa (aba Importação, coluna "Processo") — mesmo
+   * raciocínio de `projectCode`: texto livre preenchido só na criação da atividade, sem edição
+   * aqui; zero-width fora de `IMPORTACAO_COLUMNS`. */
+  activityProcesso?: string;
   range: DateRange;
   pxPerDay: number;
   timelineBackground: CSSProperties;
@@ -33,12 +41,17 @@ interface GanttRowProps {
   onClick: () => void;
   onHover: (task: TaskView, x: number, y: number) => void;
   onHoverEnd: () => void;
+  /** Observação (pedido do usuário, aba Importação) — edição inline, sem `disabled`: igual
+   * Início/Fim real, editável por qualquer papel (o trigger no banco já decide quem pode). */
+  onChangeObservacao: (taskId: string, observacao: string) => void;
 }
 
 const cellClass = 'h-[34px] overflow-hidden truncate px-2 py-0 text-center align-middle text-xs text-text-muted';
 
 export function GanttRow({
   task,
+  projectCode,
+  activityProcesso,
   range,
   pxPerDay,
   timelineBackground,
@@ -51,12 +64,21 @@ export function GanttRow({
   onClick,
   onHover,
   onHoverEnd,
+  onChangeObservacao,
 }: GanttRowProps) {
   const width = totalWidth(range, pxPerDay);
   const responsavel = people.find((p) => p.id === task.responsavelId);
   const estrutura = getColumnRect(columns, 'estrutura');
   const avanco = getColumnRect(columns, 'avanco');
   const statusCol = getColumnRect(columns, 'status');
+  // Rascunho local — sincronizado por `task.id` (não por `task.observacao`), mesmo cuidado que os
+  // campos de data em `TaskPanel.tsx` já tomam: um re-render por outro motivo (ex.: outra pessoa
+  // editando outro campo) não deve apagar o que a pessoa está digitando nesta célula.
+  const [draftObservacao, setDraftObservacao] = useState(task.observacao ?? '');
+  useEffect(() => {
+    setDraftObservacao(task.observacao ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ressincroniza quando a LINHA muda
+  }, [task.id]);
 
   return (
     <tr className="border-b border-border/70 bg-card hover:bg-page/60">
@@ -99,9 +121,23 @@ export function GanttRow({
       </td>
       {!compact && (
         <>
-          <td className={cellClass} style={{ width: getColumnRect(columns, 'responsavel').width }}>
-            {responsavel?.name ?? '—'}
-          </td>
+          {columns.some((c) => c.key === 'processo') && (
+            <td className={cellClass} style={{ width: getColumnRect(columns, 'processo').width }}>
+              {activityProcesso ?? '—'}
+            </td>
+          )}
+          {/* "Projeto"/"Responsável" nunca coexistem no mesmo conjunto de colunas (`IMPORTACAO_COLUMNS`
+              troca um pelo outro) — só uma das duas células deve existir aqui, senão o corpo da
+              tabela fica com uma célula a mais que o cabeçalho e desalinha tudo depois dela. */}
+          {columns.some((c) => c.key === 'projeto') ? (
+            <td className={cellClass} style={{ width: getColumnRect(columns, 'projeto').width }}>
+              {projectCode}
+            </td>
+          ) : (
+            <td className={cellClass} style={{ width: getColumnRect(columns, 'responsavel').width }}>
+              {responsavel?.name ?? '—'}
+            </td>
+          )}
           <td className={cellClass} style={{ width: getColumnRect(columns, 'inicioPrevisto').width }}>
             {formatDatePtBr(task.plannedStart)}
           </td>
@@ -114,9 +150,11 @@ export function GanttRow({
           <td className={cellClass} style={{ width: getColumnRect(columns, 'fimReal').width }}>
             {formatDatePtBr(task.actualEnd)}
           </td>
-          <td className={cellClass} style={{ width: getColumnRect(columns, 'duracao').width }}>
-            {formatDuration(calendarDaysBetween(task.plannedStart, task.plannedEnd))}
-          </td>
+          {columns.some((c) => c.key === 'duracao') && (
+            <td className={cellClass} style={{ width: getColumnRect(columns, 'duracao').width }}>
+              {formatDuration(calendarDaysBetween(task.plannedStart, task.plannedEnd))}
+            </td>
+          )}
         </>
       )}
       <td
@@ -144,6 +182,19 @@ export function GanttRow({
         <div className="flex items-center justify-center">
           <StatusEmoji status={task.status} />
         </div>
+      </td>
+      <td className="h-[34px] overflow-hidden px-1 py-0 align-middle" style={{ width: getColumnRect(columns, 'observacao').width }}>
+        {getColumnRect(columns, 'observacao').width > 0 && (
+          <Input
+            value={draftObservacao}
+            onChange={(e) => setDraftObservacao(e.target.value)}
+            onBlur={() => {
+              if (draftObservacao !== (task.observacao ?? '')) onChangeObservacao(task.id, draftObservacao);
+            }}
+            placeholder="Observação"
+            className="h-7 w-full border-transparent bg-transparent px-1.5 py-0 text-xs focus:border-action focus:bg-white"
+          />
+        )}
       </td>
       {showGantt && (
         <>

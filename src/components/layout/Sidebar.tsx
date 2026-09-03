@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Tag, Trash2, UserCheck, Workflow } from 'lucide-react';
+import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Ship, Tag, Trash2, UserCheck, Workflow } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
 import { useAuth, usePapel, usePipelines, useProjects } from '../../hooks';
 
@@ -35,6 +35,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Cronograma',
     icon: CalendarRange,
     isActive: (pathname) => pathname.includes('/cronograma'),
+  },
+  {
+    to: '/importacao',
+    label: 'Importação',
+    icon: Ship,
+    isActive: (pathname) => pathname === '/importacao',
   },
   {
     to: '/tarefas-proximas',
@@ -100,12 +106,18 @@ export function Sidebar() {
     '/confirmacoes': pendingConfirmationCount,
     '/pipeline': pipelines.length,
   };
-  // Só 'usuario' fica restrito a "Tarefas por vencer" — administrador e visualizador (Fase 7+)
-  // enxergam o menu inteiro. Checa `=== 'usuario'` explícito (não o inverso de canViewAll) pra
-  // não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
-  // não resolveu (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
-  const navItems = papel === 'usuario' ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas') : NAV_ITEMS;
-  const secondaryItems = papel === 'usuario' ? [] : SECONDARY_NAV_ITEMS;
+  // Só 'usuario' fica restrito a "Tarefas por vencer" e só 'comprador' fica restrito a
+  // "Importação" — administrador e visualizador (Fase 7+) enxergam o menu inteiro. Checa
+  // `=== 'usuario'`/`=== 'comprador'` explícito (não o inverso de canViewAll) pra não estreitar o
+  // menu por um instante a cada carregamento de página, enquanto o papel ainda não resolveu
+  // (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
+  const navItems =
+    papel === 'usuario'
+      ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas')
+      : papel === 'comprador'
+        ? NAV_ITEMS.filter((item) => item.to === '/importacao')
+        : NAV_ITEMS;
+  const secondaryItems = papel === 'usuario' || papel === 'comprador' ? [] : SECONDARY_NAV_ITEMS;
 
   function renderNavItem(item: NavItem) {
     const active = item.isActive(pathname);

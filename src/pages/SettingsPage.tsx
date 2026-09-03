@@ -261,6 +261,7 @@ export function SettingsPage() {
             <p className="mt-1 text-xs text-text-muted">
               Login e permissão de acesso ao sistema. Só administrador pode criar usuário ou trocar papel.
               "Visualizador" enxerga todas as telas, mas não consegue criar/editar/excluir nada.
+              "Comprador" só enxerga a aba Importação.
             </p>
           </div>
 
@@ -299,6 +300,7 @@ export function SettingsPage() {
                       <option value="usuario">Usuário</option>
                       <option value="administrador">Administrador</option>
                       <option value="visualizador">Visualizador</option>
+                      <option value="comprador">Comprador</option>
                     </Select>
                   )}
                 </div>
@@ -328,6 +330,7 @@ export function SettingsPage() {
                 <option value="usuario">Usuário</option>
                 <option value="administrador">Administrador</option>
                 <option value="visualizador">Visualizador</option>
+                <option value="comprador">Comprador</option>
               </Select>
               <Select value={newUserPersonId} onChange={(e) => setNewUserPersonId(e.target.value)} className="w-48">
                 <option value="">Pessoa vinculada: nenhuma</option>

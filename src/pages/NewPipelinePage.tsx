@@ -7,7 +7,7 @@ import { UNIT_OPTIONS } from './NewProjectPage';
 
 /** "Novo Pipeline" (Fase 7+, pedido do usuário) — mesmo padrão visual de `NewProjectPage.tsx`
  * (step 0), mas sem código, sem gerente, sem seleção de atividades: só nome/descrição/unidade,
- * cria e volta pra lista. Administrador OU visualizador chegam aqui (rota sob `RequireAdmin`) —
+ * cria e volta pra lista. Administrador OU visualizador chegam aqui (rota sob `RequireAccess`) —
  * exceção deliberada, visualizador normalmente só lê. */
 export function NewPipelinePage() {
   const navigate = useNavigate();

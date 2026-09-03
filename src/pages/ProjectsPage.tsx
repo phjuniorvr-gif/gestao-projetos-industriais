@@ -220,12 +220,12 @@ export function ProjectsPage() {
         categories={categories}
         people={people}
         onCreatePerson={createPerson}
-        onAdd={(projectId, name) => {
-          addActivity(projectId, name);
+        onAdd={(projectId, name, processo) => {
+          addActivity(projectId, name, processo);
           setAddingActivityToId(null);
         }}
-        onAddFromCatalog={(projectId, name, tasks) => {
-          addActivityWithTasks(projectId, name, tasks, todayISO());
+        onAddFromCatalog={(projectId, name, tasks, processo) => {
+          addActivityWithTasks(projectId, name, tasks, todayISO(), processo);
           setAddingActivityToId(null);
         }}
         onCancel={() => setAddingActivityToId(null)}

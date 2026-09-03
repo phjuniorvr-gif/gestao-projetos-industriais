@@ -7,6 +7,7 @@ import {
   restoreProjectRemote,
   saveProjectTree,
   softDeleteProjectRemote,
+  updateTaskObservacao as updateTaskObservacaoRemote,
 } from '../services/projectsRepo';
 import type { Activity, Category, Project, ProjectView, Task, TaskDependency } from '../types';
 import {
@@ -281,10 +282,10 @@ function useProjectsState() {
   );
 
   const addActivity = useCallback(
-    (projectId: string, name: string) => {
+    (projectId: string, name: string, processo?: string) => {
       updateProject(projectId, (project) => ({
         ...project,
-        activities: [...project.activities, { id: uid(), projectId, name, tasks: [] }],
+        activities: [...project.activities, { id: uid(), projectId, name, tasks: [], processo }],
       }));
     },
     [updateProject],
@@ -305,7 +306,7 @@ function useProjectsState() {
    * das tarefas da primeira, violando a FK `tasks_activity_id_fkey`. Com os ids fixos antes de
    * entrar no updater, as duas invocações produzem exatamente o mesmo resultado (idempotente). */
   const addActivityWithTasks = useCallback(
-    (projectId: string, name: string, taskInputs: NewActivityTaskInput[], startISO: string) => {
+    (projectId: string, name: string, taskInputs: NewActivityTaskInput[], startISO: string, processo?: string) => {
       const activityId = uid();
       const taskIds = taskInputs.map(() => uid());
       updateProject(projectId, (project) => {
@@ -344,7 +345,7 @@ function useProjectsState() {
 
         return {
           ...project,
-          activities: [...project.activities, { id: activityId, projectId, name, tasks }],
+          activities: [...project.activities, { id: activityId, projectId, name, tasks, processo }],
         };
       });
     },
@@ -490,6 +491,25 @@ function useProjectsState() {
         .catch((err) => console.error('Falha ao informar data real no Supabase', err));
     },
     [rawProjects, updateProjectLocal, refetchReplanejamentos],
+  );
+
+  /** "Observação" (aba Importação, pedido do usuário) — texto livre por tarefa, editável por
+   * qualquer papel, igual "informar real". Local otimista + escrita estreita direto na coluna
+   * (sem RPC, sem log — `updateTaskObservacao`, `projectsRepo.ts`). */
+  const updateTaskObservacao = useCallback(
+    (projectId: string, taskId: string, observacao: string) => {
+      updateProjectLocal(projectId, (proj) => ({
+        ...proj,
+        activities: proj.activities.map((a) => ({
+          ...a,
+          tasks: a.tasks.map((t) => (t.id === taskId ? { ...t, observacao } : t)),
+        })),
+      }));
+      updateTaskObservacaoRemote(taskId, observacao).catch((err) =>
+        console.error('Falha ao salvar observação no Supabase', err),
+      );
+    },
+    [updateProjectLocal],
   );
 
   /** Administrador reprova a finalização marcada por usuário comum (pedido do usuário: "quando
@@ -696,6 +716,7 @@ function useProjectsState() {
     addTask,
     updateTask,
     updateTaskActualDates,
+    updateTaskObservacao,
     confirmTaskCompletion,
     rejectTaskCompletion,
     replanTask,

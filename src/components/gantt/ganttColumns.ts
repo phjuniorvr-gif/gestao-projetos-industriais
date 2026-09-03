@@ -8,6 +8,8 @@
 export type GanttColumnKey =
   | 'linha'
   | 'estrutura'
+  | 'processo'
+  | 'projeto'
   | 'responsavel'
   | 'inicioPrevisto'
   | 'fimPrevisto'
@@ -15,7 +17,8 @@ export type GanttColumnKey =
   | 'fimReal'
   | 'duracao'
   | 'avanco'
-  | 'status';
+  | 'status'
+  | 'observacao';
 
 export interface GanttColumn {
   key: GanttColumnKey;
@@ -49,11 +52,31 @@ const FULL_COLUMNS: GanttColumn[] = [
   { key: 'duracao', label: 'Duração', width: 80, align: 'right' },
   { key: 'avanco', label: 'Avanço', width: 150 },
   { key: 'status', label: 'Status', width: 90 },
+  { key: 'observacao', label: 'Observação', width: 220 },
 ];
 
-/** `fullMode` = modo completo (checkbox "Colunas"/toggle "Visão completa" já existente). */
-export function getGanttColumns(fullMode: boolean): GanttColumn[] {
-  return fullMode ? FULL_COLUMNS : COMPACT_COLUMNS;
+// Aba Importação (pedido do usuário) — sem Responsável (não importa pro comprador) nem Duração
+// (pedido seguinte), com "Processo" (texto livre da atividade, preenchido só na criação — pedido
+// seguinte) logo antes de "Projeto" (código curto, ex. "P59"), já que a linha do Projeto em si
+// fica escondida nessa visão (GanttTable.tsx, prop `hideProjectRow`).
+const IMPORTACAO_COLUMNS: GanttColumn[] = [
+  { key: 'linha', label: 'Linha', width: 64, align: 'right' },
+  { key: 'estrutura', label: 'Estrutura', width: 580 },
+  { key: 'processo', label: 'Processo', width: 130 },
+  { key: 'projeto', label: 'Projeto', width: 70 },
+  { key: 'inicioPrevisto', label: 'Início prev.', width: 96 },
+  { key: 'fimPrevisto', label: 'Fim prev.', width: 96 },
+  { key: 'inicioReal', label: 'Início real', width: 96 },
+  { key: 'fimReal', label: 'Fim real', width: 96 },
+  { key: 'avanco', label: 'Avanço', width: 150 },
+  { key: 'status', label: 'Status', width: 90 },
+  { key: 'observacao', label: 'Observação', width: 220 },
+];
+
+export function getGanttColumns(mode: 'compact' | 'full' | 'importacao'): GanttColumn[] {
+  if (mode === 'compact') return COMPACT_COLUMNS;
+  if (mode === 'importacao') return IMPORTACAO_COLUMNS;
+  return FULL_COLUMNS;
 }
 
 export function getGanttLeftWidth(columns: GanttColumn[]): number {

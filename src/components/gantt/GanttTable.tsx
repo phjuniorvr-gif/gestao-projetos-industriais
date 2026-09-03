@@ -101,6 +101,13 @@ interface GanttTableProps {
   onRemoveActivityWithTasks: (activity: ActivityView) => void;
   /** Renomear atividade já criada — pedido do usuário (antes só dava pra nomear na criação). */
   onRenameActivity: (activity: ActivityView, name: string) => void;
+  /** Aba Importação (pedido do usuário) — some com a linha de agrupamento do Projeto (mostra só
+   * Atividade/Tarefa) e troca pro conjunto de colunas `IMPORTACAO_COLUMNS` (sem Responsável, com
+   * "Projeto" curto e "Observação" no fim). `false`/ausente preserva o comportamento de sempre. */
+  hideProjectRow?: boolean;
+  /** Salva a Observação de uma tarefa (edição inline na célula) — só chega aqui quando
+   * `hideProjectRow`/`IMPORTACAO_COLUMNS` está ativo, mas repassado sempre pro `GanttRow`. */
+  onChangeObservacao: (taskId: string, observacao: string) => void;
 }
 
 interface HeaderTick {
@@ -177,6 +184,8 @@ export function GanttTable({
   onRemoveActivity,
   onRemoveActivityWithTasks,
   onRenameActivity,
+  hideProjectRow = false,
+  onChangeObservacao,
 }: GanttTableProps) {
   // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
   const locked = isAdmin !== true;
@@ -221,7 +230,7 @@ export function GanttTable({
   // STATUS_COL_LEFT hardcoded, cada um separado, sem garantia de bater com o que é renderizado).
   // Calculado aqui em cima (não mais perto do render) porque o intervalo de datas, logo abaixo,
   // agora depende de `leftWidth` pra decidir se precisa esticar.
-  const columns = getGanttColumns(!compact);
+  const columns = getGanttColumns(compact ? 'compact' : hideProjectRow ? 'importacao' : 'full');
   const leftWidth = getGanttLeftWidth(columns);
   const lastColumnKey = columns[columns.length - 1].key;
   // Coluna "Prev"/"Real" (LabelColumn.tsx) — só existe com Gantt visível, entre o painel de
@@ -502,9 +511,12 @@ export function GanttTable({
         </thead>
         <tbody>
           {projects.map((project) => {
-            const projectCollapsed = collapsedProjectIds.has(project.id);
+            // `hideProjectRow` (aba Importação) trata o projeto como sempre "aberto" — a linha
+            // dele nem renderiza, então não existe cabeçalho pra reabrir se ficasse recolhido.
+            const projectCollapsed = hideProjectRow ? false : collapsedProjectIds.has(project.id);
             return (
               <Fragment key={project.id}>
+                {!hideProjectRow && (
                 <tr className="group border-b border-border bg-page/70">
                   <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('linha')}>
                     —
@@ -580,6 +592,7 @@ export function GanttTable({
                       <StatusEmoji status={project.status} />
                     </div>
                   </td>
+                  <td className={frozenTdClass} style={columnStyle('observacao')} />
                   {showGantt && (
                     <>
                       <LabelColumn left={leftWidth} showReal={Boolean(project.actualStart)} realTop={18} />
@@ -605,6 +618,7 @@ export function GanttTable({
                     </>
                   )}
                 </tr>
+                )}
 
                 {!projectCollapsed &&
                   project.activities.map((activity) => {
@@ -698,7 +712,24 @@ export function GanttTable({
                           </td>
                           {!compact && (
                             <>
-                              <td className={frozenTdClass} style={columnStyle('responsavel')} />
+                              {hideProjectRow && (
+                                <td
+                                  className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                  style={columnStyle('processo')}
+                                >
+                                  {activity.processo ?? '—'}
+                                </td>
+                              )}
+                              {hideProjectRow ? (
+                                <td
+                                  className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                  style={columnStyle('projeto')}
+                                >
+                                  {project.code}
+                                </td>
+                              ) : (
+                                <td className={frozenTdClass} style={columnStyle('responsavel')} />
+                              )}
                               <td
                                 className={`${frozenTdClass} text-center text-xs text-text-muted`}
                                 style={columnStyle('inicioPrevisto')}
@@ -723,14 +754,16 @@ export function GanttTable({
                               >
                                 {formatDatePtBr(activity.actualEnd)}
                               </td>
-                              <td
-                                className={`${frozenTdClass} text-center text-xs text-text-muted`}
-                                style={columnStyle('duracao')}
-                              >
-                                {activity.plannedStart && activity.plannedEnd
-                                  ? formatDuration(calendarDaysBetween(activity.plannedStart, activity.plannedEnd))
-                                  : '—'}
-                              </td>
+                              {!hideProjectRow && (
+                                <td
+                                  className={`${frozenTdClass} text-center text-xs text-text-muted`}
+                                  style={columnStyle('duracao')}
+                                >
+                                  {activity.plannedStart && activity.plannedEnd
+                                    ? formatDuration(calendarDaysBetween(activity.plannedStart, activity.plannedEnd))
+                                    : '—'}
+                                </td>
+                              )}
                             </>
                           )}
                           <td className={`${frozenTdClass} text-center`} style={columnStyle('avanco')}>
@@ -741,6 +774,7 @@ export function GanttTable({
                               <StatusEmoji status={activity.status} />
                             </div>
                           </td>
+                          <td className={frozenTdClass} style={columnStyle('observacao')} />
                           {showGantt && (
                             <>
                               <LabelColumn left={leftWidth} showReal={Boolean(activity.actualStart)} realTop={18} />
@@ -773,6 +807,8 @@ export function GanttTable({
                             <GanttRow
                               key={task.id}
                               task={task}
+                              projectCode={project.code}
+                              activityProcesso={activity.processo}
                               range={range}
                               pxPerDay={pxPerDay}
                               timelineBackground={timelineBackground}
@@ -785,6 +821,7 @@ export function GanttTable({
                               onClick={() => onOpenTask(task)}
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}
+                              onChangeObservacao={onChangeObservacao}
                             />
                           ))}
                       </Fragment>

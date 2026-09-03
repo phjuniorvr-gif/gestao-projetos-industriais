@@ -42,3 +42,9 @@ export function usePapel(): Papel | undefined {
 export function canViewAll(papel: Papel | undefined): boolean {
   return papel === 'administrador' || papel === 'visualizador';
 }
+
+/** Alcança a rota `/importacao` — quem já enxerga tudo (`canViewAll`) mais o papel `comprador`,
+ * que só enxerga essa aba (Fase 7+, pedido do usuário). */
+export function canViewImportacao(papel: Papel | undefined): boolean {
+  return canViewAll(papel) || papel === 'comprador';
+}

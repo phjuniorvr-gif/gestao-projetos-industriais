@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, LayoutDashboard, Users, Workflow, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CalendarRange, LayoutDashboard, Ship, Users, Workflow, type LucideIcon } from 'lucide-react';
 import { usePapel } from '../../hooks';
 
 interface TabItem {
@@ -13,46 +13,55 @@ export function MobileTabBar() {
   const { pathname } = useLocation();
   const papel = usePapel();
 
-  // Só 'usuario' fica restrito a "Tarefas" — administrador e visualizador (Fase 7+) enxergam a
-  // barra inteira. Mesmo raciocínio do Sidebar desktop: checa `=== 'usuario'` explícito pra não
-  // estreitar a barra por um instante enquanto o papel ainda não resolveu. Sem aba "Projetos" —
-  // a pedido do usuário, não precisa dela no mobile. "Pipeline" (a pedido do usuário) segue a
-  // mesma exceção de permissão do desktop (administrador OU visualizador, não é admin-only).
+  // Só 'usuario' fica restrito a "Tarefas" e só 'comprador' fica restrito a "Importação" —
+  // administrador e visualizador (Fase 7+) enxergam a barra inteira. Mesmo raciocínio do Sidebar
+  // desktop: checa `=== 'usuario'`/`=== 'comprador'` explícito pra não estreitar a barra por um
+  // instante enquanto o papel ainda não resolveu. Sem aba "Projetos" — a pedido do usuário, não
+  // precisa dela no mobile. "Pipeline" (a pedido do usuário) segue a mesma exceção de permissão
+  // do desktop (administrador OU visualizador, não é admin-only).
   const tabItems: TabItem[] =
     papel === 'usuario'
       ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
-      : [
-          {
-            to: '/dashboard',
-            label: 'Resumo',
-            icon: LayoutDashboard,
-            isActive: (p) => p === '/dashboard',
-          },
-          {
-            to: '/pipeline',
-            label: 'Pipeline',
-            icon: Workflow,
-            isActive: (p) => p.startsWith('/pipeline'),
-          },
-          {
-            to: '/cronograma',
-            label: 'Cronograma',
-            icon: CalendarRange,
-            isActive: (p) => p.includes('/cronograma'),
-          },
-          {
-            to: '/tarefas-proximas',
-            label: 'Tarefas',
-            icon: CalendarClock,
-            isActive: (p) => p === '/tarefas-proximas',
-          },
-          {
-            to: '/equipe',
-            label: 'Equipe',
-            icon: Users,
-            isActive: (p) => p === '/equipe',
-          },
-        ];
+      : papel === 'comprador'
+        ? [{ to: '/importacao', label: 'Importação', icon: Ship, isActive: (p) => p === '/importacao' }]
+        : [
+            {
+              to: '/dashboard',
+              label: 'Resumo',
+              icon: LayoutDashboard,
+              isActive: (p) => p === '/dashboard',
+            },
+            {
+              to: '/pipeline',
+              label: 'Pipeline',
+              icon: Workflow,
+              isActive: (p) => p.startsWith('/pipeline'),
+            },
+            {
+              to: '/cronograma',
+              label: 'Cronograma',
+              icon: CalendarRange,
+              isActive: (p) => p.includes('/cronograma'),
+            },
+            {
+              to: '/importacao',
+              label: 'Importação',
+              icon: Ship,
+              isActive: (p) => p === '/importacao',
+            },
+            {
+              to: '/tarefas-proximas',
+              label: 'Tarefas',
+              icon: CalendarClock,
+              isActive: (p) => p === '/tarefas-proximas',
+            },
+            {
+              to: '/equipe',
+              label: 'Equipe',
+              icon: Users,
+              isActive: (p) => p === '/equipe',
+            },
+          ];
 
   return (
     <nav

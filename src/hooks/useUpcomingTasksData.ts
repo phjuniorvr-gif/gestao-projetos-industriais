@@ -71,7 +71,7 @@ export function useUpcomingTasksData() {
   // usuário, revertendo o `canViewAll` que valia aqui até então) veem só as próprias tarefas.
   // `papel !== 'administrador'` cobre os dois papéis E `undefined` (papel ainda carregando), pra
   // não vazar as tarefas de todo mundo por um instante antes do papel resolver. `canViewAll`
-  // continua governando NAVEGAÇÃO (Sidebar/MobileTabBar/RequireAdmin) — só essa tela ficou mais
+  // continua governando NAVEGAÇÃO (Sidebar/MobileTabBar/RequireAccess) — só essa tela ficou mais
   // restrita que a navegação, por pedido explícito.
   const myPerson = people.find((p) => p.userId === session?.user.id);
   const restrictToMine = papel !== 'administrador';

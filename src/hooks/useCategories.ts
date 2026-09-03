@@ -13,11 +13,13 @@ export interface CategoryInput {
 
 export function useCategories() {
   const [categories, setCategories] = useState<CategoryEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetchCategories()
       .then(setCategories)
-      .catch((err) => console.error('Falha ao carregar categorias do Supabase', err));
+      .catch((err) => console.error('Falha ao carregar categorias do Supabase', err))
+      .finally(() => setLoaded(true));
   }, []);
 
   const createCategory = useCallback((input: CategoryInput) => {
@@ -37,5 +39,5 @@ export function useCategories() {
     });
   }, []);
 
-  return { categories, createCategory, updateCategory };
+  return { categories, loaded, createCategory, updateCategory };
 }

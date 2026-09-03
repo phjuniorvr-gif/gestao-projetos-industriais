@@ -14,8 +14,8 @@ interface AddActivityDialogProps {
   categories: CategoryEntry[];
   people: Person[];
   onCreatePerson: (name: string) => Promise<Person>;
-  onAdd: (projectId: string, name: string) => void;
-  onAddFromCatalog: (projectId: string, name: string, tasks: NewActivityTaskInput[]) => void;
+  onAdd: (projectId: string, name: string, processo?: string) => void;
+  onAddFromCatalog: (projectId: string, name: string, tasks: NewActivityTaskInput[], processo?: string) => void;
   onCancel: () => void;
 }
 
@@ -36,6 +36,9 @@ export function AddActivityDialog({
   const [projectId, setProjectId] = useState(initialProjectId ?? '');
   const [mode, setMode] = useState<Mode>('catalog');
   const [name, setName] = useState('');
+  // "Processo" (pedido do usuário, aba Importação) — texto livre, preenchido só na criação, sem
+  // edição depois; some pra qualquer atividade que não seja de importação (fica `undefined`).
+  const [processo, setProcesso] = useState('');
   const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
   const [responsavelError, setResponsavelError] = useState('');
 
@@ -63,6 +66,7 @@ export function AddActivityDialog({
     setProjectId(initialProjectId ?? '');
     setMode('catalog');
     setName('');
+    setProcesso('');
     setResponsavelId(undefined);
     setResponsavelError('');
     setArea('');
@@ -103,6 +107,7 @@ export function AddActivityDialog({
         durationDays: Math.max(1, durations[t.id] ?? t.durationDays),
         predecessorRowNumbers: [],
       })),
+      processo.trim() || undefined,
     );
     setChecked({});
     setDurations({});
@@ -110,7 +115,7 @@ export function AddActivityDialog({
 
   function handleAddManual() {
     if (!projectId || !name.trim()) return;
-    onAdd(projectId, name.trim());
+    onAdd(projectId, name.trim(), processo.trim() || undefined);
     setName('');
   }
 
@@ -210,6 +215,18 @@ export function AddActivityDialog({
               <p className="mt-1 text-xs text-text-muted">Aplicado a todas as tarefas marcadas abaixo.</p>
             </FormField>
 
+            <FormField label="Processo (opcional)">
+              <Input
+                value={processo}
+                onChange={(e) => setProcesso(e.target.value)}
+                className="w-full"
+                placeholder="Ex.: Compra, Embarque, Desembaraço…"
+              />
+              <p className="mt-1 text-xs text-text-muted">
+                Aparece só na aba Importação, numa coluna própria — não edita depois de criada.
+              </p>
+            </FormField>
+
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-medium text-text-muted">Tarefas pré-definidas</p>
@@ -276,6 +293,17 @@ export function AddActivityDialog({
           <div className="space-y-4">
             <FormField label="Nome da atividade" required>
               <Input value={name} onChange={(e) => setName(e.target.value)} className="w-full" autoFocus={Boolean(initialProjectId)} />
+            </FormField>
+            <FormField label="Processo (opcional)">
+              <Input
+                value={processo}
+                onChange={(e) => setProcesso(e.target.value)}
+                className="w-full"
+                placeholder="Ex.: Compra, Embarque, Desembaraço…"
+              />
+              <p className="mt-1 text-xs text-text-muted">
+                Aparece só na aba Importação, numa coluna própria — não edita depois de criada.
+              </p>
             </FormField>
             <p className="text-xs text-text-muted">As datas da atividade são calculadas a partir das tarefas que você adicionar a ela depois.</p>
             <div className="flex justify-end gap-2">

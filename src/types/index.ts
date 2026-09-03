@@ -57,12 +57,15 @@ export interface Person {
 // projeto" (Project.gerenteId, responsabilidade de pessoa — assunto diferente de papel de
 // acesso) — enxerga tudo (mesma navegação que administrador), mas não escreve nada, igual ao
 // 'usuario' de antes da tela restrita existir (Fase 7+).
-export type Papel = 'usuario' | 'administrador' | 'visualizador';
+// 'comprador' (pedido do usuário) — enxerga só a aba Importação, nada mais do menu; mesma
+// exceção de navegação que 'usuario' já tem hoje (restrito a "Tarefas por vencer").
+export type Papel = 'usuario' | 'administrador' | 'visualizador' | 'comprador';
 
 export const PAPEL_LABEL: Record<Papel, string> = {
   usuario: 'Usuário',
   administrador: 'Administrador',
   visualizador: 'Visualizador',
+  comprador: 'Comprador',
 };
 
 export interface Usuario {
@@ -121,6 +124,11 @@ export interface Task {
    * reseta (mesmo depois de uma ressubmissão bem-sucedida) — é o histórico de quantas idas e
    * vindas essa tarefa teve, não "reprovações em aberto". */
   rejectionCount: number;
+  /** Texto livre (pedido do usuário, aba Importação) — editável por qualquer papel, igual
+   * actualStart/actualEnd (o trigger `valida_edicao_tarefa` libera as duas junto). Sem RPC própria
+   * (sem log de auditoria envolvido); `saveProjectTree` nunca inclui no upsert, mesmo raciocínio
+   * de `confirmedByAdmin` — evita que uma edição comum sobrescreva com um valor desatualizado. */
+  observacao?: string;
 }
 
 /** Os quatro tipos de dependência (Fase 2.7, spec 2.7) — regra em dias úteis de cada um em
@@ -141,6 +149,10 @@ export interface Activity {
   projectId: string;
   name: string;
   tasks: Task[];
+  /** Texto livre (pedido do usuário, aba Importação — coluna "Processo") — preenchido só na
+   * criação da atividade (`AddActivityDialog.tsx`), sem edição inline depois. Visível só na aba
+   * Importação, diferente de `Task.observacao` (essa sim editável em qualquer tela). */
+  processo?: string;
 }
 
 export interface Project {

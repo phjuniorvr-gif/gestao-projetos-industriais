@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpDown, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
 import {
@@ -36,7 +36,12 @@ const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  // Rota /importacao (pedido do usuário) — mesma tela de Cronograma, travada na categoria
+  // "Importação". Detectado por pathname (não por prop nova) porque este componente já serve 3
+  // formatos de rota diferentes (/cronograma, /projetos/:id/cronograma) do mesmo jeito.
+  const isImportacaoView = location.pathname === '/importacao';
   // Drill-down da aba Equipe (mobile): "Ver atividades" a partir de uma pessoa já filtrada manda
   // pra cá com ?responsavel=<id> — restringe a árvore a só as tarefas dela, mesmo raciocínio de
   // categoryFilter (recomputa rollup, dropa quem ficou sem tarefa).
@@ -50,6 +55,7 @@ export function ProjectSchedulePage() {
     updateTask,
     updateActivityName,
     updateTaskActualDates,
+    updateTaskObservacao,
     confirmTaskCompletion,
     rejectTaskCompletion,
     replanTask,
@@ -66,13 +72,17 @@ export function ProjectSchedulePage() {
   // continua sendo a tela desktop mesmo (decisão da Fase 6), mas os controles pensados pra tela
   // larga (zoom, "Novo item", "Editar"...) só atrapalham lá; simplifica em vez de reconstruir.
   const isMobile = useIsMobile();
-  const { categories } = useCategories();
+  const { categories, loaded: categoriesLoaded } = useCategories();
+  const importacaoCategoryId = useMemo(() => categories.find((c) => c.label === 'Importação')?.id, [categories]);
   const { catalog } = useCatalog();
   const { people, createPerson } = usePeople();
   const { holidays } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
   const [categoryFilter, setCategoryFilter] = useState('');
+  // Filtro de categoria "de verdade" usado pelo resto da tela — na aba Importação é sempre a
+  // categoria travada (nunca o que estiver em `categoryFilter`, que fica sem uso nessa rota).
+  const effectiveCategoryFilter = isImportacaoView ? importacaoCategoryId : categoryFilter;
   // Concluída fica visível por padrão (comportamento de sempre) — o botão só liga/desliga a
   // exibição, mesmo raciocínio de categoryFilter/responsavelFilterId (dropa atividade/projeto que
   // ficou sem nenhuma tarefa depois do filtro).
@@ -128,14 +138,48 @@ export function ProjectSchedulePage() {
     });
   };
 
+  // Aba Importação — base pros 4 cards de status da faixa de saúde (sem filtro de status, mesmo
+  // cuidado de `visibleProjectsExceptStatus` acima), mas de ATIVIDADE, não de projeto: o card
+  // "Total" da aba mostrava a contagem do portfólio inteiro de projetos (54), sem relação com o
+  // que a tabela filtrada realmente exibe — pedido do usuário pra contar as atividades relevantes
+  // à Importação em vez disso. Espelha o mesmo mapeamento de `filteredGanttProjects` (categoria +
+  // responsável + esconder concluídas), só que a partir de `visibleProjectsExceptStatus` (pré-
+  // filtro de status) em vez de `visibleProjects`.
+  const importacaoActivitiesExceptStatus = useMemo(() => {
+    if (!isImportacaoView || !importacaoCategoryId) return [];
+    return visibleProjectsExceptStatus.flatMap((p) =>
+      p.activities
+        .map((a): ActivityView | null => {
+          const tasks = a.tasks.filter(
+            (t) =>
+              t.category === importacaoCategoryId &&
+              (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
+              (!hideCompleted || t.status !== 'completed'),
+          );
+          if (tasks.length === 0) return null;
+          return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
+        })
+        .filter((a): a is ActivityView => a !== null),
+    );
+  }, [isImportacaoView, importacaoCategoryId, visibleProjectsExceptStatus, responsavelFilterId, hideCompleted]);
+
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
   // Botão "Expandir/Recolher tudo" — ciclo de 3 níveis (pedido do usuário), não mais um toggle
   // binário: 'project' (só projeto, tudo recolhido) → 'activity' (mostra atividade, tarefa
   // continua escondida) → 'task' (mostra tudo) → volta pra 'project'.
   const [expandLevel, setExpandLevel] = useState<'project' | 'activity' | 'task'>('project');
+  // Aba Importação (pedido do usuário) — sem nível Projeto, então o ciclo de 3 níveis não se
+  // aplica; toggle de 2 estados só entre Atividade (tarefa escondida) e Tarefa (tudo aberto).
+  // Começa `true` (tudo expandido) — combina com `collapsedOnLoadRef` pulando o recolhimento
+  // inicial nessa rota.
+  const [importacaoExpanded, setImportacaoExpanded] = useState(true);
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
+  // Aba Importação (pedido do usuário) sempre em modo Tabela, sem alternar — o toggle Tabela⇄Gantt
+  // nem aparece nessa rota. `effectiveCompact` (não `compact` bruto) é o que alimenta GanttTable/
+  // getGanttColumns/gates de zoom daqui pra baixo.
+  const effectiveCompact = isImportacaoView ? false : compact;
   // Ordena por código (P01→P99), não pelo cabeçalho "Estrutura" (que é a árvore inteira, não uma
   // coluna "Projeto" isolada como em ProjectsTable.tsx) — botão explícito. Só 2 estados (sem
   // "padrão" no meio, a pedido do usuário), já começa em decrescente (P99 → P01).
@@ -155,19 +199,36 @@ export function ProjectSchedulePage() {
   const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
 
   const filteredGanttProjects = useMemo(() => {
-    if (!categoryFilter && !responsavelFilterId && !hideCompleted) return visibleProjects;
-    return visibleProjects
+    // `effectiveCategoryFilter` (não `categoryFilter` bruto) — na aba Importação é sempre a
+    // categoria travada. Calculado FORA de um `useEffect`+`setCategoryFilter` de propósito: um
+    // efeito corre um render depois do estado mudar, e nesse intervalo (entre a categoria carregar
+    // e o efeito rodar) a tela mostraria o portfólio inteiro sem filtro por um frame — um comprador
+    // veria projeto que não devia, mesmo que por instante. Sendo derivado direto no render, esse
+    // frame nunca existe.
+    if (isImportacaoView && !importacaoCategoryId) return [];
+    // Aba Importação filtra por status de ATIVIDADE (bate com o que os cards de resumo contam),
+    // não por status de PROJETO — por isso parte de `visibleProjectsExceptStatus` (sem o filtro de
+    // projeto já aplicado por `filters.status`) em vez de `visibleProjects` nessa rota; senão uma
+    // atividade atrasada dentro de um projeto no prazo (rollup de projeto != "delayed") sumia da
+    // tabela mesmo com o card "Atrasado: N" mostrando ela contada. `activeStatuses` é reaplicado
+    // manualmente abaixo, no nível certo, só quando `isImportacaoView`.
+    const source = isImportacaoView ? visibleProjectsExceptStatus : visibleProjects;
+    if (!effectiveCategoryFilter && !responsavelFilterId && !hideCompleted && !(isImportacaoView && activeStatuses.length > 0))
+      return source;
+    return source
       .map((p): ProjectView | null => {
         const activities = p.activities
           .map((a): ActivityView | null => {
             const tasks = a.tasks.filter(
               (t) =>
-                (!categoryFilter || t.category === categoryFilter) &&
+                (!effectiveCategoryFilter || t.category === effectiveCategoryFilter) &&
                 (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
                 (!hideCompleted || t.status !== 'completed'),
             );
             if (tasks.length === 0) return null;
-            return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
+            const activity = { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
+            if (isImportacaoView && activeStatuses.length > 0 && !activeStatuses.includes(activity.status)) return null;
+            return activity;
           })
           .filter((a): a is ActivityView => a !== null);
         if (activities.length === 0) return null;
@@ -175,7 +236,17 @@ export function ProjectSchedulePage() {
         return { ...p, activities, ...projectDates, status: computeProjectStatus(activities, projectDates.plannedEnd, today) };
       })
       .filter((p): p is ProjectView => p !== null);
-  }, [visibleProjects, categoryFilter, responsavelFilterId, hideCompleted, today]);
+  }, [
+    visibleProjects,
+    visibleProjectsExceptStatus,
+    effectiveCategoryFilter,
+    responsavelFilterId,
+    hideCompleted,
+    today,
+    isImportacaoView,
+    importacaoCategoryId,
+    activeStatuses,
+  ]);
 
   const ganttProjects = useMemo(() => {
     const codeNumber = (code: string) => parseInt(code.match(/\d+/)?.[0] ?? '0', 10);
@@ -205,13 +276,18 @@ export function ProjectSchedulePage() {
   const collapsedOnLoadRef = useRef(false);
   useEffect(() => {
     if (loaded && !collapsedOnLoadRef.current && projectsToShow.length > 0) {
-      setCollapsedActivityIds(new Set(projectsToShow.flatMap((p) => p.activities.map((a) => a.id))));
-      if (!isMobile) {
-        setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
+      // Aba Importação (pedido do usuário) pula o recolhimento — atividade/tarefa já aparecem
+      // abertas de cara, sem a linha de Projeto (escondida via `hideProjectRow`) pra reabrir uma
+      // por uma.
+      if (!isImportacaoView) {
+        setCollapsedActivityIds(new Set(projectsToShow.flatMap((p) => p.activities.map((a) => a.id))));
+        if (!isMobile) {
+          setCollapsedProjectIds(new Set(projectsToShow.map((p) => p.id)));
+        }
       }
       collapsedOnLoadRef.current = true;
     }
-  }, [loaded, projectsToShow, isMobile]);
+  }, [loaded, projectsToShow, isMobile, isImportacaoView]);
 
   if (!loaded) {
     return (
@@ -246,6 +322,18 @@ export function ProjectSchedulePage() {
     }
   }
 
+  // Aba Importação — 2 estados só (sem nível Projeto pra ciclar): tudo expandido ⇄ atividade
+  // recolhida (tarefa some). Usa `ganttProjects` (já filtrado pela categoria travada), não
+  // `visibleProjects` (portfólio inteiro antes do filtro).
+  function toggleImportacaoExpand() {
+    if (importacaoExpanded) {
+      setCollapsedActivityIds(new Set(ganttProjects.flatMap((p) => p.activities.map((a) => a.id))));
+    } else {
+      setCollapsedActivityIds(new Set());
+    }
+    setImportacaoExpanded((v) => !v);
+  }
+
   function toggleProject(projectId: string) {
     setCollapsedProjectIds((current) => {
       const next = new Set(current);
@@ -275,7 +363,7 @@ export function ProjectSchedulePage() {
     const range = calculatePortfolioRange(ganttProjects);
     const today = todayISO();
     if (today < range.start || today > range.end) return;
-    const leftWidth = getGanttLeftWidth(getGanttColumns(!compact));
+    const leftWidth = getGanttLeftWidth(getGanttColumns(effectiveCompact ? 'compact' : 'full'));
     const pxPerDay = ZOOM_PX_PER_DAY[zoom];
     const target = offsetPx(range, today, pxPerDay) - (container.clientWidth - leftWidth) / 2;
     container.scrollLeft = Math.max(0, target);
@@ -305,7 +393,7 @@ export function ProjectSchedulePage() {
   }
 
   const project = id ? projectsToShow[0] : undefined;
-  const title = project ? `${project.code} — ${project.name}` : 'Cronograma de Projetos';
+  const title = isImportacaoView ? 'Importação' : project ? `${project.code} — ${project.name}` : 'Cronograma de Projetos';
   const responsavelFilterName = responsavelFilterId ? people.find((p) => p.id === responsavelFilterId)?.name : undefined;
 
   return (
@@ -313,7 +401,7 @@ export function ProjectSchedulePage() {
       <div className="sticky top-0 z-30 -mx-8 -mt-6 space-y-4 border-b border-border bg-page px-8 pt-6 pb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            {isMobile && (
+            {isMobile && !isImportacaoView && (
               <Link to="/projetos" className="mb-1 inline-flex items-center gap-1.5 text-sm font-semibold text-action">
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Link>
@@ -330,7 +418,7 @@ export function ProjectSchedulePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!isMobile && (
+            {!isMobile && !isImportacaoView && (
               <FilterSelect
                 label="Categoria"
                 value={categoryFilter}
@@ -369,8 +457,9 @@ export function ProjectSchedulePage() {
 
         {!project && projectsToShow.length > 0 && (
           <ProjectsHealthStrip
-            projects={visibleProjectsExceptStatus}
-            totalCount={visibleProjects.length}
+            projects={isImportacaoView ? importacaoActivitiesExceptStatus : visibleProjectsExceptStatus}
+            totalCount={isImportacaoView ? ganttProjects.flatMap((p) => p.activities).length : visibleProjects.length}
+            totalLabel={isImportacaoView ? 'Total de Atividades' : undefined}
             activeStatuses={activeStatuses}
             onToggleStatus={toggleStatus}
           />
@@ -379,16 +468,18 @@ export function ProjectSchedulePage() {
         {projectsToShow.length > 0 && !isMobile && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3.5">
             <p className="text-sm font-semibold text-text">
-              {project ? 'Cronograma do projeto' : 'Cronograma dos projetos'}
+              {isImportacaoView ? 'Itens de importação' : project ? 'Cronograma do projeto' : 'Cronograma dos projetos'}
             </p>
             <div className="flex flex-wrap items-center gap-2.5">
-              <Link
-                to="/projetos"
-                className="inline-flex items-center gap-1.5 rounded-[9px] bg-border px-3.5 py-2.5 text-sm font-bold text-text hover:bg-border/70"
-              >
-                <ArrowLeft className="h-4 w-4" /> Voltar
-              </Link>
-              {compact && (
+              {!isImportacaoView && (
+                <Link
+                  to="/projetos"
+                  className="inline-flex items-center gap-1.5 rounded-[9px] bg-border px-3.5 py-2.5 text-sm font-bold text-text hover:bg-border/70"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Voltar
+                </Link>
+              )}
+              {effectiveCompact && (
                 <>
                   <div className="flex items-center rounded-[9px] border border-border bg-page p-0.5">
                     {ZOOM_OPTIONS.map((option) => (
@@ -410,8 +501,10 @@ export function ProjectSchedulePage() {
                 </>
               )}
               {/* Criar/editar fica de fora no mobile — leitura + "informar real" (bottom sheet) é o
-                  escopo do celular desde a Fase 6; aqui só sobrava controle sem espaço pra ele. */}
-              {!isMobile && (
+                  escopo do celular desde a Fase 6; aqui só sobrava controle sem espaço pra ele.
+                  Fica de fora também na aba Importação — é uma lista já achatada/filtrada, criar
+                  atividade/tarefa ali não tem contexto de projeto claro pra fazer sentido. */}
+              {!isMobile && !isImportacaoView && (
                 <>
                   <div className="relative">
                     <Button
@@ -469,7 +562,17 @@ export function ProjectSchedulePage() {
                   </Button>
                 </>
               )}
-              {!isMobile && !project && (
+              {/* Aba Importação — sem nível Projeto, então é só 2 estados (não o ciclo de 3 acima). */}
+              {!isMobile && isImportacaoView && (
+                <Button
+                  variant={importacaoExpanded ? 'secondary' : 'primary'}
+                  icon={importacaoExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
+                  onClick={toggleImportacaoExpand}
+                >
+                  {importacaoExpanded ? 'Recolher tudo' : 'Expandir tarefas'}
+                </Button>
+              )}
+              {!isMobile && !project && !isImportacaoView && (
                 <button
                   type="button"
                   onClick={() => setNameSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
@@ -479,7 +582,7 @@ export function ProjectSchedulePage() {
                   {nameSort === 'asc' ? 'Código: P01 → P99' : 'Código: P99 → P01'}
                 </button>
               )}
-              {!isMobile && (
+              {!isMobile && !isImportacaoView && (
                 <Button
                   variant={compact ? 'primary' : 'secondary'}
                   icon={compact ? <Table2 className="h-4 w-4" /> : <GanttChart className="h-4 w-4" />}
@@ -493,11 +596,16 @@ export function ProjectSchedulePage() {
         )}
       </div>
 
-      {projectsToShow.length === 0 ? (
+      {isImportacaoView && categoriesLoaded && !importacaoCategoryId ? (
+        <EmptyState
+          title='Categoria "Importação" não configurada'
+          description="Peça a um administrador para criar essa categoria em Configurações → Categorias."
+        />
+      ) : projectsToShow.length === 0 ? (
         <EmptyState title="Nenhum projeto cadastrado" description="Crie um projeto para ver o cronograma aqui." />
       ) : visibleProjects.length === 0 ? (
         <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />
-      ) : ganttProjects.length === 0 && categoryFilter ? (
+      ) : ganttProjects.length === 0 && effectiveCategoryFilter ? (
         <EmptyState
           title="Nenhuma tarefa encontrada"
           description="Nenhuma tarefa desta categoria foi encontrada. Ajuste o filtro para encontrar o que procura."
@@ -509,7 +617,7 @@ export function ProjectSchedulePage() {
         />
       ) : null}
 
-      {ganttProjects.length > 0 && compact && !isMobile && <ScheduleLegend />}
+      {ganttProjects.length > 0 && effectiveCompact && !isMobile && <ScheduleLegend />}
 
       {ganttProjects.length > 0 && isMobile && (
         <MobileScheduleList
@@ -529,7 +637,8 @@ export function ProjectSchedulePage() {
               collapsedActivityIds={collapsedActivityIds}
               people={people}
               holidays={holidays}
-              compact={compact}
+              compact={effectiveCompact}
+              hideProjectRow={isImportacaoView}
               editMode={editMode}
               isAdmin={isAdmin}
               zoom={zoom}
@@ -544,6 +653,10 @@ export function ProjectSchedulePage() {
               onRenameActivity={(activity, name) => {
                 const owningProjectId = activityIdToProjectId.get(activity.id);
                 if (owningProjectId) updateActivityName(owningProjectId, activity.id, name);
+              }}
+              onChangeObservacao={(taskId, observacao) => {
+                const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+                if (owningProjectId) updateTaskObservacao(owningProjectId, taskId, observacao);
               }}
             />
           </div>
@@ -614,12 +727,12 @@ export function ProjectSchedulePage() {
         people={people}
         onCreatePerson={createPerson}
         onCancel={() => setActivityDialog({ open: false })}
-        onAdd={(projectId, name) => {
-          addActivity(projectId, name);
+        onAdd={(projectId, name, processo) => {
+          addActivity(projectId, name, processo);
           setActivityDialog({ open: false });
         }}
-        onAddFromCatalog={(projectId, name, tasks) => {
-          addActivityWithTasks(projectId, name, tasks, todayISO());
+        onAddFromCatalog={(projectId, name, tasks, processo) => {
+          addActivityWithTasks(projectId, name, tasks, todayISO(), processo);
           setActivityDialog({ open: false });
         }}
       />

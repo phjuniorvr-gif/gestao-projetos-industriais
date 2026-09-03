@@ -29,6 +29,7 @@ interface ActivityRow {
   project_id: string;
   name: string;
   position: number;
+  processo: string | null;
 }
 
 interface TaskRow {
@@ -49,6 +50,7 @@ interface TaskRow {
   confirmed_by_admin: boolean;
   rejected: boolean;
   rejection_count: number;
+  observacao: string | null;
 }
 
 /** Dependências (Fase 2.7) — tabela própria, não coluna de `tasks` (substitui
@@ -137,6 +139,7 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       confirmedByAdmin: row.confirmed_by_admin,
       rejected: row.rejected,
       rejectionCount: row.rejection_count,
+      observacao: row.observacao ?? undefined,
     };
     const list = tasksByActivity.get(row.activity_id) ?? [];
     list.push(task);
@@ -150,6 +153,7 @@ async function fetchProjectsWhere(deleted: boolean): Promise<Project[]> {
       projectId: row.project_id,
       name: row.name,
       tasks: tasksByActivity.get(row.id) ?? [],
+      processo: row.processo ?? undefined,
     };
     const list = activitiesByProject.get(row.project_id) ?? [];
     list.push(activity);
@@ -206,6 +210,7 @@ export async function saveProjectTree(project: Project): Promise<void> {
         project_id: project.id,
         name: activity.name,
         position: index,
+        processo: orNull(activity.processo),
       })),
     );
     if (error) throw error;
@@ -314,6 +319,17 @@ export async function informarDataReal(
   });
   if (error) throw error;
   return Boolean(data);
+}
+
+/**
+ * "Observação" (aba Importação, pedido do usuário) — texto livre por tarefa, editável por
+ * qualquer papel (`valida_edicao_tarefa` libera essa coluna igual actual_start/actual_end). Sem
+ * RPC — não tem log de auditoria envolvido, diferente de "informar real"; um `update` direto de
+ * 1 coluna basta.
+ */
+export async function updateTaskObservacao(taskId: string, observacao: string): Promise<void> {
+  const { error } = await supabase.from('tasks').update({ observacao: observacao.trim() || null }).eq('id', taskId);
+  if (error) throw error;
 }
 
 /**

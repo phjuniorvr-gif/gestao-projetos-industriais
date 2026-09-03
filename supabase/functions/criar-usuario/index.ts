@@ -48,8 +48,12 @@ Deno.serve(async (req) => {
   }
 
   const { email, password, papel } = body;
-  if (!email || !password || (papel !== 'usuario' && papel !== 'administrador' && papel !== 'visualizador')) {
-    return json({ error: 'Preencha e-mail, senha e papel (usuario, administrador ou visualizador).' }, 400);
+  if (
+    !email ||
+    !password ||
+    (papel !== 'usuario' && papel !== 'administrador' && papel !== 'visualizador' && papel !== 'comprador')
+  ) {
+    return json({ error: 'Preencha e-mail, senha e papel (usuario, administrador, visualizador ou comprador).' }, 400);
   }
   if (password.length < 6) {
     return json({ error: 'A senha precisa ter pelo menos 6 caracteres.' }, 400);
