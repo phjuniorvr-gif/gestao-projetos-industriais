@@ -18,6 +18,11 @@ interface ProjectsHealthStripProps {
   /** Rótulo do card "Total" — "Total de Projetos" por padrão; aba Importação passa "Total de
    * Atividades", já que ali a contagem é de atividade, não de projeto. */
   totalLabel?: string;
+  /** Sobrescreve `STATUS_LABEL` nos 4 cards de status — aba Importação passa "Tarefa Concluída"/
+   * "Tarefa Em Andamento"/etc. (concordância de gênero com "tarefa", que os rótulos padrão em
+   * `STATUS_LABEL` não têm, pensados originalmente pra "projeto"). Ausente/parcial cai no rótulo
+   * padrão pro status que faltar. */
+  statusLabels?: Partial<Record<ProjectStatus, string>>;
   activeStatuses: ProjectStatus[];
   /** `multi` vem do Ctrl/Cmd+clique — acrescenta/remove o status da seleção em vez de trocar. */
   onToggleStatus: (status: ProjectStatus, multi: boolean) => void;
@@ -33,6 +38,7 @@ export function ProjectsHealthStrip({
   projects,
   totalCount,
   totalLabel = 'Total de Projetos',
+  statusLabels,
   activeStatuses,
   onToggleStatus,
 }: ProjectsHealthStripProps) {
@@ -68,7 +74,7 @@ export function ProjectsHealthStrip({
             style={activeStatuses.includes(status) ? ({ '--tw-ring-color': STATUS_COLOR[status] } as CSSProperties) : undefined}
           >
             <div className="px-3 py-1.5 text-xs font-semibold text-white" style={{ backgroundColor: STATUS_COLOR[status] }}>
-              {STATUS_LABEL[status]}
+              {statusLabels?.[status] ?? STATUS_LABEL[status]}
             </div>
             <div className="flex items-center justify-between px-3 py-3">
               <span className="text-2xl font-bold text-text">{countOf(status)}</span>

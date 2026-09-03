@@ -26,13 +26,24 @@ import {
 } from '../components/projects';
 import { useCatalog, useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectStatus, type ProjectView, type TaskView } from '../types';
-import { computeProjectStatus, rollUpDates, rollUpStatus, todayISO } from '../utils';
+import { computeProjectStatus, rollUpDates, rollUpStatus, sortProjectsByCriticality, todayISO } from '../utils';
 
 const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
   { value: 'dia', label: 'Dia' },
   { value: 'semana', label: 'Semana' },
   { value: 'mes', label: 'Mês' },
 ];
+
+// Aba Importação (pedido do usuário) — os 4 cards de status contam TAREFA (ver
+// `importacaoTasksExceptStatus`), então o rótulo precisa dizer "Tarefa", não só "Concluído"/
+// "Planejado" (concordância de gênero com "tarefa" também difere de `STATUS_LABEL`, pensado
+// originalmente pra "projeto"/"atividade" no masculino).
+const IMPORTACAO_TASK_STATUS_LABELS: Partial<Record<ProjectStatus, string>> = {
+  completed: 'Tarefa Concluída',
+  in_progress: 'Tarefa Em Andamento',
+  delayed: 'Tarefa Atrasada',
+  planned: 'Tarefa Planejada',
+};
 
 export function ProjectSchedulePage() {
   const { id } = useParams<{ id?: string }>();
@@ -140,27 +151,23 @@ export function ProjectSchedulePage() {
   };
 
   // Aba Importação — base pros 4 cards de status da faixa de saúde (sem filtro de status, mesmo
-  // cuidado de `visibleProjectsExceptStatus` acima), mas de ATIVIDADE, não de projeto: o card
-  // "Total" da aba mostrava a contagem do portfólio inteiro de projetos (54), sem relação com o
-  // que a tabela filtrada realmente exibe — pedido do usuário pra contar as atividades relevantes
-  // à Importação em vez disso. Espelha o mesmo mapeamento de `filteredGanttProjects` (categoria +
-  // responsável + esconder concluídas), só que a partir de `visibleProjectsExceptStatus` (pré-
-  // filtro de status) em vez de `visibleProjects`.
-  const importacaoActivitiesExceptStatus = useMemo(() => {
+  // cuidado de `visibleProjectsExceptStatus` acima), de TAREFA, não de atividade nem de projeto —
+  // pedido do usuário: "Total de Atividades" continua contando atividade, mas Concluído/Em
+  // andamento/Atrasado/Planejado devem contar as tarefas em si (o que o comprador realmente
+  // preenche uma a uma). Mesmo filtro de categoria/responsável/esconder concluídas de
+  // `filteredGanttProjects`, só que achatado até o nível de tarefa e a partir de
+  // `visibleProjectsExceptStatus` (pré-filtro de status).
+  const importacaoTasksExceptStatus = useMemo(() => {
     if (!isImportacaoView || !importacaoCategoryId) return [];
     return visibleProjectsExceptStatus.flatMap((p) =>
-      p.activities
-        .map((a): ActivityView | null => {
-          const tasks = a.tasks.filter(
-            (t) =>
-              t.category === importacaoCategoryId &&
-              (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
-              (!hideCompleted || t.status !== 'completed'),
-          );
-          if (tasks.length === 0) return null;
-          return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
-        })
-        .filter((a): a is ActivityView => a !== null),
+      p.activities.flatMap((a) =>
+        a.tasks.filter(
+          (t) =>
+            t.category === importacaoCategoryId &&
+            (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
+            (!hideCompleted || t.status !== 'completed'),
+        ),
+      ),
     );
   }, [isImportacaoView, importacaoCategoryId, visibleProjectsExceptStatus, responsavelFilterId, hideCompleted]);
 
@@ -175,6 +182,10 @@ export function ProjectSchedulePage() {
   // Começa `false` (recolhido em Atividade, pedido do usuário) — combina com `collapsedOnLoadRef`
   // recolhendo as atividades ao carregar essa rota.
   const [importacaoExpanded, setImportacaoExpanded] = useState(false);
+  // Aba Importação (pedido do usuário) — ordena ATIVIDADE (não projeto/código, que é o que
+  // `nameSort` faz no Cronograma normal): "criticidade" (padrão, mesma regra de
+  // `sortProjectsByCriticality`) ou "Processo" A→Z/Z→A. Ciclo de 3 estados via `cycleImportacaoSort`.
+  const [importacaoSort, setImportacaoSort] = useState<'criticidade' | 'processoAsc' | 'processoDesc'>('criticidade');
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
   // Aba Importação (pedido do usuário) sempre em modo Tabela, sem alternar — o toggle Tabela⇄Gantt
@@ -254,6 +265,34 @@ export function ProjectSchedulePage() {
     const ranked = [...filteredGanttProjects].sort((a, b) => codeNumber(a.code) - codeNumber(b.code));
     return nameSort === 'desc' ? ranked.reverse() : ranked;
   }, [filteredGanttProjects, nameSort]);
+
+  // Aba Importação — ordena ATIVIDADE, não projeto (pedido do usuário: um comprador triando
+  // pendências quer a mais crítica primeiro, atravessando projeto diferente, não agrupada por
+  // código). Achata `ganttProjects` (agrupado por projeto) em pares atividade+projeto-dono,
+  // ordena, e reagrupa numa entrada de 1 atividade por "projeto" sintético — preserva o `id` REAL
+  // do projeto em cada entrada (só o array `activities` muda), então `activityIdToProjectId`/toda
+  // gravação (Processo, Observação, renomear) continuam resolvendo o projeto certo sem mudança
+  // nenhuma. Usada só como `projects` da `<GanttTable>` — `ganttProjects` (agrupado normal)
+  // continua alimentando o resto (seletor de projeto do "Novo item", `allTasks`, etc).
+  const importacaoDisplayProjects = useMemo(() => {
+    if (!isImportacaoView) return ganttProjects;
+    const pairs = ganttProjects.flatMap((p) => p.activities.map((a) => ({ project: p, activity: a })));
+    const projectByActivityId = new Map(pairs.map((pair) => [pair.activity.id, pair.project]));
+    let orderedActivities: ActivityView[];
+    if (importacaoSort === 'processoAsc' || importacaoSort === 'processoDesc') {
+      orderedActivities = [...pairs]
+        .map((pair) => pair.activity)
+        .sort((a, b) => (a.processo ?? '').localeCompare(b.processo ?? '', 'pt-BR', { sensitivity: 'base' }));
+      if (importacaoSort === 'processoDesc') orderedActivities.reverse();
+    } else {
+      const withUnit = pairs.map(({ project, activity }) => ({ ...activity, unit: project.unit }));
+      orderedActivities = sortProjectsByCriticality(withUnit, today, holidays);
+    }
+    return orderedActivities.map((activity) => ({
+      ...projectByActivityId.get(activity.id)!,
+      activities: [activity],
+    }));
+  }, [isImportacaoView, ganttProjects, importacaoSort, today, holidays]);
 
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
 
@@ -337,6 +376,10 @@ export function ProjectSchedulePage() {
       setCollapsedActivityIds(new Set());
     }
     setImportacaoExpanded((v) => !v);
+  }
+
+  function cycleImportacaoSort() {
+    setImportacaoSort((s) => (s === 'criticidade' ? 'processoAsc' : s === 'processoAsc' ? 'processoDesc' : 'criticidade'));
   }
 
   function toggleProject(projectId: string) {
@@ -462,9 +505,10 @@ export function ProjectSchedulePage() {
 
         {!project && projectsToShow.length > 0 && (
           <ProjectsHealthStrip
-            projects={isImportacaoView ? importacaoActivitiesExceptStatus : visibleProjectsExceptStatus}
+            projects={isImportacaoView ? importacaoTasksExceptStatus : visibleProjectsExceptStatus}
             totalCount={isImportacaoView ? ganttProjects.flatMap((p) => p.activities).length : visibleProjects.length}
             totalLabel={isImportacaoView ? 'Total de Atividades' : undefined}
+            statusLabels={isImportacaoView ? IMPORTACAO_TASK_STATUS_LABELS : undefined}
             activeStatuses={activeStatuses}
             onToggleStatus={toggleStatus}
           />
@@ -577,6 +621,22 @@ export function ProjectSchedulePage() {
                   {importacaoExpanded ? 'Recolher tudo' : 'Expandir tarefas'}
                 </Button>
               )}
+              {/* Ordena ATIVIDADE (pedido do usuário) — ciclo de 3 estados, rótulo descreve o
+                  destino do próximo clique, mesmo padrão do toggle acima. */}
+              {!isMobile && isImportacaoView && (
+                <button
+                  type="button"
+                  onClick={cycleImportacaoSort}
+                  className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-card px-3.5 py-2.5 text-sm font-semibold text-text-muted hover:border-text-muted2"
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                  {importacaoSort === 'criticidade'
+                    ? 'Processo: A → Z'
+                    : importacaoSort === 'processoAsc'
+                      ? 'Processo: Z → A'
+                      : 'Criticidade'}
+                </button>
+              )}
               {!isMobile && !project && !isImportacaoView && (
                 <button
                   type="button"
@@ -637,7 +697,7 @@ export function ProjectSchedulePage() {
         <Card className="space-y-4 p-0">
           <div className="px-4 pb-4 pt-4">
             <GanttTable
-              projects={ganttProjects}
+              projects={importacaoDisplayProjects}
               collapsedProjectIds={collapsedProjectIds}
               collapsedActivityIds={collapsedActivityIds}
               people={people}

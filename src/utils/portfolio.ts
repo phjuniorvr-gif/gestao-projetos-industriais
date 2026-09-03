@@ -10,7 +10,7 @@ import { taskWeight } from './status';
  * da tela: nenhuma dessas funções faz parte do recompute nem é usada por ele.
  */
 
-interface DeviationInput {
+export interface DeviationInput {
   status: ProjectStatus;
   plannedEnd?: string;
   actualEnd?: string;
@@ -138,8 +138,17 @@ export function computeCriticality(project: CriticalityInput, deviationDays: num
  * mais próximo primeiro, sem janela de dias — o mais distante só fica no fim da lista, não
  * desaparece) e concluído (por último, sem urgência). Desempate dentro do mesmo grupo por prazo
  * previsto, depois id (estável, nunca reordena à toa entre renders com dado idêntico).
+ *
+ * Genérica (`T extends DeviationInput & { id }`) desde a aba Importação — reaproveitada pra
+ * ordenar ATIVIDADE por criticidade (não só projeto), sem duplicar a regra de grupo/desempate
+ * numa segunda função; `ActivityView` não tem `unit` própria, então quem ordena atividade
+ * precisa mesclar o `unit` do projeto dono em cada item antes de chamar.
  */
-export function sortProjectsByCriticality(projects: ProjectView[], today: string, holidays: Holiday[]): ProjectView[] {
+export function sortProjectsByCriticality<T extends DeviationInput & { id: string }>(
+  projects: T[],
+  today: string,
+  holidays: Holiday[],
+): T[] {
   const ranked = projects.map((project) => {
     const deviationDays = computeScheduleDeviationDays(project, today, holidays);
     let group: number;

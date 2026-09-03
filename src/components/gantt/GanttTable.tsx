@@ -520,8 +520,13 @@ export function GanttTable({
             // `hideProjectRow` (aba Importação) trata o projeto como sempre "aberto" — a linha
             // dele nem renderiza, então não existe cabeçalho pra reabrir se ficasse recolhido.
             const projectCollapsed = hideProjectRow ? false : collapsedProjectIds.has(project.id);
+            // `hideProjectRow` (aba Importação) recebe uma entrada de "projeto" por ATIVIDADE
+            // (ordenação cruza projeto diferente, `ProjectSchedulePage.tsx`) — o mesmo `project.id`
+            // real pode aparecer em várias entradas, então a key precisa ser da atividade (única),
+            // não do projeto (duplicaria e o React reclamaria/renderizaria errado).
+            const fragmentKey = hideProjectRow ? (project.activities[0]?.id ?? project.id) : project.id;
             return (
-              <Fragment key={project.id}>
+              <Fragment key={fragmentKey}>
                 {!hideProjectRow && (
                 <tr className="group border-b border-border bg-page/70">
                   <td className={`${frozenTdClass} text-center text-xs text-text-muted`} style={columnStyle('linha')}>

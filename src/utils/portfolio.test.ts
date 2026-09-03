@@ -230,6 +230,15 @@ describe('sortProjectsByCriticality', () => {
     const sorted = sortProjectsByCriticality([b, a], '2026-08-11', []);
     expect(sorted.map((p) => p.id)).toEqual(['a', 'b']);
   });
+
+  it('genérica — funciona com qualquer forma que tenha id/status/plannedEnd/actualEnd/unit, não só ProjectView (aba Importação ordena Atividade, não Projeto)', () => {
+    const items = [
+      { id: 'x', status: 'planned' as const, plannedEnd: '2026-10-01', unit: 'Matriz' },
+      { id: 'y', status: 'delayed' as const, plannedEnd: '2026-08-01', unit: 'Matriz' },
+    ];
+    const sorted = sortProjectsByCriticality(items, '2026-08-11', []);
+    expect(sorted.map((i) => i.id)).toEqual(['y', 'x']);
+  });
 });
 
 describe('computeProjectTeam', () => {
