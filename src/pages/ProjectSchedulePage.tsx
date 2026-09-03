@@ -54,6 +54,7 @@ export function ProjectSchedulePage() {
     addTask,
     updateTask,
     updateActivityName,
+    updateActivityProcesso,
     updateTaskActualDates,
     updateTaskObservacao,
     confirmTaskCompletion,
@@ -657,6 +658,10 @@ export function ProjectSchedulePage() {
               onRenameActivity={(activity, name) => {
                 const owningProjectId = activityIdToProjectId.get(activity.id);
                 if (owningProjectId) updateActivityName(owningProjectId, activity.id, name);
+              }}
+              onChangeProcesso={(activity, processo) => {
+                const owningProjectId = activityIdToProjectId.get(activity.id);
+                if (owningProjectId) updateActivityProcesso(owningProjectId, activity.id, processo);
               }}
               onChangeObservacao={(taskId, observacao) => {
                 const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');

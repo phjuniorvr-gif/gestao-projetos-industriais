@@ -281,6 +281,21 @@ function useProjectsState() {
     [updateProject],
   );
 
+  // "Processo" (aba Importação) reabre pra edição — pedido do usuário, reverte "sem edição depois
+  // de criado". Mesmo caminho de escrita de `updateActivityName` (upsert da árvore inteira via
+  // `updateProject`/`saveProjectTree`, não um update de 1 coluna): `activities` já é admin-only por
+  // RLS desde a Fase 5, então o gate de escrita real está no banco — a UI (GanttTable.tsx) só
+  // decide se mostra o campo como editável ou como texto.
+  const updateActivityProcesso = useCallback(
+    (projectId: string, activityId: string, processo: string) => {
+      updateProject(projectId, (project) => ({
+        ...project,
+        activities: project.activities.map((a) => (a.id === activityId ? { ...a, processo } : a)),
+      }));
+    },
+    [updateProject],
+  );
+
   const addActivity = useCallback(
     (projectId: string, name: string, processo?: string) => {
       updateProject(projectId, (project) => ({
@@ -708,6 +723,7 @@ function useProjectsState() {
     restoreProject,
     updateProjectInfo,
     updateActivityName,
+    updateActivityProcesso,
     addActivity,
     addActivityWithTasks,
     removeActivity,

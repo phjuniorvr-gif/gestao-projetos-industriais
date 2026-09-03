@@ -108,6 +108,11 @@ interface GanttTableProps {
   /** Salva a Observação de uma tarefa (edição inline na célula) — só chega aqui quando
    * `hideProjectRow`/`IMPORTACAO_COLUMNS` está ativo, mas repassado sempre pro `GanttRow`. */
   onChangeObservacao: (taskId: string, observacao: string) => void;
+  /** Salva o "Processo" de uma atividade (edição inline na célula, admin-only) — pedido do
+   * usuário, reabre a edição que a criação da coluna tinha deixado fechada de propósito. Editar
+   * na atividade já reflete em toda tarefa dela, de graça (a célula da tarefa só exibe
+   * `activityProcesso`, sem cópia própria). Só chega aqui quando `hideProjectRow` está ativo. */
+  onChangeProcesso: (activity: ActivityView, processo: string) => void;
 }
 
 interface HeaderTick {
@@ -186,6 +191,7 @@ export function GanttTable({
   onRenameActivity,
   hideProjectRow = false,
   onChangeObservacao,
+  onChangeProcesso,
 }: GanttTableProps) {
   // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
   const locked = isAdmin !== true;
@@ -713,11 +719,22 @@ export function GanttTable({
                           {!compact && (
                             <>
                               {hideProjectRow && (
-                                <td
-                                  className={`${frozenTdClass} text-center text-xs text-text-muted`}
-                                  style={columnStyle('processo')}
-                                >
-                                  {activity.processo ?? '—'}
+                                <td className={`${frozenTdClass} px-1 py-0`} style={columnStyle('processo')}>
+                                  {locked ? (
+                                    <div className="truncate text-center text-xs text-text-muted">
+                                      {activity.processo ?? '—'}
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      defaultValue={activity.processo ?? ''}
+                                      onBlur={(e) => {
+                                        const trimmed = e.target.value.trim();
+                                        if (trimmed !== (activity.processo ?? '')) onChangeProcesso(activity, trimmed);
+                                      }}
+                                      placeholder="Processo"
+                                      className="h-7 w-full border-transparent bg-transparent px-1.5 py-0 text-center text-xs focus:border-action focus:bg-white"
+                                    />
+                                  )}
                                 </td>
                               )}
                               {hideProjectRow ? (
