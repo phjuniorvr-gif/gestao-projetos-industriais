@@ -218,12 +218,14 @@ export function ProjectSchedulePage() {
     // veria projeto que não devia, mesmo que por instante. Sendo derivado direto no render, esse
     // frame nunca existe.
     if (isImportacaoView && !importacaoCategoryId) return [];
-    // Aba Importação filtra por status de ATIVIDADE (bate com o que os cards de resumo contam),
-    // não por status de PROJETO — por isso parte de `visibleProjectsExceptStatus` (sem o filtro de
-    // projeto já aplicado por `filters.status`) em vez de `visibleProjects` nessa rota; senão uma
-    // atividade atrasada dentro de um projeto no prazo (rollup de projeto != "delayed") sumia da
-    // tabela mesmo com o card "Atrasado: N" mostrando ela contada. `activeStatuses` é reaplicado
-    // manualmente abaixo, no nível certo, só quando `isImportacaoView`.
+    // Aba Importação filtra por status de TAREFA (bate com o que os cards de resumo contam agora
+    // — Concluído/Em andamento/Atrasado/Planejado contam tarefa, não atividade), não por status de
+    // PROJETO nem de ATIVIDADE — por isso parte de `visibleProjectsExceptStatus` (sem o filtro de
+    // projeto já aplicado por `filters.status`) em vez de `visibleProjects` nessa rota. Entra
+    // direto no MESMO `tasks.filter` de categoria/responsável/esconder-concluídas — não um corte
+    // por fora na atividade inteira (isso deixava tarefa "em andamento"/"planejado" visível junto
+    // com a "atrasada" dentro de uma atividade que só ficava no filtro por ter UMA tarefa
+    // combinando; pedido do usuário: clicar "Atrasado" deve mostrar só a tarefa atrasada mesmo).
     const source = isImportacaoView ? visibleProjectsExceptStatus : visibleProjects;
     if (!effectiveCategoryFilter && !responsavelFilterId && !hideCompleted && !(isImportacaoView && activeStatuses.length > 0))
       return source;
@@ -235,12 +237,11 @@ export function ProjectSchedulePage() {
               (t) =>
                 (!effectiveCategoryFilter || t.category === effectiveCategoryFilter) &&
                 (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
-                (!hideCompleted || t.status !== 'completed'),
+                (!hideCompleted || t.status !== 'completed') &&
+                (!isImportacaoView || activeStatuses.length === 0 || activeStatuses.includes(t.status)),
             );
             if (tasks.length === 0) return null;
-            const activity = { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
-            if (isImportacaoView && activeStatuses.length > 0 && !activeStatuses.includes(activity.status)) return null;
-            return activity;
+            return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
           })
           .filter((a): a is ActivityView => a !== null);
         if (activities.length === 0) return null;
@@ -491,6 +492,8 @@ export function ProjectSchedulePage() {
                 filters={filters}
                 units={units}
                 years={years}
+                hideStatus={isImportacaoView}
+                hideSearch={isImportacaoView}
                 onChange={(next) => {
                   setFilters(next);
                   if (next === EMPTY_FILTERS) {
@@ -503,7 +506,9 @@ export function ProjectSchedulePage() {
           </div>
         </div>
 
-        {!project && projectsToShow.length > 0 && (
+        {/* Aba Importação no mobile já tem esse resumo, de novo, dentro do `MobileScheduleList`
+            ("Status das tarefas") — pedido do usuário pra tirar a duplicata aqui em cima. */}
+        {!project && projectsToShow.length > 0 && !(isMobile && isImportacaoView) && (
           <ProjectsHealthStrip
             projects={isImportacaoView ? importacaoTasksExceptStatus : visibleProjectsExceptStatus}
             totalCount={isImportacaoView ? ganttProjects.flatMap((p) => p.activities).length : visibleProjects.length}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import type { ProjectStatus, ProjectView, TaskView } from '../../types';
-import { formatPeriod } from '../../utils';
+import { formatPeriod, rollUpStatus } from '../../utils';
 import { computeStatusDistribution } from '../../utils/portfolio';
 import { StatusEmoji } from '../shared/StatusEmoji';
 import { Card } from '../ui';
@@ -92,6 +92,13 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
           // some da lista — é exatamente o "mais fácil de visualizar" que o usuário pediu.
           .filter(({ activity, visibleTasks }) => activity.tasks.length === 0 || visibleTasks.length > 0);
 
+        // Projeto COM atividade, mas nenhuma sobrevive ao filtro de status — some inteiro (pedido
+        // do usuário, print mostrando vários blocos vazios só com "Nenhuma tarefa com esse
+        // status."), não fica um cabeçalho de projeto sem nada embaixo. Projeto genuinamente sem
+        // nenhuma atividade cadastrada (raro aqui — o filtro de categoria/responsável "de fora" já
+        // dropa isso antes de chegar neste componente) continua aparecendo, ver abaixo.
+        if (project.activities.length > 0 && activitiesWithVisibleTasks.length === 0) return null;
+
         return (
           <div key={project.id} className="space-y-2">
             {projects.length > 1 && (
@@ -102,11 +109,15 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
 
             {project.activities.length === 0 ? (
               <p className="px-1 text-sm text-text-muted">Nenhuma atividade cadastrada.</p>
-            ) : activitiesWithVisibleTasks.length === 0 ? (
-              <p className="px-1 text-sm text-text-muted">Nenhuma tarefa com esse status.</p>
             ) : (
               activitiesWithVisibleTasks.map(({ activity, visibleTasks }) => {
                 const collapsed = collapsedActivityIds.has(activity.id);
+                // Selo da atividade reflete só as tarefas VISÍVEIS na lista logo abaixo (achado
+                // com print do usuário: filtrar "Em andamento" mostrava a atividade com selo
+                // "Atrasado", porque `activity.status` é calculado com TODAS as tarefas da
+                // atividade, não só as que sobreviveram ao filtro local desta lista) — sem isso o
+                // selo mostra um status que nem aparece nas tarefas exibidas.
+                const visibleStatus = rollUpStatus(visibleTasks);
                 return (
                   <Card key={activity.id} className="overflow-hidden p-0">
                     <button
@@ -124,7 +135,7 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
                           <RowTypeBadge type="activity" />
                           <span className="truncate text-sm font-medium text-text">{activity.name}</span>
                         </span>
-                        <StatusEmoji status={activity.status} className="h-5 w-5 shrink-0" />
+                        <StatusEmoji status={visibleStatus} className="h-5 w-5 shrink-0" />
                       </span>
                       <DatesLine
                         plannedStart={activity.plannedStart}

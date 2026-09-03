@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, LayoutDashboard, Ship, Users, Workflow, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CalendarRange, LayoutDashboard, Ship, Workflow, type LucideIcon } from 'lucide-react';
 import { usePapel } from '../../hooks';
 
 interface TabItem {
@@ -16,9 +16,10 @@ export function MobileTabBar() {
   // Só 'usuario' fica restrito a "Tarefas" e só 'comprador' fica restrito a "Importação" —
   // administrador e visualizador (Fase 7+) enxergam a barra inteira. Mesmo raciocínio do Sidebar
   // desktop: checa `=== 'usuario'`/`=== 'comprador'` explícito pra não estreitar a barra por um
-  // instante enquanto o papel ainda não resolveu. Sem aba "Projetos" — a pedido do usuário, não
-  // precisa dela no mobile. "Pipeline" (a pedido do usuário) segue a mesma exceção de permissão
-  // do desktop (administrador OU visualizador, não é admin-only).
+  // instante enquanto o papel ainda não resolveu. Sem aba "Projetos" nem "Equipe" — a pedido do
+  // usuário, não precisa delas no mobile (a rota `/equipe` continua existindo, só sem entrada
+  // direta na barra). "Pipeline" (a pedido do usuário) segue a mesma exceção de permissão do
+  // desktop (administrador OU visualizador, não é admin-only).
   const tabItems: TabItem[] =
     papel === 'usuario'
       ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
@@ -54,12 +55,6 @@ export function MobileTabBar() {
               label: 'Tarefas',
               icon: CalendarClock,
               isActive: (p) => p === '/tarefas-proximas',
-            },
-            {
-              to: '/equipe',
-              label: 'Equipe',
-              icon: Users,
-              isActive: (p) => p === '/equipe',
             },
           ];
 
