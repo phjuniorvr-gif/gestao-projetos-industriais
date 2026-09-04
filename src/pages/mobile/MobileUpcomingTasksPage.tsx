@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { UpcomingTaskDetail } from '../../components/gantt';
-import { Card, EmptyState, Input, MultiSelectFilter } from '../../components/ui';
+import { Card, EmptyState, MultiSelectFilter } from '../../components/ui';
+import type { MobileOutletContext } from '../../components/layout';
 import { useUpcomingTasksData, WINDOW_DAY_OPTIONS } from '../../hooks';
 import { formatDatePtBr } from '../../utils';
 import { STATUS_COLOR } from '../../types';
@@ -27,12 +29,9 @@ export function MobileUpcomingTasksPage() {
     rows,
     windowDays,
     setWindowDays,
-    search,
-    setSearch,
     responsavelOptions,
     selectedResponsaveis,
     setSelectedResponsaveis,
-    onlyNotStarted,
     setOnlyNotStarted,
     urgencyFilter,
     setUrgencyFilter,
@@ -42,6 +41,14 @@ export function MobileUpcomingTasksPage() {
     clearFilters,
   } = data;
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // "Não iniciadas" mora no cabeçalho (`MobileLayout.tsx`, mesmo padrão do "Ano" da Importação) —
+  // sincroniza pro estado interno de `useUpcomingTasksData()` (que também serve o desktop, com o
+  // próprio botão embutido na página), em vez de duplicar a lógica de filtro aqui.
+  const { onlyNotStarted: headerOnlyNotStarted, setOnlyNotStarted: setHeaderOnlyNotStarted } =
+    useOutletContext<MobileOutletContext>();
+  useEffect(() => {
+    setOnlyNotStarted(headerOnlyNotStarted);
+  }, [headerOnlyNotStarted, setOnlyNotStarted]);
 
   const sorted = useMemo(() => [...filtered].sort((a, b) => a.daysLeft - b.daysLeft), [filtered]);
 
@@ -62,13 +69,6 @@ export function MobileUpcomingTasksPage() {
           </button>
         ))}
       </div>
-
-      <Input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Buscar por projeto, atividade ou tarefa"
-        className="min-h-11 w-full"
-      />
 
       <MultiSelectFilter
         label="Responsável"
@@ -95,27 +95,25 @@ export function MobileUpcomingTasksPage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setOnlyNotStarted((v) => !v)}
-          aria-pressed={onlyNotStarted}
-          className={`flex min-h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
-            onlyNotStarted ? 'border-sidebar bg-sidebar text-white' : 'border-border bg-white text-text-muted'
-          }`}
-        >
-          Não iniciadas
-        </button>
-        {hasActiveFilters && (
+      {/* Sem "Não iniciadas" aqui (mora no cabeçalho agora) — esta div só existe quando tem algo
+          de verdade dentro; renderizar vazia deixaria um vão em branco reservado por `space-y-4`,
+          mesmo achado do vão vazio na Importação (`ProjectSchedulePage.tsx`). */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={clearFilters}
+            onClick={() => {
+              clearFilters();
+              // "Não iniciadas" mora no cabeçalho (fora desta página) — "Limpar filtro" precisa
+              // zerar os dois lados, senão o botão no cabeçalho ficaria "ligado" sozinho depois.
+              setHeaderOnlyNotStarted(false);
+            }}
             className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
           >
             <X className="h-3.5 w-3.5" /> Limpar filtro
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <EmptyState

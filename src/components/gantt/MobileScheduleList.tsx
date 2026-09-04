@@ -99,8 +99,13 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
         // dropa isso antes de chegar neste componente) continua aparecendo, ver abaixo.
         if (project.activities.length > 0 && activitiesWithVisibleTasks.length === 0) return null;
 
+        // Na Importação, `projects` vem com 1 atividade por entrada (ordenação cruza projeto
+        // diferente, `ProjectSchedulePage.tsx`) — o mesmo `project.id` real pode se repetir em
+        // várias entradas, então a key precisa da atividade (única), não do projeto sozinho.
+        const key = project.activities[0]?.id ?? project.id;
+
         return (
-          <div key={project.id} className="space-y-2">
+          <div key={key} className="space-y-2">
             {projects.length > 1 && (
               <p className="px-1 text-xs font-semibold uppercase tracking-wide text-text-muted2">
                 {project.code} — {project.name}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpDown, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
 import {
@@ -24,6 +24,7 @@ import {
   ProjectsHealthStrip,
   type ProjectFiltersState,
 } from '../components/projects';
+import type { MobileOutletContext } from '../components/layout';
 import { useCatalog, useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectStatus, type ProjectView, type TaskView } from '../types';
 import { computeProjectStatus, rollUpDates, rollUpStatus, sortProjectsByCriticality, todayISO } from '../utils';
@@ -91,6 +92,15 @@ export function ProjectSchedulePage() {
   const { holidays } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
+  // Importação mobile (pedido do usuário) — "Ano" mora no cabeçalho da página (`MobileLayout.tsx`,
+  // mesmo mecanismo já usado por Projetos/Cronograma), não em `filters.year`. `AppLayout.tsx`
+  // (desktop) não fornece esse contexto — `undefined` ali é normal, não erro.
+  const outletContext = useOutletContext<MobileOutletContext | undefined>();
+  const effectiveYear = isMobile && isImportacaoView ? (outletContext?.year ?? '') : filters.year;
+  // Aba Importação (pedido do usuário) — "Unidade" sai, "Projeto" entra no lugar: um comprador
+  // triando pendências de vários projetos quer poder isolar um projeto específico, e "Unidade"
+  // (site/fábrica) não é tão útil pra esse recorte quanto pra Projetos/Cronograma normal.
+  const [importacaoProjectFilter, setImportacaoProjectFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   // Filtro de categoria "de verdade" usado pelo resto da tela — na aba Importação é sempre a
   // categoria travada (nunca o que estiver em `categoryFilter`, que fica sem uso nessa rota).
@@ -111,6 +121,15 @@ export function ProjectSchedulePage() {
       Array.from(new Set(projects.map((p) => p.plannedStart?.slice(0, 4)).filter((y): y is string => Boolean(y)))).sort(),
     [projects],
   );
+  // Opções do "Projeto" da Importação — só os que TÊM alguma tarefa de importação (independente
+  // de responsável/esconder concluídas/status, que só afetam o que aparece DEPOIS de escolher um
+  // projeto), mesmo raciocínio de `units`/`years` (lista estável, calculada do portfólio inteiro).
+  const importacaoProjectOptions = useMemo(() => {
+    if (!importacaoCategoryId) return [];
+    return projectsToShow
+      .filter((p) => p.activities.some((a) => a.tasks.some((t) => t.category === importacaoCategoryId)))
+      .map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  }, [projectsToShow, importacaoCategoryId]);
 
   // Sem o filtro de status — base que os cards de saúde usam pra contar por status (senão,
   // selecionar "Atrasado" zeraria os outros cards em vez de só destacar/filtrar a lista).
@@ -120,10 +139,10 @@ export function ProjectSchedulePage() {
         ? projectsToShow
         : projectsToShow.filter((p) => {
             if (filters.unit && p.unit !== filters.unit) return false;
-            if (filters.year && p.plannedStart?.slice(0, 4) !== filters.year) return false;
+            if (effectiveYear && p.plannedStart?.slice(0, 4) !== effectiveYear) return false;
             return true;
           }),
-    [projectsToShow, filters.unit, filters.year, id],
+    [projectsToShow, filters.unit, effectiveYear, id],
   );
 
   const visibleProjects = useMemo(
@@ -159,17 +178,26 @@ export function ProjectSchedulePage() {
   // `visibleProjectsExceptStatus` (pré-filtro de status).
   const importacaoTasksExceptStatus = useMemo(() => {
     if (!isImportacaoView || !importacaoCategoryId) return [];
-    return visibleProjectsExceptStatus.flatMap((p) =>
-      p.activities.flatMap((a) =>
-        a.tasks.filter(
-          (t) =>
-            t.category === importacaoCategoryId &&
-            (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
-            (!hideCompleted || t.status !== 'completed'),
+    return visibleProjectsExceptStatus
+      .filter((p) => !importacaoProjectFilter || p.id === importacaoProjectFilter)
+      .flatMap((p) =>
+        p.activities.flatMap((a) =>
+          a.tasks.filter(
+            (t) =>
+              t.category === importacaoCategoryId &&
+              (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
+              (!hideCompleted || t.status !== 'completed'),
+          ),
         ),
-      ),
-    );
-  }, [isImportacaoView, importacaoCategoryId, visibleProjectsExceptStatus, responsavelFilterId, hideCompleted]);
+      );
+  }, [
+    isImportacaoView,
+    importacaoCategoryId,
+    visibleProjectsExceptStatus,
+    responsavelFilterId,
+    hideCompleted,
+    importacaoProjectFilter,
+  ]);
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
@@ -231,6 +259,7 @@ export function ProjectSchedulePage() {
       return source;
     return source
       .map((p): ProjectView | null => {
+        if (isImportacaoView && importacaoProjectFilter && p.id !== importacaoProjectFilter) return null;
         const activities = p.activities
           .map((a): ActivityView | null => {
             const tasks = a.tasks.filter(
@@ -259,6 +288,7 @@ export function ProjectSchedulePage() {
     isImportacaoView,
     importacaoCategoryId,
     activeStatuses,
+    importacaoProjectFilter,
   ]);
 
   const ganttProjects = useMemo(() => {
@@ -449,22 +479,29 @@ export function ProjectSchedulePage() {
     <div className="space-y-5">
       <div className="sticky top-0 z-30 -mx-8 -mt-6 space-y-4 border-b border-border bg-page px-8 pt-6 pb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div>
-            {isMobile && !isImportacaoView && (
-              <Link to="/projetos" className="mb-1 inline-flex items-center gap-1.5 text-sm font-semibold text-action">
-                <ArrowLeft className="h-4 w-4" /> Voltar
-              </Link>
-            )}
-            <h1 className="text-2xl font-bold text-text">{title}</h1>
-            {responsavelFilterName && (
-              <p className="mt-0.5 text-xs text-text-muted">
-                Mostrando só tarefas de <span className="font-semibold text-text">{responsavelFilterName}</span> ·{' '}
-                <Link to={`/projetos/${id}/cronograma`} className="font-semibold text-action">
-                  ver todas
+          {/* Mobile Importação já tem "Importação" no cabeçalho navy (`MobileLayout.tsx`, ver
+              `TITLE_BY_PATH`) — sem título nem "Voltar" nessa rota, esta div ficaria vazia
+              (mas ainda reservando o `gap-3` do flex pai, um vão em branco antes dos filtros
+              abaixo) se renderizasse sempre; some inteira quando não tem nada de verdade pra
+              mostrar, a pedido do usuário. */}
+          {(!isMobile || !isImportacaoView || responsavelFilterName) && (
+            <div>
+              {isMobile && !isImportacaoView && (
+                <Link to="/projetos" className="mb-1 inline-flex items-center gap-1.5 text-sm font-semibold text-action">
+                  <ArrowLeft className="h-4 w-4" /> Voltar
                 </Link>
-              </p>
-            )}
-          </div>
+              )}
+              {!(isMobile && isImportacaoView) && <h1 className="text-2xl font-bold text-text">{title}</h1>}
+              {responsavelFilterName && (
+                <p className="mt-0.5 text-xs text-text-muted">
+                  Mostrando só tarefas de <span className="font-semibold text-text">{responsavelFilterName}</span> ·{' '}
+                  <Link to={`/projetos/${id}/cronograma`} className="font-semibold text-action">
+                    ver todas
+                  </Link>
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             {!isMobile && !isImportacaoView && (
@@ -487,18 +524,59 @@ export function ProjectSchedulePage() {
                 Esconder concluídas
               </button>
             )}
-            {!project && projectsToShow.length > 0 && (
+            {/* Mesmo ciclo de ordenação do botão desktop (`cycleImportacaoSort`/`importacaoSort`,
+                acima) — mobile não tem a barra de toolbar desktop (fica inteira atrás de
+                `!isMobile`), então precisa de um controle próprio, mesmo estilo de botão "Ordenar"
+                já usado em `MobileSchedulePage.tsx`. */}
+            {isMobile && isImportacaoView && (
+              <button
+                type="button"
+                onClick={cycleImportacaoSort}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-xs font-semibold text-text-muted"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                {importacaoSort === 'criticidade'
+                  ? 'Processo: A → Z'
+                  : importacaoSort === 'processoAsc'
+                    ? 'Processo: Z → A'
+                    : 'Criticidade'}
+              </button>
+            )}
+            {/* "Unidade" volta pra Importação (pedido do usuário, estética) — renderizada aqui,
+                logo depois do botão de ordenação, não dentro de `<ProjectFilters>` (que continua
+                com `hideUnit`, senão apareceria duas vezes). "Projeto" (novo, substituiu Unidade
+                antes) continua também, só que depois dela agora. */}
+            {isImportacaoView && (
+              <FilterSelect
+                label="Unidade"
+                value={filters.unit}
+                onChange={(unit) => setFilters((f) => ({ ...f, unit }))}
+                options={units}
+              />
+            )}
+            {isImportacaoView && (
+              <FilterSelect
+                label="Projeto"
+                value={importacaoProjectFilter}
+                onChange={setImportacaoProjectFilter}
+                options={importacaoProjectOptions}
+              />
+            )}
+            {!project && projectsToShow.length > 0 && !(isMobile && isImportacaoView) && (
               <ProjectFilters
                 filters={filters}
                 units={units}
                 years={years}
                 hideStatus={isImportacaoView}
                 hideSearch={isImportacaoView}
+                hideYear={isMobile && isImportacaoView}
+                hideUnit={isImportacaoView}
                 onChange={(next) => {
                   setFilters(next);
                   if (next === EMPTY_FILTERS) {
                     setCategoryFilter('');
                     setHideCompleted(false);
+                    setImportacaoProjectFilter('');
                   }
                 }}
               />
@@ -691,7 +769,7 @@ export function ProjectSchedulePage() {
 
       {ganttProjects.length > 0 && isMobile && (
         <MobileScheduleList
-          projects={ganttProjects}
+          projects={importacaoDisplayProjects}
           collapsedActivityIds={collapsedActivityIds}
           onToggleActivity={toggleActivity}
           onOpenTask={setSelectedTask}

@@ -29,9 +29,24 @@ interface ProjectFiltersProps {
    * busca por PROJETO (código/nome/gerente), sem sentido numa lista achatada por atividade/tarefa
    * onde o projeto nem tem linha própria. */
   hideSearch?: boolean;
+  /** Importação mobile (pedido do usuário) — "Ano" sai daqui e sobe pro cabeçalho da página,
+   * renderizado à parte por quem usa este componente; evita duplicar o mesmo `<FilterSelect>`. */
+  hideYear?: boolean;
+  /** Aba Importação (pedido do usuário) — some com "Unidade", substituído por um filtro de
+   * "Projeto" renderizado à parte por quem usa este componente (mais útil ali do que site/fábrica). */
+  hideUnit?: boolean;
 }
 
-export function ProjectFilters({ filters, units, years, onChange, hideStatus = false, hideSearch = false }: ProjectFiltersProps) {
+export function ProjectFilters({
+  filters,
+  units,
+  years,
+  onChange,
+  hideStatus = false,
+  hideSearch = false,
+  hideYear = false,
+  hideUnit = false,
+}: ProjectFiltersProps) {
   const activeCount = computeActiveFilterCount(filters);
 
   return (
@@ -48,7 +63,9 @@ export function ProjectFilters({ filters, units, years, onChange, hideStatus = f
           />
         </div>
       )}
-      <FilterSelect label="Unidade" value={filters.unit} onChange={(unit) => onChange({ ...filters, unit })} options={units} />
+      {!hideUnit && (
+        <FilterSelect label="Unidade" value={filters.unit} onChange={(unit) => onChange({ ...filters, unit })} options={units} />
+      )}
       {!hideStatus && (
         <FilterSelect
           label="Status"
@@ -57,7 +74,9 @@ export function ProjectFilters({ filters, units, years, onChange, hideStatus = f
           options={Object.values(STATUS_LABEL)}
         />
       )}
-      <FilterSelect label="Ano" value={filters.year} onChange={(year) => onChange({ ...filters, year })} options={years} />
+      {!hideYear && (
+        <FilterSelect label="Ano" value={filters.year} onChange={(year) => onChange({ ...filters, year })} options={years} />
+      )}
       {activeCount > 0 && (
         <Button variant="ghost" icon={<X className="h-4 w-4" />} onClick={() => onChange(EMPTY_FILTERS)}>
           Limpar filtros ({activeCount})
