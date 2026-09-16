@@ -400,6 +400,13 @@ Pedido do usuário: trocar o filtro "Unidade" da Importação por um de "Projeto
 - **"Limpar filtros" (dentro de `<ProjectFilters>`, só existe no desktop agora) zera `importacaoProjectFilter` também** — mesmo padrão que já zerava `categoryFilter`/`hideCompleted` nesse `onChange`. No mobile (sem esse botão, já que `<ProjectFilters>` nem renderiza lá), o próprio `<FilterSelect>` de "Projeto" já reseta sozinho ao selecionar "Projeto: Todos" (mesmo padrão de Unidade/Ano/Status em qualquer lugar do app) — não precisa de botão dedicado.
 - **"Unidade" volta pra Importação, ao lado de "Criticidade" — pedido do usuário, só por estética** (print mostrando "Projeto" sozinho numa caixa larga, sem nada ao lado do botão de ordenação). Não é reverter a decisão anterior ("Unidade" saiu, "Projeto" entrou) — os DOIS ficam agora: `<ProjectFilters>` continua com `hideUnit={isImportacaoView}` (evita duplicar), e um `<FilterSelect label="Unidade">` próprio foi inserido logo depois do botão de ordenação, ANTES de "Projeto" — mesma técnica já usada pra "Projeto" (`FilterSelect` solto no lugar certo, escrevendo no mesmo `filters.unit` de sempre).
 
+## Decisões da sessão de 2026-09-16 (Início/Fim base some pra quem não é administrador)
+
+Pedido do usuário, com print do painel de tarefa (papel Comprador) mostrando "Início base"/"Fim base" travados com cadeado — os campos existiam pra qualquer papel desde que a edição de base foi reaberta (Fase 7 Parte B), só a EDIÇÃO era admin-only (padrão `LockBadge`: mostra desabilitado com aviso, nunca esconde — é o padrão usado no resto do painel pra "Nome"/"Categoria"/"Responsável"/previsto). Pra base especificamente, o usuário pediu pra ir além do padrão e esconder o campo inteiro, não só travar a edição.
+
+- **`TaskPanel.tsx`: bloco "Início base"/"Fim base" inteiro (o `<div className="grid grid-cols-2 gap-3">`) condicionado a `!locked`** — só administrador (`locked = isAdmin !== true`) vê os dois campos; qualquer outro papel não vê nem o rótulo, nem o valor, nem o cadeado. Diferente de todo outro campo do painel (que usa `<LockBadge>` + `disabled` pra mostrar-travado-com-aviso) — decisão deliberada só pra base, não um padrão novo pro resto do painel.
+- **`MobileProjectSheet.tsx` não tinha "Início base"/"Fim base" em lugar nenhum** (confirmado por busca antes de mexer) — nada a alterar lá; `TaskPanel.tsx` é o único lugar que mostra base, usado tanto no desktop quanto no bottom sheet mobile (Fase 6), então essa única mudança já cobre os dois.
+
 ## Permissões
 
 Configuradas em `.claude/settings.local.json` (local, fora do git) para não precisar aprovar comando por comando. Regras:

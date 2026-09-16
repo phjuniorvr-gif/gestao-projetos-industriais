@@ -368,26 +368,30 @@ export function TaskPanel({
             </FormField>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label={<>Início base {locked && <LockBadge />}</>}>
-              <Input
-                type={locked ? 'text' : 'date'}
-                value={locked ? formatDatePtBr(draftBaseStart) : draftBaseStart}
-                onChange={(e) => setDraftBaseStart(e.target.value)}
-                disabled={locked}
-                className="w-full"
-              />
-            </FormField>
-            <FormField label={<>Fim base {locked && <LockBadge />}</>}>
-              <Input
-                type={locked ? 'text' : 'date'}
-                value={locked ? formatDatePtBr(draftBaseEnd) : draftBaseEnd}
-                onChange={(e) => setDraftBaseEnd(e.target.value)}
-                disabled={locked}
-                className="w-full"
-              />
-            </FormField>
-          </div>
+          {/* Início/Fim base — some inteiro pra quem não é administrador (pedido do usuário,
+              print mostrando os dois campos travados/com cadeado pro Comprador). Diferente do
+              padrão de LockBadge (mostrar desabilitado com aviso) usado no resto do painel —
+              aqui não faz sentido nem mostrar o valor: só administrador precisa ver a base. */}
+          {!locked && (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Início base">
+                <Input
+                  type="date"
+                  value={draftBaseStart}
+                  onChange={(e) => setDraftBaseStart(e.target.value)}
+                  className="w-full"
+                />
+              </FormField>
+              <FormField label="Fim base">
+                <Input
+                  type="date"
+                  value={draftBaseEnd}
+                  onChange={(e) => setDraftBaseEnd(e.target.value)}
+                  className="w-full"
+                />
+              </FormField>
+            </div>
+          )}
 
           {hasReplanChanges && (
             <div className="space-y-2 rounded-md border border-action/30 bg-action/5 p-3">
