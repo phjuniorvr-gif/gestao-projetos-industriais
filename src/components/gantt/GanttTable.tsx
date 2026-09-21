@@ -232,7 +232,10 @@ export function GanttTable({
   useEffect(() => {
     const el = measureRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => setContainerWidth(entries[0].contentRect.width));
+    // `Math.floor` — largura fracionária oscilando entre renders (zoom do navegador/DPI) refaz o
+    // cálculo das colunas à toa; `scrollbar-gutter: stable` no container (className abaixo) evita
+    // a largura mudar quando a barra vertical aparece/some ao expandir/recolher uma atividade.
+    const observer = new ResizeObserver((entries) => setContainerWidth(Math.floor(entries[0].contentRect.width)));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -447,7 +450,7 @@ export function GanttTable({
         measureRef.current = el;
         if (scrollContainerRef) scrollContainerRef.current = el;
       }}
-      className="max-h-[70vh] overflow-auto rounded-lg border border-border"
+      className="max-h-[70vh] overflow-auto rounded-lg border border-border [scrollbar-gutter:stable]"
     >
     <div className="relative">
       {/* table-layout: fixed + largura total explícita — sem isso, o layout automático deixa
