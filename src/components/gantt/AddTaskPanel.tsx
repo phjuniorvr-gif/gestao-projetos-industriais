@@ -13,6 +13,9 @@ interface AddTaskPanelProps {
    * Commit 6) — aí os seletores de projeto e atividade aparecem, nessa ordem. */
   initialActivityId?: string;
   categories: CategoryEntry[];
+  /** Categoria pré-selecionada ao abrir (aba Importação passa a de "Importação" — senão a tarefa
+   * nasceria na primeira categoria da lista e sumiria da própria aba, filtrada por categoria). */
+  defaultCategoryId?: string;
   people: Person[];
   holidays: Holiday[];
   onCreatePerson: (name: string) => Promise<Person>;
@@ -41,6 +44,7 @@ export function AddTaskPanel({
   projects,
   initialActivityId,
   categories,
+  defaultCategoryId,
   people,
   holidays,
   onCreatePerson,
@@ -51,7 +55,7 @@ export function AddTaskPanel({
   const [activityId, setActivityId] = useState(initialActivityId ?? '');
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
-  const [category, setCategory] = useState<Category>(categories[0]?.id ?? '');
+  const [category, setCategory] = useState<Category>(defaultCategoryId ?? categories[0]?.id ?? '');
   const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
   const [responsavelError, setResponsavelError] = useState('');
   const [predecessorTaskId, setPredecessorTaskId] = useState('');
@@ -73,6 +77,7 @@ export function AddTaskPanel({
     }
     setName('');
     setNameError('');
+    if (defaultCategoryId) setCategory(defaultCategoryId);
     setResponsavelId(undefined);
     setResponsavelError('');
     setPredecessorTaskId('');

@@ -936,6 +936,7 @@ export function ProjectSchedulePage() {
         projects={ganttProjects}
         initialActivityId={taskPanelState.initialActivityId}
         categories={categories}
+        defaultCategoryId={isImportacaoView ? importacaoCategoryId : undefined}
         people={people}
         holidays={holidays}
         onCreatePerson={createPerson}
