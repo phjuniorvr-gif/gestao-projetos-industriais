@@ -417,6 +417,8 @@ Pedido do usuário, com print da Importação desktop: o administrador quer o bo
 
 - **Bug real: tarefa criada na Importação "sumia" (usuário: "não está deixando criar uma tarefa")** — o `AddTaskPanel.tsx` sempre abria com a PRIMEIRA categoria da lista (`categories[0]`), não "Importação"; como a aba filtra por categoria travada, a tarefa era criada normalmente mas ficava fora do que a tela mostra. Corrigido com `defaultCategoryId?: string` no painel (pré-seleciona ao abrir, reaplicado no reset de abertura); `ProjectSchedulePage.tsx` passa `importacaoCategoryId` só quando `isImportacaoView`. O select de categoria continua editável — só o padrão mudou. Cronograma normal inalterado.
 
+- **Importação abre ordenada por Processo do MAIOR pro menor (padrão), não mais por Criticidade** — pedido do usuário ("sempre que o processo comece do maior para o menor", print da coluna Processo). `importacaoSort` inicia em `'processoDesc'` (era `'criticidade'`); ciclo do botão passou a `Z→A (padrão) → A→Z → Criticidade → volta` (`cycleImportacaoSort`), rótulo = destino do próximo clique, centralizado em `importacaoSortNextLabel` (era ternário duplicado nos botões desktop e mobile). Comparação de Processo ganhou `numeric: true` (`localeCompare`) — "780-10" fica depois de "780-9", e 823 > 822 > 800 > 785 > 754-8 sem depender de zeros à esquerda. Criticidade continua disponível no ciclo, só não é mais o padrão.
+
 ## Permissões
 
 Configuradas em `.claude/settings.local.json` (local, fora do git) para não precisar aprovar comando por comando. Regras:

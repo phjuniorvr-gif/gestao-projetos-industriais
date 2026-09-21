@@ -213,7 +213,7 @@ export function ProjectSchedulePage() {
   // Aba Importação (pedido do usuário) — ordena ATIVIDADE (não projeto/código, que é o que
   // `nameSort` faz no Cronograma normal): "criticidade" (padrão, mesma regra de
   // `sortProjectsByCriticality`) ou "Processo" A→Z/Z→A. Ciclo de 3 estados via `cycleImportacaoSort`.
-  const [importacaoSort, setImportacaoSort] = useState<'criticidade' | 'processoAsc' | 'processoDesc'>('criticidade');
+  const [importacaoSort, setImportacaoSort] = useState<'criticidade' | 'processoAsc' | 'processoDesc'>('processoDesc');
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
   // Aba Importação (pedido do usuário) sempre em modo Tabela, sem alternar — o toggle Tabela⇄Gantt
@@ -313,7 +313,7 @@ export function ProjectSchedulePage() {
     if (importacaoSort === 'processoAsc' || importacaoSort === 'processoDesc') {
       orderedActivities = [...pairs]
         .map((pair) => pair.activity)
-        .sort((a, b) => (a.processo ?? '').localeCompare(b.processo ?? '', 'pt-BR', { sensitivity: 'base' }));
+        .sort((a, b) => (a.processo ?? '').localeCompare(b.processo ?? '', 'pt-BR', { sensitivity: 'base', numeric: true }));
       if (importacaoSort === 'processoDesc') orderedActivities.reverse();
     } else {
       const withUnit = pairs.map(({ project, activity }) => ({ ...activity, unit: project.unit }));
@@ -419,8 +419,12 @@ export function ProjectSchedulePage() {
   }
 
   function cycleImportacaoSort() {
-    setImportacaoSort((s) => (s === 'criticidade' ? 'processoAsc' : s === 'processoAsc' ? 'processoDesc' : 'criticidade'));
+    setImportacaoSort((s) => (s === 'processoDesc' ? 'processoAsc' : s === 'processoAsc' ? 'criticidade' : 'processoDesc'));
   }
+
+  // Rótulo = DESTINO do próximo clique (padrão dos outros toggles): Z→A (padrão) → A→Z → Criticidade → volta.
+  const importacaoSortNextLabel =
+    importacaoSort === 'processoDesc' ? 'Processo: A → Z' : importacaoSort === 'processoAsc' ? 'Criticidade' : 'Processo: Z → A';
 
   function toggleProject(projectId: string) {
     setCollapsedProjectIds((current) => {
@@ -544,11 +548,7 @@ export function ProjectSchedulePage() {
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-xs font-semibold text-text-muted"
               >
                 <ArrowUpDown className="h-3.5 w-3.5" />
-                {importacaoSort === 'criticidade'
-                  ? 'Processo: A → Z'
-                  : importacaoSort === 'processoAsc'
-                    ? 'Processo: Z → A'
-                    : 'Criticidade'}
+                {importacaoSortNextLabel}
               </button>
             )}
             {/* "Unidade" volta pra Importação (pedido do usuário, estética) — renderizada aqui,
@@ -722,11 +722,7 @@ export function ProjectSchedulePage() {
                   className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-card px-3.5 py-2.5 text-sm font-semibold text-text-muted hover:border-text-muted2"
                 >
                   <ArrowUpDown className="h-4 w-4" />
-                  {importacaoSort === 'criticidade'
-                    ? 'Processo: A → Z'
-                    : importacaoSort === 'processoAsc'
-                      ? 'Processo: Z → A'
-                      : 'Criticidade'}
+                  {importacaoSortNextLabel}
                 </button>
               )}
               {/* "Editar" na Importação (pedido do usuário) — só administrador vê (comprador não
