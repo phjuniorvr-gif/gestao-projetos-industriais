@@ -336,6 +336,15 @@ export function ProjectSchedulePage() {
   // filtrar por projeto quando a rota é /cronograma inteiro).
   const allPortfolioTasks = useMemo(() => projects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [projects]);
 
+  // Portfólio inteiro (não só o visível) — mesma regra do `selectedTaskDependentCount`, pra todas as linhas
+  // (trava a lixeira de tarefa na Importação). Antes dos early returns — é hook.
+  const dependentCountByTaskId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of allPortfolioTasks)
+      for (const d of t.dependencies) counts.set(d.predecessorId, (counts.get(d.predecessorId) ?? 0) + 1);
+    return counts;
+  }, [allPortfolioTasks]);
+
   const activityIdToProjectId = useMemo(
     () => new Map(ganttProjects.flatMap((p) => p.activities.map((a) => [a.id, p.id] as const))),
     [ganttProjects],
@@ -720,6 +729,18 @@ export function ProjectSchedulePage() {
                       : 'Criticidade'}
                 </button>
               )}
+              {/* "Editar" na Importação (pedido do usuário) — só administrador vê (comprador não
+                  tem o que editar aqui); liga o mesmo `editMode` do Cronograma normal (lápis de
+                  renomear + lixeira de excluir atividade). */}
+              {!isMobile && isImportacaoView && isAdmin === true && (
+                <Button
+                  variant={editMode ? 'secondary' : 'primary'}
+                  icon={<Pencil className="h-4 w-4" />}
+                  onClick={() => setEditMode((e) => !e)}
+                >
+                  Editar
+                </Button>
+              )}
               {!isMobile && !project && !isImportacaoView && (
                 <button
                   type="button"
@@ -802,6 +823,27 @@ export function ProjectSchedulePage() {
                 const owningProjectId = activityIdToProjectId.get(activity.id);
                 if (owningProjectId) updateActivityName(owningProjectId, activity.id, name);
               }}
+              // Lápis/lixeira nas linhas de tarefa só na Importação (pedido do usuário) — no
+              // Cronograma normal a tarefa continua sendo editada/excluída pelo painel.
+              onRenameTask={
+                isImportacaoView
+                  ? (taskId, name) => {
+                      const owningProjectId = activityIdToProjectId.get(
+                        allTasks.find((t) => t.id === taskId)?.activityId ?? '',
+                      );
+                      if (owningProjectId) updateTask(owningProjectId, taskId, { name });
+                    }
+                  : undefined
+              }
+              onRequestDeleteTask={
+                isImportacaoView
+                  ? (taskId) => {
+                      const task = allTasks.find((t) => t.id === taskId);
+                      if (task) setDeletingTask(task);
+                    }
+                  : undefined
+              }
+              dependentCountByTaskId={dependentCountByTaskId}
               onChangeProcesso={(activity, processo) => {
                 const owningProjectId = activityIdToProjectId.get(activity.id);
                 if (owningProjectId) updateActivityProcesso(owningProjectId, activity.id, processo);

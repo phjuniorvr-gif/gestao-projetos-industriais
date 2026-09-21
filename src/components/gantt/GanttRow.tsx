@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Pencil, Trash2 } from 'lucide-react';
 import type { Person, TaskView } from '../../types';
 import { calendarDaysBetween, formatDatePtBr, formatDuration } from '../../utils';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -44,6 +44,12 @@ interface GanttRowProps {
   /** Observação (pedido do usuário, aba Importação) — edição inline, sem `disabled`: igual
    * Início/Fim real, editável por qualquer papel (o trigger no banco já decide quem pode). */
   onChangeObservacao: (taskId: string, observacao: string) => void;
+  /** Modo Editar (administrador) — lápis (renomear inline) e lixeira (excluir) na linha da tarefa. */
+  editMode?: boolean;
+  /** Quantas tarefas do portfólio têm esta como predecessora — > 0 trava a lixeira (mesma regra do painel). */
+  dependentCount?: number;
+  onRenameTask?: (taskId: string, name: string) => void;
+  onRequestDeleteTask?: (taskId: string) => void;
 }
 
 const cellClass = 'h-[34px] overflow-hidden truncate px-2 py-0 text-center align-middle text-xs text-text-muted';
@@ -65,7 +71,18 @@ export function GanttRow({
   onHover,
   onHoverEnd,
   onChangeObservacao,
+  editMode = false,
+  dependentCount = 0,
+  onRenameTask,
+  onRequestDeleteTask,
 }: GanttRowProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(task.name);
+  function commitRename() {
+    const trimmed = draftName.trim();
+    if (trimmed && trimmed !== task.name) onRenameTask?.(task.id, trimmed);
+    setRenaming(false);
+  }
   const width = totalWidth(range, pxPerDay);
   const responsavel = people.find((p) => p.id === task.responsavelId);
   const estrutura = getColumnRect(columns, 'estrutura');
@@ -94,16 +111,60 @@ export function GanttRow({
       >
         <div className="flex min-w-0 items-center gap-2">
           <RowTypeBadge type="task" />
-          <button
-            type="button"
-            onClick={onClick}
-            className="min-w-0 flex-1 text-left text-sm text-text hover:text-action hover:underline"
-          >
-            {/* Sempre trunca (não só compact) — nome sem limite quebrava em 2 linhas no modo
-                completo, esticando a linha além dos 34px. Nome inteiro sempre disponível ao abrir
-                a tarefa. */}
-            <span className="block truncate">{task.name}</span>
-          </button>
+          {renaming ? (
+            <Input
+              autoFocus
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') setRenaming(false);
+              }}
+              className="h-7 min-w-0 flex-1 px-2 py-1 text-sm"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={onClick}
+              className="min-w-0 flex-1 text-left text-sm text-text hover:text-action hover:underline"
+            >
+              {/* Sempre trunca (não só compact) — nome sem limite quebrava em 2 linhas no modo
+                  completo, esticando a linha além dos 34px. Nome inteiro sempre disponível ao abrir
+                  a tarefa. */}
+              <span className="block truncate">{task.name}</span>
+            </button>
+          )}
+          {editMode && onRenameTask && onRequestDeleteTask && !renaming && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftName(task.name);
+                  setRenaming(true);
+                }}
+                className="shrink-0 text-text-muted hover:text-action"
+                aria-label="Renomear tarefa"
+                title="Renomear tarefa"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onRequestDeleteTask?.(task.id)}
+                disabled={dependentCount > 0}
+                className="shrink-0 text-text-muted hover:text-status-delayed disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Excluir tarefa"
+                title={
+                  dependentCount > 0
+                    ? `Não é possível excluir: ${dependentCount} ${dependentCount === 1 ? 'tarefa depende' : 'tarefas dependem'} desta como predecessora.`
+                    : 'Excluir tarefa'
+                }
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
           {!!task.replanCount && (
             <span
               title={`Previsto replanejado ${task.replanCount} ${task.replanCount === 1 ? 'vez' : 'vezes'}`}

@@ -113,6 +113,11 @@ interface GanttTableProps {
    * na atividade já reflete em toda tarefa dela, de graça (a célula da tarefa só exibe
    * `activityProcesso`, sem cópia própria). Só chega aqui quando `hideProjectRow` está ativo. */
   onChangeProcesso: (activity: ActivityView, processo: string) => void;
+  /** Modo Editar nas linhas de TAREFA (pedido do usuário, aba Importação) — renomear/excluir inline. */
+  onRenameTask?: (taskId: string, name: string) => void;
+  onRequestDeleteTask?: (taskId: string) => void;
+  /** taskId → nº de tarefas do portfólio que dependem dela (trava a lixeira, mesma regra do painel). */
+  dependentCountByTaskId?: Map<string, number>;
 }
 
 interface HeaderTick {
@@ -192,6 +197,9 @@ export function GanttTable({
   hideProjectRow = false,
   onChangeObservacao,
   onChangeProcesso,
+  onRenameTask,
+  onRequestDeleteTask,
+  dependentCountByTaskId,
 }: GanttTableProps) {
   // Fase 5 — `undefined` (carregando) conta como travado, nunca libera por engano.
   const locked = isAdmin !== true;
@@ -844,6 +852,10 @@ export function GanttTable({
                               onHover={(hoveredTask, x, y) => setHover({ target: { level: 'task', task: hoveredTask }, x, y })}
                               onHoverEnd={() => setHover(null)}
                               onChangeObservacao={onChangeObservacao}
+                              editMode={editMode}
+                              dependentCount={dependentCountByTaskId?.get(task.id) ?? 0}
+                              onRenameTask={onRenameTask}
+                              onRequestDeleteTask={onRequestDeleteTask}
                             />
                           ))}
                       </Fragment>

@@ -407,6 +407,14 @@ Pedido do usuário, com print do painel de tarefa (papel Comprador) mostrando "I
 - **`TaskPanel.tsx`: bloco "Início base"/"Fim base" inteiro (o `<div className="grid grid-cols-2 gap-3">`) condicionado a `!locked`** — só administrador (`locked = isAdmin !== true`) vê os dois campos; qualquer outro papel não vê nem o rótulo, nem o valor, nem o cadeado. Diferente de todo outro campo do painel (que usa `<LockBadge>` + `disabled` pra mostrar-travado-com-aviso) — decisão deliberada só pra base, não um padrão novo pro resto do painel.
 - **`MobileProjectSheet.tsx` não tinha "Início base"/"Fim base" em lugar nenhum** (confirmado por busca antes de mexer) — nada a alterar lá; `TaskPanel.tsx` é o único lugar que mostra base, usado tanto no desktop quanto no bottom sheet mobile (Fase 6), então essa única mudança já cobre os dois.
 
+## Decisões da sessão de 2026-09-21 (botão "Editar" na Importação, admin-only)
+
+Pedido do usuário, com print da Importação desktop: o administrador quer o botão "Editar". Antes o cluster admin inteiro (incl. "Editar"/`editMode`) ficava escondido nessa rota (`!isImportacaoView`), então não havia como entrar em `editMode` ali — lápis (renomear atividade) e lixeira (excluir atividade/atividade+tarefas com Desfazer) nunca apareciam.
+
+- **`ProjectSchedulePage.tsx`: botão "Editar" ao lado do "Processo: A → Z"**, mesmo `editMode`/`setEditMode` do Cronograma normal — sem lógica nova. Renderizado só com `!isMobile && isImportacaoView && isAdmin === true` (diferente do Cronograma normal, que mostra desabilitado com tooltip): na Importação o comprador nunca tem o que editar, então o botão nem aparece pra ele. A exclusão continua protegida no banco (RLS admin-only em `activities`/`tasks`).
+- Sem versão mobile (toolbar inteira é `!isMobile`, mesma fronteira do resto).
+- **Lápis (renomear inline) e lixeira (excluir) também nas linhas de TAREFA, no modo Editar da Importação** — pedido seguinte do usuário. Antes só a linha de atividade tinha; tarefa só era editada/excluída pelo `TaskPanel`. `GanttRow.tsx` ganhou `editMode`/`dependentCount`/`onRenameTask`/`onRequestDeleteTask` (estado local `renaming`/`draftName`, mesmo padrão Enter/Escape/blur do renomear atividade); `GanttTable.tsx` repassa (+ `dependentCountByTaskId`). Renomear = `updateTask(..., { name })` (mesmo caminho do `onSave` do painel); excluir = `setDeletingTask`, o mesmo `ConfirmDialog` do painel. **Trava de predecessora preservada**: a lixeira fica desabilitada com tooltip quando `dependentCount > 0` (`dependentCountByTaskId`, `useMemo` do portfólio INTEIRO em `ProjectSchedulePage.tsx` — antes dos early returns, é hook). Botões só aparecem quando a página passa os handlers (só `isImportacaoView`) — Cronograma normal inalterado.
+
 ## Permissões
 
 Configuradas em `.claude/settings.local.json` (local, fora do git) para não precisar aprovar comando por comando. Regras:
