@@ -11,3 +11,8 @@ export async function saveCategory(entry: CategoryEntry): Promise<void> {
   const { error } = await supabase.from('categories').upsert(entry);
   if (error) throw error;
 }
+
+export async function deleteCategory(id: string): Promise<void> {
+  const { error } = await supabase.from('categories').delete().eq('id', id);
+  if (error) throw error;
+}

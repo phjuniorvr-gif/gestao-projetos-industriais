@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchCategories, saveCategory } from '../services/categoriesRepo';
+import { deleteCategory, fetchCategories, saveCategory } from '../services/categoriesRepo';
 import type { CategoryEntry } from '../types';
 
 function uid(): string {
@@ -39,5 +39,12 @@ export function useCategories() {
     });
   }, []);
 
-  return { categories, loaded, createCategory, updateCategory };
+  // Quem chama decide se pode excluir (conferindo se alguma tarefa ainda usa a categoria) —
+  // este hook só executa, não valida; mesma divisão de responsabilidade de `saveCategory`.
+  const removeCategory = useCallback((id: string) => {
+    setCategories((current) => current.filter((c) => c.id !== id));
+    deleteCategory(id).catch((err) => console.error('Falha ao excluir categoria no Supabase', err));
+  }, []);
+
+  return { categories, loaded, createCategory, updateCategory, removeCategory };
 }
