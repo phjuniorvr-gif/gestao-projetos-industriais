@@ -19,6 +19,7 @@ interface ProjectRowProps {
   onDelete: (project: ProjectView) => void;
   onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
   onDuplicate: (project: ProjectView) => void;
+  onDemoteToPipeline: (project: ProjectView) => void;
 }
 
 function initials(name: string): string {
@@ -39,6 +40,7 @@ export function ProjectRow({
   onDelete,
   onUpdateTask,
   onDuplicate,
+  onDemoteToPipeline,
 }: ProjectRowProps) {
   const navigate = useNavigate();
   const gerente = people.find((p) => p.id === project.gerenteId);
@@ -146,6 +148,7 @@ export function ProjectRow({
           onUpdateProgress={() => setProgressPopoverOpen(true)}
           onDuplicate={() => onDuplicate(project)}
           onDelete={() => onDelete(project)}
+          onDemoteToPipeline={() => onDemoteToPipeline(project)}
         />
         <InlineTaskProgressEdit
           project={project}

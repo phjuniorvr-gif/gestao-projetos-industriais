@@ -23,6 +23,7 @@ interface ProjectsTableProps {
   onDelete: (project: ProjectView) => void;
   onUpdateTask: (projectId: string, taskId: string, patch: Pick<Task, 'actualStart' | 'actualEnd'>) => void;
   onDuplicate: (project: ProjectView) => void;
+  onDemoteToPipeline: (project: ProjectView) => void;
 }
 
 export function ProjectsTable({
@@ -37,6 +38,7 @@ export function ProjectsTable({
   onDelete,
   onUpdateTask,
   onDuplicate,
+  onDemoteToPipeline,
 }: ProjectsTableProps) {
   if (projects.length === 0) {
     return <EmptyState title="Nenhum projeto encontrado" description="Ajuste os filtros para encontrar o que procura." />;
@@ -45,7 +47,17 @@ export function ProjectsTable({
   const SortIcon = nameSort === 'asc' ? ArrowUp : nameSort === 'desc' ? ArrowDown : ArrowUpDown;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+    // SEM `overflow-x-auto` de propósito (tentativa revertida na mesma sessão, ver CLAUDE.md) —
+    // `overflow-x-auto` sozinho faz o navegador computar `overflow-y` como `auto` TAMBÉM, mesmo
+    // com `overflow-y-visible` escrito ao lado: a regra do spec CSS força os dois eixos a ficarem
+    // não-`visible` juntos sempre que QUALQUER um dos dois não é `visible`, não tem como escapar
+    // escrevendo o outro eixo explicitamente. Isso cortava o menu "⋯" (`ProjectActionsMenu.tsx`,
+    // `position: absolute`) sempre que abria perto do fim da tabela. As colunas (`PROJECTS_GRID_COLS`)
+    // somam bem menos que a largura de qualquer tela desktop real (~700px de mínimo), então essa
+    // tabela nunca precisou de scroll horizontal de verdade — diferente do Gantt (`GanttTable.tsx`),
+    // que soma bem mais que isso e mantém `overflow-auto` (sem esse problema porque não tem menu
+    // `position: absolute` dentro, só o painel de dependência com posicionamento próprio).
+    <div className="rounded-xl border border-border bg-card">
       <div
         className="grid items-center gap-3 border-b border-border px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted2"
         style={{ gridTemplateColumns: PROJECTS_GRID_COLS }}
@@ -77,6 +89,7 @@ export function ProjectsTable({
             onDelete={onDelete}
             onUpdateTask={onUpdateTask}
             onDuplicate={onDuplicate}
+            onDemoteToPipeline={onDemoteToPipeline}
           />
         ))}
       </div>

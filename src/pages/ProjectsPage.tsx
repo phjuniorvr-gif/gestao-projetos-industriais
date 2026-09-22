@@ -12,8 +12,8 @@ import {
   ProjectsTable,
   type ProjectFiltersState,
 } from '../components/projects';
-import { Button, UndoToast } from '../components/ui';
-import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
+import { Button, ConfirmDialog, UndoToast } from '../components/ui';
+import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, usePipelines, useProjects, useUndoToast } from '../hooks';
 import { sortProjectsByCriticality, todayISO } from '../utils';
 import { STATUS_LABEL, type ProjectStatus, type ProjectView } from '../types';
 
@@ -33,10 +33,15 @@ export function ProjectsPage() {
   const { people, createPerson } = usePeople();
   const { catalog } = useCatalog();
   const { categories } = useCategories();
+  const { createPipeline } = usePipelines();
   const isAdmin = usePerfil();
   const { holidays, loaded: holidaysLoaded } = useHolidays();
   const { toast, show, dismiss } = useUndoToast();
   const [filters, setFilters] = useState<ProjectFiltersState>(EMPTY_FILTERS);
+  // Pedido do usuário — caminho inverso de "Transformar em projeto" (só projeto sem atividade,
+  // ver `ProjectActionsMenu.tsx`). Guarda o projeto (não só o id) pra a mensagem do `ConfirmDialog`
+  // citar nome/código sem precisar buscar de novo.
+  const [demoting, setDemoting] = useState<ProjectView | null>(null);
   // Ordenação padrão continua por criticidade (sortProjectsByCriticality) — clicar no cabeçalho
   // "Projeto" (ProjectsTable.tsx) ou no botão explícito abaixo alterna por código (P01→P99 /
   // P99→P01); um terceiro clique volta pra criticidade. Nome do state ficou de quando ordenava
@@ -54,6 +59,18 @@ export function ProjectsPage() {
   const handleDelete = (project: ProjectView) => {
     removeProject(project.id);
     show(`${project.code} movido para Excluídos`, () => restoreProject(project));
+  };
+
+  /** Cria o Pipeline ANTES de mexer no projeto — se a criação falhar, o projeto continua intacto
+   * (nada é removido às cegas). O projeto em si não é apagado de vez: cai em "Excluídos" pelo
+   * mesmo caminho de `handleDelete` (reversível, com Desfazer) — só o Pipeline novo é definitivo. */
+  const handleDemoteToPipeline = async (project: ProjectView) => {
+    try {
+      await createPipeline({ name: project.name, description: project.description, unit: project.unit });
+      handleDelete(project);
+    } catch (err) {
+      console.error('Falha ao rebaixar projeto para Pipeline', err);
+    }
   };
 
   /** Clona nome/categoria/datas/predecessoras de cada tarefa — mesmo formato que createProject já
@@ -190,6 +207,7 @@ export function ProjectsPage() {
           onDelete={handleDelete}
           onUpdateTask={updateTaskActualDates}
           onDuplicate={handleDuplicate}
+          onDemoteToPipeline={setDemoting}
         />
 
         <div className="space-y-4">
@@ -232,6 +250,18 @@ export function ProjectsPage() {
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />
+
+      <ConfirmDialog
+        open={Boolean(demoting)}
+        title="Rebaixar para Pipeline"
+        message={`"${demoting?.code} — ${demoting?.name}" vira um item de Pipeline (nome, descrição e unidade preservados) e o projeto vai para Excluídos — dá pra desfazer logo em seguida, pelo aviso que aparece na tela.`}
+        confirmLabel="Rebaixar"
+        onCancel={() => setDemoting(null)}
+        onConfirm={() => {
+          if (demoting) handleDemoteToPipeline(demoting);
+          setDemoting(null);
+        }}
+      />
     </div>
   );
 }

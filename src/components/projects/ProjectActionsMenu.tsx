@@ -11,6 +11,10 @@ interface ProjectActionsMenuProps {
   onUpdateProgress: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** Pedido do usuário — caminho inverso de "Transformar em projeto" (Pipeline). Só quando o
+   * projeto não tem nenhuma atividade ainda (`activityCount === 0`) — com atividade/tarefa
+   * cadastrada perderia cronograma, e Pipeline não tem onde guardar isso. */
+  onDemoteToPipeline: () => void;
 }
 
 /** Menu `⋯` sempre visível (spec Fase 3) — nunca escondido atrás de hover. "Ver atividades"
@@ -24,6 +28,7 @@ export function ProjectActionsMenu({
   onUpdateProgress,
   onDuplicate,
   onDelete,
+  onDemoteToPipeline,
 }: ProjectActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -38,19 +43,24 @@ export function ProjectActionsMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  function item(label: string, onClick: () => void, options: { danger?: boolean; locked?: boolean } = {}) {
-    const { danger = false, locked: itemLocked = false } = options;
+  function item(
+    label: string,
+    onClick: () => void,
+    options: { danger?: boolean; locked?: boolean; disabledReason?: string } = {},
+  ) {
+    const { danger = false, locked: itemLocked = false, disabledReason } = options;
+    const disabled = itemLocked || Boolean(disabledReason);
     return (
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (itemLocked) return;
+          if (disabled) return;
           onClick();
           setOpen(false);
         }}
-        disabled={itemLocked}
-        title={itemLocked ? 'Somente administrador pode fazer isto.' : undefined}
+        disabled={disabled}
+        title={itemLocked ? 'Somente administrador pode fazer isto.' : disabledReason}
         className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs disabled:cursor-not-allowed disabled:opacity-40 ${
           danger ? 'text-status-delayed hover:bg-status-delayed-bg' : 'text-text hover:bg-page'
         }`}
@@ -78,6 +88,10 @@ export function ProjectActionsMenu({
           {item(`Ver atividades (${activityCount})`, onViewActivities)}
           {item('Atualizar avanço', onUpdateProgress)}
           {item('Duplicar', onDuplicate, { locked })}
+          {item('Rebaixar para Pipeline', onDemoteToPipeline, {
+            locked,
+            disabledReason: activityCount > 0 ? 'Só é possível rebaixar um projeto sem nenhuma atividade cadastrada.' : undefined,
+          })}
           <div className="my-1 border-t border-border-2" />
           {item('Mover para Excluídos', onDelete, { danger: true, locked })}
         </div>
