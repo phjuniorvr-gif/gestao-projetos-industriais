@@ -211,9 +211,12 @@ export function ProjectSchedulePage() {
   // recolhendo as atividades ao carregar essa rota.
   const [importacaoExpanded, setImportacaoExpanded] = useState(false);
   // Aba Importação (pedido do usuário) — ordena ATIVIDADE (não projeto/código, que é o que
-  // `nameSort` faz no Cronograma normal): "criticidade" (padrão, mesma regra de
-  // `sortProjectsByCriticality`) ou "Processo" A→Z/Z→A. Ciclo de 3 estados via `cycleImportacaoSort`.
-  const [importacaoSort, setImportacaoSort] = useState<'criticidade' | 'processoAsc' | 'processoDesc'>('processoDesc');
+  // `nameSort` faz no Cronograma normal): "criticidade" (mesma regra de `sortProjectsByCriticality`),
+  // "Processo" A→Z/Z→A ou "Fim previsto" (padrão — pedido do usuário, mais próximo primeiro,
+  // "deixando a próxima data na sequência"). Ciclo de 4 estados via `cycleImportacaoSort`.
+  const [importacaoSort, setImportacaoSort] = useState<
+    'criticidade' | 'processoAsc' | 'processoDesc' | 'fimPrevisto'
+  >('fimPrevisto');
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
   // Aba Importação (pedido do usuário) sempre em modo Tabela, sem alternar — o toggle Tabela⇄Gantt
@@ -315,6 +318,11 @@ export function ProjectSchedulePage() {
         .map((pair) => pair.activity)
         .sort((a, b) => (a.processo ?? '').localeCompare(b.processo ?? '', 'pt-BR', { sensitivity: 'base', numeric: true }));
       if (importacaoSort === 'processoDesc') orderedActivities.reverse();
+    } else if (importacaoSort === 'fimPrevisto') {
+      // Mais próxima primeiro — string ISO (YYYY-MM-DD) ordena certo por comparação direta.
+      orderedActivities = [...pairs]
+        .map((pair) => pair.activity)
+        .sort((a, b) => (a.plannedEnd ?? '').localeCompare(b.plannedEnd ?? ''));
     } else {
       const withUnit = pairs.map(({ project, activity }) => ({ ...activity, unit: project.unit }));
       orderedActivities = sortProjectsByCriticality(withUnit, today, holidays);
@@ -419,12 +427,21 @@ export function ProjectSchedulePage() {
   }
 
   function cycleImportacaoSort() {
-    setImportacaoSort((s) => (s === 'processoDesc' ? 'processoAsc' : s === 'processoAsc' ? 'criticidade' : 'processoDesc'));
+    setImportacaoSort((s) =>
+      s === 'processoDesc' ? 'processoAsc' : s === 'processoAsc' ? 'criticidade' : s === 'criticidade' ? 'fimPrevisto' : 'processoDesc',
+    );
   }
 
-  // Rótulo = DESTINO do próximo clique (padrão dos outros toggles): Z→A (padrão) → A→Z → Criticidade → volta.
+  // Rótulo = DESTINO do próximo clique (padrão dos outros toggles):
+  // Z→A (padrão) → A→Z → Criticidade → Fim previsto → volta.
   const importacaoSortNextLabel =
-    importacaoSort === 'processoDesc' ? 'Processo: A → Z' : importacaoSort === 'processoAsc' ? 'Criticidade' : 'Processo: Z → A';
+    importacaoSort === 'processoDesc'
+      ? 'Processo: A → Z'
+      : importacaoSort === 'processoAsc'
+        ? 'Criticidade'
+        : importacaoSort === 'criticidade'
+          ? 'Fim previsto'
+          : 'Processo: Z → A';
 
   function toggleProject(projectId: string) {
     setCollapsedProjectIds((current) => {
