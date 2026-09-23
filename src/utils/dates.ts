@@ -151,3 +151,37 @@ export function calendarDaysBetween(startISO: string, endISO: string): number {
 export function formatDuration(days: number): string {
   return `${days}d`;
 }
+
+// ============================================================
+// Duração ↔ data (sessão de 2026-09-23) — pedido do usuário: digitar duração (dias úteis OU
+// corridos) em vez da data final, tanto pra previsto quanto pra base (`TaskPanel.tsx`), e também
+// na criação de tarefa (`AddTaskPanel.tsx`, que já tinha esse modo mas só em dias úteis).
+// Funções puras compartilhadas pelos dois painéis — sem duplicar a conta em cada um.
+// ============================================================
+
+export type DurationUnit = 'util' | 'corrido';
+
+/** Calcula a data final a partir do início + duração (mínimo 1 dia, mesma convenção de
+ * `computeDatesFromDuration`/`addBusinessDays`: duração 1 = início e fim no mesmo dia). */
+export function endDateFromDuration(
+  startISO: string,
+  days: number,
+  unit: DurationUnit,
+  holidays: HolidayLike[] = [],
+  calendarUnit?: string,
+): string {
+  const n = Math.max(1, days);
+  return unit === 'util' ? addBusinessDays(startISO, n - 1, holidays, calendarUnit) : addDays(startISO, n - 1);
+}
+
+/** Conta a duração de um par de datas já preenchido, na unidade escolhida — usado pra pré-popular
+ * o campo de duração quando a pessoa troca do modo "Data exata" pro modo "Duração". */
+export function durationFromDates(
+  startISO: string,
+  endISO: string,
+  unit: DurationUnit,
+  holidays: HolidayLike[] = [],
+  calendarUnit?: string,
+): number {
+  return unit === 'util' ? businessDaysBetween(startISO, endISO, holidays, calendarUnit) : calendarDaysBetween(startISO, endISO);
+}

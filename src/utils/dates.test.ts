@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { supabase } from '../services/supabaseClient';
-import { calendarDaysBetween, easterDate, formatDuration, nationalHolidays } from './dates';
+import { calendarDaysBetween, durationFromDates, easterDate, endDateFromDuration, formatDuration, nationalHolidays } from './dates';
 
 // Compara pascoa()/feriados_nacionais() (SQL, migration add_business_day_calendar) contra
 // easterDate()/nationalHolidays() (TS) — é onde mora o risco de divergência entre as duas
@@ -47,5 +47,30 @@ describe('calendarDaysBetween', () => {
 describe('formatDuration', () => {
   it('sufixo "d" (dia corrido), não mais "du" (dia útil)', () => {
     expect(formatDuration(10)).toBe('10d');
+  });
+});
+
+// Sessão de 2026-09-23 — modo "Duração" em TaskPanel.tsx (previsto e base)/AddTaskPanel.tsx, com
+// seletor de unidade (dias úteis ou corridos). 2026-08-10 é segunda-feira, sem feriado na semana.
+describe('endDateFromDuration', () => {
+  it('duração 1 = início e fim no mesmo dia, nas duas unidades', () => {
+    expect(endDateFromDuration('2026-08-10', 1, 'util')).toBe('2026-08-10');
+    expect(endDateFromDuration('2026-08-10', 1, 'corrido')).toBe('2026-08-10');
+  });
+
+  it('dias úteis pulam o fim de semana, dias corridos não', () => {
+    expect(endDateFromDuration('2026-08-10', 6, 'util')).toBe('2026-08-17');
+    expect(endDateFromDuration('2026-08-10', 6, 'corrido')).toBe('2026-08-15');
+  });
+
+  it('duração <= 0 vira 1 (mínimo, mesma convenção de computeDatesFromDuration)', () => {
+    expect(endDateFromDuration('2026-08-10', 0, 'corrido')).toBe('2026-08-10');
+  });
+});
+
+describe('durationFromDates', () => {
+  it('é o inverso de endDateFromDuration nas duas unidades', () => {
+    expect(durationFromDates('2026-08-10', '2026-08-17', 'util')).toBe(6);
+    expect(durationFromDates('2026-08-10', '2026-08-15', 'corrido')).toBe(6);
   });
 });

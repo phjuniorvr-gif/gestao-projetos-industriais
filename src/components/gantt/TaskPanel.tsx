@@ -8,10 +8,12 @@ import {
   computeCandidatePredecessors,
   computeDependencyRuleDate,
   diffDays,
+  durationFromDates,
+  endDateFromDuration,
   formatDatePtBr,
   validateDateOrder,
 } from '../../utils';
-import type { DependencyValidation, ReplanValidation } from '../../utils';
+import type { DependencyValidation, DurationUnit, ReplanValidation } from '../../utils';
 
 // Base voltou a ser editável (Fase 7+, a pedido do usuário — reabre a trava da Fase 4/5) —
 // só administrador (mesmo `locked` dos outros campos admin-only), motivo obrigatório junto do
@@ -105,6 +107,16 @@ export function TaskPanel({
   const [draftPlannedEnd, setDraftPlannedEnd] = useState('');
   const [draftBaseStart, setDraftBaseStart] = useState('');
   const [draftBaseEnd, setDraftBaseEnd] = useState('');
+  // Modo "Duração" (sessão de 2026-09-23, pedido do usuário) — Início continua editável, Fim vira
+  // calculado (endDateFromDuration) em vez de digitado direto. Previsto e base são independentes
+  // (cada par pode estar num modo diferente) — "basis" é o nome da unidade (dias úteis/corridos)
+  // pra não confundir com a prop `unit` (calendário de dia útil por fábrica/site).
+  const [plannedMode, setPlannedMode] = useState<'dates' | 'duration'>('dates');
+  const [plannedDurationDays, setPlannedDurationDays] = useState(1);
+  const [plannedDurationBasis, setPlannedDurationBasis] = useState<DurationUnit>('util');
+  const [baseMode, setBaseMode] = useState<'dates' | 'duration'>('dates');
+  const [baseDurationDays, setBaseDurationDays] = useState(1);
+  const [baseDurationBasis, setBaseDurationBasis] = useState<DurationUnit>('util');
   const [motivo, setMotivo] = useState('');
   const [replanErrors, setReplanErrors] = useState<string[]>([]);
   const [draftActualStart, setDraftActualStart] = useState('');
@@ -119,6 +131,12 @@ export function TaskPanel({
     setDraftPlannedEnd(task.plannedEnd);
     setDraftBaseStart(task.baseStart);
     setDraftBaseEnd(task.baseEnd);
+    setPlannedMode('dates');
+    setPlannedDurationDays(1);
+    setPlannedDurationBasis('util');
+    setBaseMode('dates');
+    setBaseDurationDays(1);
+    setBaseDurationBasis('util');
     setMotivo('');
     setReplanErrors([]);
     setDraftActualStart(task.actualStart ?? '');
@@ -139,6 +157,22 @@ export function TaskPanel({
     // de previsto/base acima).
   }, [task?.id]);
 
+  // Recalcula o Fim (previsto/base) sempre que em modo Duração e o início/duração/unidade mudam —
+  // é o que faz o campo "Fim" virar derivado em vez de digitado nesse modo. Precisam ficar ANTES
+  // do early return abaixo (regra dos Hooks: sempre a mesma ordem em todo render).
+  useEffect(() => {
+    if (plannedMode !== 'duration') return;
+    setDraftPlannedEnd(endDateFromDuration(draftPlannedStart, plannedDurationDays, plannedDurationBasis, holidays, unit));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- holidays/unit não entram: mesmo
+    // raciocínio dos efeitos equivalentes em AddTaskPanel.tsx, só o que a pessoa digitou importa.
+  }, [plannedMode, draftPlannedStart, plannedDurationDays, plannedDurationBasis]);
+
+  useEffect(() => {
+    if (baseMode !== 'duration') return;
+    setDraftBaseEnd(endDateFromDuration(draftBaseStart, baseDurationDays, baseDurationBasis, holidays, unit));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mesmo motivo do efeito acima.
+  }, [baseMode, draftBaseStart, baseDurationDays, baseDurationBasis]);
+
   if (!task) return null;
 
   const hasReplanChanges =
@@ -153,8 +187,24 @@ export function TaskPanel({
     setDraftPlannedEnd(task.plannedEnd);
     setDraftBaseStart(task.baseStart);
     setDraftBaseEnd(task.baseEnd);
+    setPlannedMode('dates');
+    setBaseMode('dates');
     setMotivo('');
     setReplanErrors([]);
+  }
+
+  /** Troca pro modo Duração pré-populando a partir do par de datas atual (evita começar do zero
+   * digitando "1"). Unidade mantém a última escolhida (default "dias úteis", regra de ouro). */
+  function enterPlannedDurationMode() {
+    setPlannedDurationDays(
+      Math.max(1, durationFromDates(draftPlannedStart, draftPlannedEnd, plannedDurationBasis, holidays, unit)),
+    );
+    setPlannedMode('duration');
+  }
+
+  function enterBaseDurationMode() {
+    setBaseDurationDays(Math.max(1, durationFromDates(draftBaseStart, draftBaseEnd, baseDurationBasis, holidays, unit)));
+    setBaseMode('duration');
   }
 
   function handleConfirmReplan() {
@@ -229,6 +279,9 @@ export function TaskPanel({
       setDraftPlannedEnd(ruleDate);
       setDraftPlannedStart(addDays(ruleDate, -duration));
     }
+    // Volta pro modo "Data exata" — senão o efeito do modo Duração recalcularia o Fim a partir da
+    // duração antiga assim que draftPlannedStart mudasse, sobrescrevendo o valor aplicado aqui.
+    setPlannedMode('dates');
   }
 
   const taskReplanHistory = replanejamentos
@@ -347,25 +400,85 @@ export function TaskPanel({
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label={<>Início previsto {locked && <LockBadge />}</>}>
-              <Input
-                type={locked ? 'text' : 'date'}
-                value={locked ? formatDatePtBr(draftPlannedStart) : draftPlannedStart}
-                onChange={(e) => setDraftPlannedStart(e.target.value)}
-                disabled={locked}
-                className="w-full"
-              />
-            </FormField>
-            <FormField label={<>Fim previsto {locked && <LockBadge />}</>}>
-              <Input
-                type={locked ? 'text' : 'date'}
-                value={locked ? formatDatePtBr(draftPlannedEnd) : draftPlannedEnd}
-                onChange={(e) => setDraftPlannedEnd(e.target.value)}
-                disabled={locked}
-                className="w-full"
-              />
-            </FormField>
+          {/* Modo "Duração" (sessão de 2026-09-23, pedido do usuário) — nem sempre o Fim é
+              conhecido de cara; às vezes só a duração (em dias úteis OU corridos) é o dado que se
+              tem. O toggle só aparece destravado (`!locked`); Fim vira sempre calculado nesse
+              modo, nunca os dois (Fim e Duração) editáveis ao mesmo tempo. */}
+          <div className="space-y-1.5">
+            {!locked && (
+              <div className="flex justify-end">
+                <div className="flex items-center rounded-[7px] border border-border bg-page p-0.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setPlannedMode('dates')}
+                    className={`rounded-[5px] px-2 py-0.5 font-semibold transition-colors ${
+                      plannedMode === 'dates' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    Data exata
+                  </button>
+                  <button
+                    type="button"
+                    onClick={enterPlannedDurationMode}
+                    className={`rounded-[5px] px-2 py-0.5 font-semibold transition-colors ${
+                      plannedMode === 'duration' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    Duração
+                  </button>
+                </div>
+              </div>
+            )}
+            {locked || plannedMode === 'dates' ? (
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label={<>Início previsto {locked && <LockBadge />}</>}>
+                  <Input
+                    type={locked ? 'text' : 'date'}
+                    value={locked ? formatDatePtBr(draftPlannedStart) : draftPlannedStart}
+                    onChange={(e) => setDraftPlannedStart(e.target.value)}
+                    disabled={locked}
+                    className="w-full"
+                  />
+                </FormField>
+                <FormField label={<>Fim previsto {locked && <LockBadge />}</>}>
+                  <Input
+                    type={locked ? 'text' : 'date'}
+                    value={locked ? formatDatePtBr(draftPlannedEnd) : draftPlannedEnd}
+                    onChange={(e) => setDraftPlannedEnd(e.target.value)}
+                    disabled={locked}
+                    className="w-full"
+                  />
+                </FormField>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FormField label="Início previsto">
+                  <Input type="date" value={draftPlannedStart} onChange={(e) => setDraftPlannedStart(e.target.value)} className="w-full" />
+                </FormField>
+                <div className="flex items-end gap-2">
+                  <FormField label="Duração" className="flex-1">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={plannedDurationDays}
+                      onChange={(e) => setPlannedDurationDays(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full"
+                    />
+                  </FormField>
+                  <FormField label="Unidade" className="flex-1">
+                    <Select
+                      value={plannedDurationBasis}
+                      onChange={(e) => setPlannedDurationBasis(e.target.value as DurationUnit)}
+                      className="w-full"
+                    >
+                      <option value="util">Dias úteis</option>
+                      <option value="corrido">Dias corridos</option>
+                    </Select>
+                  </FormField>
+                </div>
+                <p className="text-xs text-text-muted">Fim previsto: {formatDatePtBr(draftPlannedEnd)}</p>
+              </div>
+            )}
           </div>
 
           {/* Início/Fim base — some inteiro pra quem não é administrador (pedido do usuário,
@@ -373,23 +486,67 @@ export function TaskPanel({
               padrão de LockBadge (mostrar desabilitado com aviso) usado no resto do painel —
               aqui não faz sentido nem mostrar o valor: só administrador precisa ver a base. */}
           {!locked && (
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Início base">
-                <Input
-                  type="date"
-                  value={draftBaseStart}
-                  onChange={(e) => setDraftBaseStart(e.target.value)}
-                  className="w-full"
-                />
-              </FormField>
-              <FormField label="Fim base">
-                <Input
-                  type="date"
-                  value={draftBaseEnd}
-                  onChange={(e) => setDraftBaseEnd(e.target.value)}
-                  className="w-full"
-                />
-              </FormField>
+            <div className="space-y-1.5">
+              <div className="flex justify-end">
+                <div className="flex items-center rounded-[7px] border border-border bg-page p-0.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setBaseMode('dates')}
+                    className={`rounded-[5px] px-2 py-0.5 font-semibold transition-colors ${
+                      baseMode === 'dates' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    Data exata
+                  </button>
+                  <button
+                    type="button"
+                    onClick={enterBaseDurationMode}
+                    className={`rounded-[5px] px-2 py-0.5 font-semibold transition-colors ${
+                      baseMode === 'duration' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    Duração
+                  </button>
+                </div>
+              </div>
+              {baseMode === 'dates' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField label="Início base">
+                    <Input type="date" value={draftBaseStart} onChange={(e) => setDraftBaseStart(e.target.value)} className="w-full" />
+                  </FormField>
+                  <FormField label="Fim base">
+                    <Input type="date" value={draftBaseEnd} onChange={(e) => setDraftBaseEnd(e.target.value)} className="w-full" />
+                  </FormField>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <FormField label="Início base">
+                    <Input type="date" value={draftBaseStart} onChange={(e) => setDraftBaseStart(e.target.value)} className="w-full" />
+                  </FormField>
+                  <div className="flex items-end gap-2">
+                    <FormField label="Duração" className="flex-1">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={baseDurationDays}
+                        onChange={(e) => setBaseDurationDays(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-full"
+                      />
+                    </FormField>
+                    <FormField label="Unidade" className="flex-1">
+                      <Select
+                        value={baseDurationBasis}
+                        onChange={(e) => setBaseDurationBasis(e.target.value as DurationUnit)}
+                        className="w-full"
+                      >
+                        <option value="util">Dias úteis</option>
+                        <option value="corrido">Dias corridos</option>
+                      </Select>
+                    </FormField>
+                  </div>
+                  <p className="text-xs text-text-muted">Fim base: {formatDatePtBr(draftBaseEnd)}</p>
+                </div>
+              )}
             </div>
           )}
 

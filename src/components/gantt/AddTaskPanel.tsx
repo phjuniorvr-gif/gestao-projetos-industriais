@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button, Card, FormField, Input, Select } from '../ui';
 import { PersonSelect } from '../shared/PersonSelect';
-import { addBusinessDays, computeDependencyRuleDate, formatDatePtBr, todayISO, validateDateOrder } from '../../utils';
+import { addBusinessDays, computeDependencyRuleDate, endDateFromDuration, formatDatePtBr, todayISO, validateDateOrder } from '../../utils';
 import type { Category, CategoryEntry, Holiday, Person, ProjectView } from '../../types';
+import type { DurationUnit } from '../../utils';
 
 interface AddTaskPanelProps {
   open: boolean;
@@ -61,6 +62,9 @@ export function AddTaskPanel({
   const [predecessorTaskId, setPredecessorTaskId] = useState('');
   const [scheduleMode, setScheduleMode] = useState<'dates' | 'duration'>('dates');
   const [durationDays, setDurationDays] = useState(1);
+  // Seletor de unidade (sessão de 2026-09-23, pedido do usuário) — o modo Duração já existia, mas
+  // só em dias úteis; "util" continua o default (regra de ouro do resto do app).
+  const [durationBasis, setDurationBasis] = useState<DurationUnit>('util');
   const [plannedStart, setPlannedStart] = useState('');
   const [plannedEnd, setPlannedEnd] = useState('');
   const [dateError, setDateError] = useState('');
@@ -83,6 +87,7 @@ export function AddTaskPanel({
     setPredecessorTaskId('');
     setScheduleMode('dates');
     setDurationDays(1);
+    setDurationBasis('util');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reseta quando o painel abre/muda
     // de alvo, não a cada render (projects muda de referência o tempo todo).
   }, [open, initialActivityId]);
@@ -134,15 +139,16 @@ export function AddTaskPanel({
     // predecessora ou muda de atividade — não a cada render.
   }, [scheduleMode, Boolean(predecessorTask), activity?.id]);
 
-  // Fim previsto é sempre calculado (início + duração em dias ÚTEIS — regra de ouro, mesma
-  // unidade de computeDatesFromDuration no assistente de novo projeto), nos dois casos acima.
+  // Fim previsto é sempre calculado (início + duração), nos dois casos acima — unidade escolhida
+  // pela pessoa (dias úteis, regra de ouro/default, ou dias corridos, pedido do usuário quando a
+  // duração conhecida já é em dia corrido).
   useEffect(() => {
     if (scheduleMode !== 'duration' || !project) return;
-    setPlannedEnd(addBusinessDays(plannedStart, Math.max(1, durationDays) - 1, holidays, project.unit));
+    setPlannedEnd(endDateFromDuration(plannedStart, durationDays, durationBasis, holidays, project.unit));
     setDateError('');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- holidays/project não entram, mesmo
     // raciocínio dos outros efeitos.
-  }, [scheduleMode, plannedStart, durationDays]);
+  }, [scheduleMode, plannedStart, durationDays, durationBasis]);
 
   if (!open) return null;
 
@@ -314,7 +320,7 @@ export function AddTaskPanel({
                       className="w-full"
                     />
                   </FormField>
-                  <FormField label="Duração (dias úteis)" required error={dateError}>
+                  <FormField label="Duração" required error={dateError}>
                     <Input
                       type="number"
                       min={1}
@@ -324,6 +330,12 @@ export function AddTaskPanel({
                     />
                   </FormField>
                 </div>
+                <FormField label="Unidade">
+                  <Select value={durationBasis} onChange={(e) => setDurationBasis(e.target.value as DurationUnit)} className="w-full">
+                    <option value="util">Dias úteis</option>
+                    <option value="corrido">Dias corridos</option>
+                  </Select>
+                </FormField>
                 <p className="text-xs text-text-muted">
                   {predecessorTask && `Início = 1º dia útil depois do fim da tarefa #${predecessorTask.rowNumber}. `}
                   Fim previsto: {formatDatePtBr(plannedEnd)}
