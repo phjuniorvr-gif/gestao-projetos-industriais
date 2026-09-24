@@ -938,8 +938,8 @@ export function ProjectSchedulePage() {
           addActivity(projectId, name, processo);
           setActivityDialog({ open: false });
         }}
-        onAddFromCatalog={(projectId, name, tasks, processo) => {
-          addActivityWithTasks(projectId, name, tasks, todayISO(), processo);
+        onAddFromCatalog={(projectId, name, tasks, startDate, processo) => {
+          addActivityWithTasks(projectId, name, tasks, startDate, processo);
           setActivityDialog({ open: false });
         }}
       />

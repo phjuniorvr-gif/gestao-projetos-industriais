@@ -14,7 +14,7 @@ import {
 } from '../components/projects';
 import { Button, ConfirmDialog, UndoToast } from '../components/ui';
 import { useCatalog, useCategories, useHolidays, usePeople, usePerfil, usePipelines, useProjects, useUndoToast } from '../hooks';
-import { sortProjectsByCriticality, todayISO } from '../utils';
+import { sortProjectsByCriticality } from '../utils';
 import { STATUS_LABEL, type ProjectStatus, type ProjectView } from '../types';
 
 export function ProjectsPage() {
@@ -242,8 +242,8 @@ export function ProjectsPage() {
           addActivity(projectId, name, processo);
           setAddingActivityToId(null);
         }}
-        onAddFromCatalog={(projectId, name, tasks, processo) => {
-          addActivityWithTasks(projectId, name, tasks, todayISO(), processo);
+        onAddFromCatalog={(projectId, name, tasks, startDate, processo) => {
+          addActivityWithTasks(projectId, name, tasks, startDate, processo);
           setAddingActivityToId(null);
         }}
         onCancel={() => setAddingActivityToId(null)}

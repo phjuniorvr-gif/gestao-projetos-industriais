@@ -15,7 +15,13 @@ interface AddActivityDialogProps {
   people: Person[];
   onCreatePerson: (name: string) => Promise<Person>;
   onAdd: (projectId: string, name: string, processo?: string) => void;
-  onAddFromCatalog: (projectId: string, name: string, tasks: NewActivityTaskInput[], processo?: string) => void;
+  onAddFromCatalog: (
+    projectId: string,
+    name: string,
+    tasks: NewActivityTaskInput[],
+    startDate: string,
+    processo?: string,
+  ) => void;
   onCancel: () => void;
 }
 
@@ -41,6 +47,10 @@ export function AddActivityDialog({
   const [processo, setProcesso] = useState('');
   const [responsavelId, setResponsavelId] = useState<string | undefined>(undefined);
   const [responsavelError, setResponsavelError] = useState('');
+  // Data de início do lote (pedido do usuário — antes fixo em "hoje", sem jeito de escolher outra
+  // data aqui; só dava pra ajustar depois abrindo cada tarefa criada). Vale só pro modo catálogo —
+  // "Criar do zero" não cria tarefa nenhuma, não tem data pra escolher.
+  const [startDate, setStartDate] = useState(todayISO());
 
   const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
   const technicalAreas = useMemo(
@@ -69,6 +79,7 @@ export function AddActivityDialog({
     setProcesso('');
     setResponsavelId(undefined);
     setResponsavelError('');
+    setStartDate(todayISO());
     setArea('');
     setTemplateId('');
     setChecked({});
@@ -107,6 +118,7 @@ export function AddActivityDialog({
         durationDays: Math.max(1, durations[t.id] ?? t.durationDays),
         predecessorRowNumbers: [],
       })),
+      startDate,
       processo.trim() || undefined,
     );
     setChecked({});
@@ -215,17 +227,22 @@ export function AddActivityDialog({
               <p className="mt-1 text-xs text-text-muted">Aplicado a todas as tarefas marcadas abaixo.</p>
             </FormField>
 
-            <FormField label="Processo (opcional)">
-              <Input
-                value={processo}
-                onChange={(e) => setProcesso(e.target.value)}
-                className="w-full"
-                placeholder="Ex.: Compra, Embarque, Desembaraço…"
-              />
-              <p className="mt-1 text-xs text-text-muted">
-                Aparece só na aba Importação, numa coluna própria — não edita depois de criada.
-              </p>
-            </FormField>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="Processo (opcional)">
+                <Input
+                  value={processo}
+                  onChange={(e) => setProcesso(e.target.value)}
+                  className="w-full"
+                  placeholder="Ex.: Compra, Embarque, Desembaraço…"
+                />
+              </FormField>
+              <FormField label="Data de início">
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full" />
+              </FormField>
+            </div>
+            <p className="-mt-2 text-xs text-text-muted">
+              Processo aparece só na aba Importação, numa coluna própria — não edita depois de criada.
+            </p>
 
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -271,8 +288,8 @@ export function AddActivityDialog({
             </div>
 
             <p className="text-xs text-text-muted">
-              As tarefas entram com início hoje ({todayISO().split('-').reverse().join('/')}); ajuste as datas e as
-              predecessoras depois, clicando na tarefa criada.
+              As tarefas entram a partir de {startDate.split('-').reverse().join('/')} (encadeadas em sequência, sem
+              predecessora entre si); ajuste as datas e as predecessoras depois, clicando na tarefa criada.
             </p>
 
             <div className="flex justify-end gap-2">
