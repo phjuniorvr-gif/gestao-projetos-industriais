@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, ListChecks, X } from 'lucide-react';
 import type { ProjectStatus, ProjectView, TaskView } from '../../types';
 import { formatPeriod, rollUpStatus } from '../../utils';
 import { computeStatusDistribution } from '../../utils/portfolio';
@@ -44,6 +44,10 @@ interface MobileScheduleListProps {
  */
 export function MobileScheduleList({ projects, collapsedActivityIds, onToggleActivity, onOpenTask }: MobileScheduleListProps) {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>([]);
+  // Card "Não iniciadas" (pedido do usuário, mesmo conceito do card equivalente no desktop —
+  // ProjectsHealthStrip.tsx) — condição derivada `isStartDelayed` (início previsto vencido sem
+  // início real), não é um `ProjectStatus`, por isso fica fora de `statusFilter`/`StatusGrid`.
+  const [notStartedOnly, setNotStartedOnly] = useState(false);
   // Tarefa concluída fica escondida por padrão (a pedido do usuário, mesmo raciocínio do "Ocultar
   // concluídos" da lista de projetos em MobileSchedulePage.tsx) — só some quando NENHUM chip de
   // status está selecionado; tocar em "Concluído" (ou qualquer combinação de chips) sempre
@@ -54,25 +58,65 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
     setStatusFilter((current) => (current.includes(status) ? current.filter((s) => s !== status) : [...current, status]));
   }
 
+  // Predicado único usado tanto pra filtrar a lista abaixo quanto pra contar "Total de
+  // Atividades" (uma atividade sobrevive se tiver ao menos 1 tarefa visível) — evita duplicar a
+  // regra em dois lugares.
+  function taskMatchesFilters(t: TaskView) {
+    const statusOk = statusFilter.length > 0 ? statusFilter.includes(t.status) : !hideCompletedByDefault || t.status !== 'completed';
+    return statusOk && (!notStartedOnly || t.isStartDelayed);
+  }
+
   // Sempre conta TODAS as tarefas (não só as visíveis) — senão selecionar "Atrasado" zeraria a
   // contagem dos outros cards em vez de só filtrar a lista abaixo (mesmo raciocínio dos cards de
   // saúde do desktop). TaskStatus === ProjectStatus (mesmo union), então computeStatusDistribution
   // (feito pra projeto) já serve pra contar tarefa sem duplicar lógica.
   const allTasks = projects.flatMap((p) => p.activities.flatMap((a) => a.tasks));
   const distribution = computeStatusDistribution(allTasks);
+  const notStartedCount = allTasks.filter((t) => t.isStartDelayed).length;
+  const totalActivitiesCount = projects.reduce(
+    (sum, p) => sum + p.activities.filter((a) => a.tasks.length === 0 || a.tasks.some(taskMatchesFilters)).length,
+    0,
+  );
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2">
+        <Card className="flex min-h-11 items-center justify-between gap-2 p-3">
+          <span className="flex min-w-0 items-center gap-2 text-sm text-text">
+            <ListChecks className="h-3.5 w-3.5 shrink-0 text-text" />
+            <span className="truncate">Total de Atividades</span>
+          </span>
+          <span className="shrink-0 font-mono text-base font-bold text-text">{totalActivitiesCount}</span>
+        </Card>
+        <button
+          type="button"
+          onClick={() => setNotStartedOnly((v) => !v)}
+          aria-pressed={notStartedOnly}
+          className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 py-2.5 transition-colors ${
+            notStartedOnly ? 'border-status-delayed bg-status-delayed/5' : 'border-border bg-white hover:border-text-muted2'
+          }`}
+        >
+          <span className="flex min-w-0 items-center gap-2 text-sm text-text">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-status-delayed" />
+            <span className="truncate">Não iniciadas</span>
+          </span>
+          <span className="shrink-0 font-mono text-base font-bold text-status-delayed">{notStartedCount}</span>
+        </button>
+      </div>
+
       <StatusGrid
         distribution={distribution}
         isActive={(status) => statusFilter.includes(status)}
         onToggleStatus={toggleStatusFilter}
         title="Status das tarefas"
       />
-      {statusFilter.length > 0 && (
+      {(statusFilter.length > 0 || notStartedOnly) && (
         <button
           type="button"
-          onClick={() => setStatusFilter([])}
+          onClick={() => {
+            setStatusFilter([]);
+            setNotStartedOnly(false);
+          }}
           className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-action"
         >
           <X className="h-3.5 w-3.5" /> Limpar filtro
@@ -83,9 +127,7 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
         const activitiesWithVisibleTasks = project.activities
           .map((activity) => ({
             activity,
-            visibleTasks: activity.tasks.filter((t) =>
-              statusFilter.length > 0 ? statusFilter.includes(t.status) : !hideCompletedByDefault || t.status !== 'completed',
-            ),
+            visibleTasks: activity.tasks.filter(taskMatchesFilters),
           }))
           // Atividade sem NENHUMA tarefa cadastrada continua aparecendo (não tem o que esconder);
           // atividade com tarefa mas tudo escondido (ex.: todas concluídas, ocultas por padrão)
