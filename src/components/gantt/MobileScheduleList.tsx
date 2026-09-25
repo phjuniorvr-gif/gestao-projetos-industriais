@@ -168,7 +168,7 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
                                     <RowTypeBadge type="task" />
                                     <span className="truncate text-sm text-text">{task.name}</span>
                                   </span>
-                                  <StatusEmoji status={task.status} />
+                                  <StatusEmoji status={task.status} blocked={task.isBlocked} startDelayed={task.isStartDelayed} />
                                 </span>
                                 <DatesLine
                                   plannedStart={task.plannedStart}

@@ -1,4 +1,4 @@
-import { ListChecks } from 'lucide-react';
+import { AlertTriangle, ListChecks } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import type { ProjectStatus } from '../../types';
 import { STATUS_COLOR, STATUS_LABEL } from '../../types';
@@ -26,6 +26,14 @@ interface ProjectsHealthStripProps {
   activeStatuses: ProjectStatus[];
   /** `multi` vem do Ctrl/Cmd+clique — acrescenta/remove o status da seleção em vez de trocar. */
   onToggleStatus: (status: ProjectStatus, multi: boolean) => void;
+  /** Card extra "Não iniciadas" (pedido do usuário, aba Importação) — condição derivada
+   * `isStartDelayed` (início previsto já passou, sem início real), não é um `ProjectStatus`, por
+   * isso fica fora do array `STATUS_CARD_ORDER`/`activeStatuses`. Só renderiza quando
+   * `onToggleNotStarted` é passado — ausente em `ProjectsPage.tsx` (nível de projeto), onde esse
+   * conceito não se aplica do mesmo jeito. */
+  notStartedCount?: number;
+  notStartedActive?: boolean;
+  onToggleNotStarted?: () => void;
 }
 
 const STATUS_CARD_ORDER: ProjectStatus[] = ['completed', 'in_progress', 'delayed', 'planned'];
@@ -41,12 +49,16 @@ export function ProjectsHealthStrip({
   statusLabels,
   activeStatuses,
   onToggleStatus,
+  notStartedCount,
+  notStartedActive,
+  onToggleNotStarted,
 }: ProjectsHealthStripProps) {
   const distribution = computeStatusDistribution(projects);
   const countOf = (status: ProjectStatus) => distribution.find((d) => d.status === status)?.count ?? 0;
+  const showNotStarted = Boolean(onToggleNotStarted);
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div className={`grid grid-cols-2 gap-3 ${showNotStarted ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
       <Card className="overflow-hidden p-0">
         <div className="bg-text px-3 py-1.5 text-xs font-semibold text-white">{totalLabel}</div>
         <div className="flex items-center justify-between px-3 py-3">
@@ -83,6 +95,23 @@ export function ProjectsHealthStrip({
           </Card>
         </button>
       ))}
+
+      {showNotStarted && (
+        <button type="button" onClick={onToggleNotStarted} className="text-left" title="Início previsto já passou, sem início real">
+          <Card
+            className={`overflow-hidden p-0 transition-opacity ${
+              notStartedActive ? 'ring-2 ring-offset-1' : ''
+            }`}
+            style={notStartedActive ? ({ '--tw-ring-color': 'var(--color-status-delayed)' } as CSSProperties) : undefined}
+          >
+            <div className="bg-status-delayed px-3 py-1.5 text-xs font-semibold text-white">Não iniciadas</div>
+            <div className="flex items-center justify-between px-3 py-3">
+              <span className="text-2xl font-bold text-text">{notStartedCount ?? 0}</span>
+              <AlertTriangle className="h-6 w-6 text-status-delayed" />
+            </div>
+          </Card>
+        </button>
+      )}
     </div>
   );
 }

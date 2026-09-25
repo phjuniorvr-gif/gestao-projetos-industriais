@@ -241,7 +241,7 @@ export function GanttRow({
         style={compact ? { left: statusCol.left, width: statusCol.width } : { width: statusCol.width }}
       >
         <div className="flex items-center justify-center">
-          <StatusEmoji status={task.status} />
+          <StatusEmoji status={task.status} blocked={task.isBlocked} startDelayed={task.isStartDelayed} />
         </div>
       </td>
       <td className="h-[34px] overflow-hidden px-1 py-0 align-middle" style={{ width: getColumnRect(columns, 'observacao').width }}>

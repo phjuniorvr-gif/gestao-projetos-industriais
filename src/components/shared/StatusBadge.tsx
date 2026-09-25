@@ -38,10 +38,19 @@ export function StatusBadge({
   rejected,
 }: StatusBadgeProps) {
   const showStartDelayed = shouldShowStartDelayedBadge({ isStartDelayed: startDelayed, isBlocked: blocked, status });
+  // Pedido do usuário — na condição "início previsto vencido sem início real" (mesma que já
+  // acende o triângulo abaixo), o selo principal passa a dizer "Não iniciada" (em vez de
+  // "Planejado") E fica laranja (`STATUS_COLOR.delayed`, mesma cor do triângulo/card "Não
+  // iniciadas") em vez do roxo padrão de 'planned' — pra diferenciar visualmente sem abrir a
+  // tarefa. Só troca a APARÊNCIA deste selo específico — `STATUS_LABEL`/`STATUS_COLOR`/`status`
+  // em si não mudam (filtros, outras telas, `computeStatusDistribution`... continuam vendo
+  // 'planned' normal).
+  const label = showStartDelayed ? 'Não iniciada' : STATUS_LABEL[status];
+  const color = showStartDelayed ? STATUS_COLOR.delayed : STATUS_COLOR[status];
 
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <Badge color={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Badge>
+      <Badge color={color}>{label}</Badge>
 
       {blocked && (
         <span aria-label="Bloqueada por predecessora não concluída" title="Bloqueada por predecessora não concluída">

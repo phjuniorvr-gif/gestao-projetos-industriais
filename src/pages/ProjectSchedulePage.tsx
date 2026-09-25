@@ -157,6 +157,11 @@ export function ProjectSchedulePage() {
     () => (Object.keys(STATUS_LABEL) as ProjectStatus[]).filter((s) => filters.status.includes(STATUS_LABEL[s])),
     [filters.status],
   );
+  // Card "Não iniciadas" da Importação (pedido do usuário) — não é um `ProjectStatus` (a tarefa
+  // continua "Planejada"), é a condição derivada `isStartDelayed` (início previsto já passou, sem
+  // início real, independente de predecessora — mesma flag do selo ⚠️ que `StatusBadge.tsx` já
+  // mostra por tarefa). Boolean à parte, não entra em `activeStatuses`/`filters.status`.
+  const [notStartedOnly, setNotStartedOnly] = useState(false);
   const toggleStatus = (status: ProjectStatus, multi: boolean) => {
     const label = STATUS_LABEL[status];
     setFilters((f) => {
@@ -198,6 +203,13 @@ export function ProjectSchedulePage() {
     hideCompleted,
     importacaoProjectFilter,
   ]);
+
+  // Contagem do card "Não iniciadas" — mesma base dos 4 cards de status (sem o filtro de status
+  // NEM o de "não iniciadas" aplicados), senão ligar o próprio filtro zeraria o card que o liga.
+  const importacaoNotStartedCount = useMemo(
+    () => importacaoTasksExceptStatus.filter((t) => t.isStartDelayed).length,
+    [importacaoTasksExceptStatus],
+  );
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(new Set());
   const [collapsedActivityIds, setCollapsedActivityIds] = useState<Set<string>>(new Set());
@@ -258,7 +270,13 @@ export function ProjectSchedulePage() {
     // com a "atrasada" dentro de uma atividade que só ficava no filtro por ter UMA tarefa
     // combinando; pedido do usuário: clicar "Atrasado" deve mostrar só a tarefa atrasada mesmo).
     const source = isImportacaoView ? visibleProjectsExceptStatus : visibleProjects;
-    if (!effectiveCategoryFilter && !responsavelFilterId && !hideCompleted && !(isImportacaoView && activeStatuses.length > 0))
+    if (
+      !effectiveCategoryFilter &&
+      !responsavelFilterId &&
+      !hideCompleted &&
+      !(isImportacaoView && activeStatuses.length > 0) &&
+      !(isImportacaoView && notStartedOnly)
+    )
       return source;
     return source
       .map((p): ProjectView | null => {
@@ -270,7 +288,8 @@ export function ProjectSchedulePage() {
                 (!effectiveCategoryFilter || t.category === effectiveCategoryFilter) &&
                 (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
                 (!hideCompleted || t.status !== 'completed') &&
-                (!isImportacaoView || activeStatuses.length === 0 || activeStatuses.includes(t.status)),
+                (!isImportacaoView || activeStatuses.length === 0 || activeStatuses.includes(t.status)) &&
+                (!isImportacaoView || !notStartedOnly || t.isStartDelayed),
             );
             if (tasks.length === 0) return null;
             return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
@@ -291,6 +310,7 @@ export function ProjectSchedulePage() {
     isImportacaoView,
     importacaoCategoryId,
     activeStatuses,
+    notStartedOnly,
     importacaoProjectFilter,
   ]);
 
@@ -603,6 +623,7 @@ export function ProjectSchedulePage() {
                     setCategoryFilter('');
                     setHideCompleted(false);
                     setImportacaoProjectFilter('');
+                    setNotStartedOnly(false);
                   }
                 }}
               />
@@ -620,6 +641,9 @@ export function ProjectSchedulePage() {
             statusLabels={isImportacaoView ? IMPORTACAO_TASK_STATUS_LABELS : undefined}
             activeStatuses={activeStatuses}
             onToggleStatus={toggleStatus}
+            notStartedCount={isImportacaoView ? importacaoNotStartedCount : undefined}
+            notStartedActive={notStartedOnly}
+            onToggleNotStarted={isImportacaoView ? () => setNotStartedOnly((v) => !v) : undefined}
           />
         )}
 
