@@ -28,6 +28,21 @@ function plural(n: number): string {
   return n === 1 ? 'dia' : 'dias';
 }
 
+/** Linha "Desvio" (pedido do usuário — "não alteramos a base, como podemos enxergar no kanban") —
+ * compara o FIM da linha de base (congelada, nunca muda sozinha — Fase 2.5) contra o FIM
+ * previsto ATUAL (que pode ter sido replanejado) da mesma tarefa. Dias CORRIDOS (`diffDays`),
+ * mesma unidade da Duração logo abaixo — não é o mesmo cálculo de `computeScheduleDeviationDays`
+ * (dias úteis, compara real/hoje contra previsto, só quando `status === 'delayed'`, outro
+ * conceito de "desvio" já usado em `portfolio.ts`/tabela de Projetos). `null` quando os dois
+ * batem — sem replanejamento no fim previsto, não há o que mostrar. */
+function formatDeviationLine(task: TaskView): { text: string; late: boolean } | null {
+  const deviation = diffDays(task.baseEnd, task.plannedEnd);
+  if (deviation === 0) return null;
+  if (deviation > 0) return { text: `Desvio de ${deviation} ${plural(deviation)}`, late: true };
+  const days = Math.abs(deviation);
+  return { text: `Adiantado ${days} ${plural(days)}`, late: false };
+}
+
 /** Linha embaixo da data do card (pedido do usuário) — texto muda conforme a SITUAÇÃO da tarefa,
  * não só a contagem: "Atrasado" conta a partir do FIM previsto (já vencido); "Não iniciada" conta
  * a partir do INÍCIO previsto (já vencido, sem início real — `task.isStartDelayed`); "Planejado"
@@ -119,6 +134,7 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
             ) : (
               groups[stage].map(({ project, activity, task }) => {
                 const daysLine = formatDaysLine(task, today);
+                const deviationLine = formatDeviationLine(task);
                 const duration = calendarDaysBetween(task.plannedStart, task.plannedEnd);
                 return (
                 <button
@@ -140,6 +156,11 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
                     <p className="text-xs text-text-muted">
                       {formatDatePtBr(task.plannedStart)} — {formatDatePtBr(task.plannedEnd)}
                     </p>
+                    {deviationLine && (
+                      <p className={`text-xs font-semibold ${deviationLine.late ? 'text-status-delayed' : 'text-text-muted'}`}>
+                        {deviationLine.text}
+                      </p>
+                    )}
                     <p className="text-xs text-text-muted">
                       Duração: {duration} {plural(duration)}
                     </p>
