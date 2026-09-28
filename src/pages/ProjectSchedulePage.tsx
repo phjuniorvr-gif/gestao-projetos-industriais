@@ -20,6 +20,7 @@ import {
   GanttTable,
   getGanttColumns,
   getGanttLeftWidth,
+  ImportacaoKanban,
   MobileScheduleList,
   offsetPx,
   RejectTaskDialog,
@@ -38,7 +39,15 @@ import {
 import type { MobileOutletContext } from '../components/layout';
 import { useCatalog, useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectStatus, type ProjectView, type TaskView } from '../types';
-import { computeProjectStatus, rollUpDates, rollUpStatus, sortProjectsByCriticality, todayISO } from '../utils';
+import {
+  computeImportacaoStage,
+  computeProjectStatus,
+  rollUpDates,
+  rollUpStatus,
+  sortProjectsByCriticality,
+  todayISO,
+} from '../utils';
+import type { ImportacaoKanbanCard } from '../components/gantt';
 
 const ZOOM_OPTIONS: { value: GanttZoom; label: string }[] = [
   { value: 'dia', label: 'Dia' },
@@ -199,6 +208,23 @@ export function ProjectSchedulePage() {
     });
   };
 
+  // Cards de status do KANBAN (pedido do usuário — "uns card assim pra selecionar, mas agora por
+  // status no kanban", mesmo componente `ProjectsHealthStrip`/visual do print) — estado À PARTE
+  // de `activeStatuses`/`notStartedOnly` (que filtram a TABELA) de propósito: ali o filtro entra
+  // ANTES da derivação de etapa (removeria uma tarefa do meio da sequência e confundiria "primeira
+  // não concluída"); aqui filtra o RESULTADO já pronto (`importacaoKanbanCards`, 1 card por
+  // atividade já na etapa certa) — seguro, não interfere na derivação de ninguém.
+  const [kanbanActiveStatuses, setKanbanActiveStatuses] = useState<ProjectStatus[]>([]);
+  const [kanbanNotStartedOnly, setKanbanNotStartedOnly] = useState(false);
+  const toggleKanbanStatus = (status: ProjectStatus, multi: boolean) => {
+    setKanbanActiveStatuses((current) => {
+      if (multi) {
+        return current.includes(status) ? current.filter((s) => s !== status) : [...current, status];
+      }
+      return current.length === 1 && current[0] === status ? [] : [status];
+    });
+  };
+
   // Aba Importação — base pros 4 cards de status da faixa de saúde (sem filtro de status, mesmo
   // cuidado de `visibleProjectsExceptStatus` acima), de TAREFA, não de atividade nem de projeto —
   // pedido do usuário: "Total de Atividades" continua contando atividade, mas Concluído/Em
@@ -251,13 +277,28 @@ export function ProjectSchedulePage() {
   // Começa `false` (recolhido em Atividade, pedido do usuário) — combina com `collapsedOnLoadRef`
   // recolhendo as atividades ao carregar essa rota.
   const [importacaoExpanded, setImportacaoExpanded] = useState(false);
+  // "Teste" (pedido do usuário) — visão Kanban por etapa (Fabricação/Transit Time/Entrega/Outras),
+  // ao lado da lista de sempre. Controles pensados pro modo Tabela (Recolher tudo/Buscar processo/
+  // ordenar/Editar) somem quando Kanban está ativo — não fazem sentido nessa visão.
+  const [importacaoView, setImportacaoView] = useState<'tabela' | 'kanban'>(
+    isImportacaoView ? 'kanban' : 'tabela',
+  );
+  // Pedido do usuário — sempre que a pessoa ENTRA na aba Importação, abre em Kanban, mesmo que
+  // tenha deixado em Tabela numa visita anterior à mesma sessão (o `useState` acima só cobre a
+  // primeira montagem; este efeito cobre reentrar na rota sem remontar o componente, caso do
+  // React Router quando o mesmo componente serve rotas irmãs).
+  useEffect(() => {
+    if (isImportacaoView) setImportacaoView('kanban');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve disparar quando ENTRA na
+    // rota (isImportacaoView vira true), não a cada re-render enquanto já está nela.
+  }, [isImportacaoView]);
   // Aba Importação (pedido do usuário) — ordena ATIVIDADE (não projeto/código, que é o que
-  // `nameSort` faz no Cronograma normal): "criticidade" (mesma regra de `sortProjectsByCriticality`),
-  // "Processo" A→Z/Z→A ou "Fim previsto" (padrão — pedido do usuário, mais próximo primeiro,
-  // "deixando a próxima data na sequência"). Ciclo de 4 estados via `cycleImportacaoSort`.
+  // `nameSort` faz no Cronograma normal): "criticidade" (padrão — pedido do usuário, fim previsto
+  // da TAREFA do card, mais perto de vencer primeiro), "Processo" A→Z/Z→A ou "Fim previsto" (fim
+  // previsto da ATIVIDADE inteira, rollup). Ciclo de 4 estados via `cycleImportacaoSort`.
   const [importacaoSort, setImportacaoSort] = useState<
     'criticidade' | 'processoAsc' | 'processoDesc' | 'fimPrevisto'
-  >('fimPrevisto');
+  >('criticidade');
   // Começa em modo Tabela (sem Gantt) — pedido do usuário.
   const [compact, setCompact] = useState(false);
   // Aba Importação (pedido do usuário) sempre em modo Tabela, sem alternar — o toggle Tabela⇄Gantt
@@ -387,6 +428,116 @@ export function ProjectSchedulePage() {
       activities: [activity],
     }));
   }, [isImportacaoView, ganttProjects, importacaoSort, today, holidays]);
+
+  // Cards do Kanban (sessão de 2026-09-28, "teste" a pedido do usuário) — 1 card por atividade,
+  // na etapa em que ela está agora (`computeImportacaoStage`). Base ignora `activeStatuses`/
+  // `notStartedOnly` DE PROPÓSITO: os dois filtram TAREFA por status, o que cortaria uma tarefa
+  // do meio da sequência e confundiria "primeira não concluída" com a etapa errada — por isso os
+  // dois ficam escondidos quando o Kanban está ativo (ver JSX abaixo), em vez de tentar honrá-los
+  // aqui. Categoria/responsável/"Projeto"/"Buscar processo" continuam valendo, mesmos filtros que
+  // a tabela já usa. Ordenação (pedido do usuário — "no kanban também precisamos deste botão")
+  // reaproveita a MESMA regra de `importacaoSort` que `importacaoDisplayProjects` já usa acima,
+  // aplicada sobre a atividade de cada card — dentro de cada coluna (o agrupamento por etapa é
+  // de `ImportacaoKanban.tsx`, que preserva a ordem do array recebido).
+  const importacaoKanbanCards = useMemo((): ImportacaoKanbanCard[] => {
+    if (!isImportacaoView || !importacaoCategoryId) return [];
+    const unsorted = visibleProjectsExceptStatus
+      .filter((p) => !importacaoProjectFilter || p.id === importacaoProjectFilter)
+      .flatMap((p) =>
+        p.activities
+          .filter(matchesProcesso)
+          .map((a) => {
+            const tasks = a.tasks.filter(
+              (t) => t.category === importacaoCategoryId && (!responsavelFilterId || t.responsavelId === responsavelFilterId),
+            );
+            const current = computeImportacaoStage(tasks);
+            if (!current) return null;
+            return { project: p, activity: a, stage: current.stage, task: current.task };
+          })
+          .filter((card): card is ImportacaoKanbanCard => card !== null),
+      );
+    const cardByActivityId = new Map(unsorted.map((c) => [c.activity.id, c]));
+    let orderedActivities: ActivityView[];
+    if (importacaoSort === 'processoAsc' || importacaoSort === 'processoDesc') {
+      orderedActivities = unsorted
+        .map((c) => c.activity)
+        .sort((a, b) => (a.processo ?? '').localeCompare(b.processo ?? '', 'pt-BR', { sensitivity: 'base', numeric: true }));
+      if (importacaoSort === 'processoDesc') orderedActivities.reverse();
+    } else if (importacaoSort === 'fimPrevisto') {
+      orderedActivities = unsorted.map((c) => c.activity).sort((a, b) => (a.plannedEnd ?? '').localeCompare(b.plannedEnd ?? ''));
+    } else {
+      // Criticidade (achado do usuário — "a criticidade seria a data final e não está assim"):
+      // tentativa anterior (agrupar por situação — delayed/não iniciada/em andamento/planejado)
+      // não era o que o usuário queria. Definição correta, mais simples: ordena pelo FIM PREVISTO
+      // da TAREFA do card (não da atividade inteira — isso é o que "Fim previsto", outro botão do
+      // mesmo ciclo, já faz), mais próximo de vencer primeiro. Tarefa atrasada (fim previsto no
+      // passado) já fica na frente de qualquer tarefa com fim previsto no futuro de graça — data
+      // ISO no passado sempre compara menor que uma no futuro, sem precisar de grupo explícito.
+      orderedActivities = [...unsorted]
+        .sort((a, b) => {
+          const endA = a.task.plannedEnd ?? '';
+          const endB = b.task.plannedEnd ?? '';
+          if (endA !== endB) return endA < endB ? -1 : 1;
+          return a.activity.id < b.activity.id ? -1 : a.activity.id > b.activity.id ? 1 : 0;
+        })
+        .map((c) => c.activity);
+    }
+    return orderedActivities.map((activity) => cardByActivityId.get(activity.id)!);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `matchesProcesso` fecha sobre
+    // `importacaoProcessoSearch`, já listada abaixo (mesmo raciocínio dos outros memos que usam
+    // essa função).
+  }, [
+    isImportacaoView,
+    importacaoCategoryId,
+    visibleProjectsExceptStatus,
+    importacaoProjectFilter,
+    responsavelFilterId,
+    importacaoProcessoSearch,
+    importacaoSort,
+  ]);
+
+  // Contagem do card "Não iniciadas" do Kanban — mesma base SEM os dois filtros (senão ligar o
+  // próprio filtro zeraria o card que o liga), mesmo cuidado de sempre.
+  const importacaoKanbanNotStartedCount = useMemo(
+    () => importacaoKanbanCards.filter((c) => c.task.isStartDelayed).length,
+    [importacaoKanbanCards],
+  );
+
+  // Achado do usuário — "no planejado as não iniciadas estão vindo juntas": `isStartDelayed` é
+  // uma condição À PARTE de `status` (a tarefa continua `status === 'planned'` por baixo, só o
+  // SELO troca de "Planejado" pra "Não iniciada" — `StatusBadge.tsx`, sessão anterior). Sem esse
+  // ajuste, o card "Tarefa Planejada" (que conta por `status` puro) incluía as duas situações
+  // misturadas. `isKanbanPlanned` isola quem é planejado DE VERDADE (sem o selo de atraso de
+  // início) — usada tanto na contagem dos 4 cards de status quanto no filtro do quadro, pros dois
+  // lados concordarem.
+  const isKanbanPlanned = (task: TaskView) => task.status === 'planned' && !task.isStartDelayed;
+
+  // Fonte dos 4 cards de status (Concluída/Em andamento/Atrasada/Planejada) — tira quem já está
+  // contado em "Não iniciadas" da contagem de "Planejada" (única interseção possível entre as
+  // duas; delayed/in_progress/completed não mudam).
+  const importacaoKanbanStatusCardTasks = useMemo(
+    () => importacaoKanbanCards.filter((c) => c.task.status !== 'planned' || isKanbanPlanned(c.task)).map((c) => c.task),
+    [importacaoKanbanCards],
+  );
+
+  // Aplica os cards de status do Kanban (acima) sobre o resultado JÁ pronto — o quadro só recebe
+  // isso, `importacaoKanbanCards` (sem filtro) continua alimentando os cards de resumo/contagem.
+  // "Planejado" selecionado só pega quem é `isKanbanPlanned` (mesmo motivo acima) — os outros 3
+  // status continuam batendo por `status` puro. **Achado do usuário — selecionar "Planejado" E
+  // "Não iniciadas" juntos não mostrava nada**: como `isKanbanPlanned` exige `!isStartDelayed` e
+  // "Não iniciadas" exige `isStartDelayed`, combinar os dois com E (como era antes) é uma
+  // contradição — sempre zero, pra qualquer card. "Não iniciadas" virou só mais uma opção
+  // combinada com OU junto dos chips de status (mesma lógica de "Ctrl+clique acrescenta" que os
+  // chips já têm entre si) — sem chip nenhum selecionado, continua filtrando só por
+  // `isStartDelayed` como antes; com um chip selecionado, mostra a UNIÃO dos dois grupos.
+  const importacaoKanbanCardsFiltered = useMemo(() => {
+    if (kanbanActiveStatuses.length === 0 && !kanbanNotStartedOnly) return importacaoKanbanCards;
+    return importacaoKanbanCards.filter((c) => {
+      const matchesStatus = kanbanActiveStatuses.some((s) => (s === 'planned' ? isKanbanPlanned(c.task) : c.task.status === s));
+      const matchesNotStarted = kanbanNotStartedOnly && c.task.isStartDelayed;
+      return matchesStatus || matchesNotStarted;
+    });
+  }, [importacaoKanbanCards, kanbanActiveStatuses, kanbanNotStartedOnly]);
 
   const allTasks = useMemo(() => ganttProjects.flatMap((p) => p.activities.flatMap((a) => a.tasks)), [ganttProjects]);
 
@@ -654,7 +805,13 @@ export function ProjectSchedulePage() {
                 hideUnit={isImportacaoView}
                 extraActiveCount={
                   isImportacaoView
-                    ? (importacaoProjectFilter ? 1 : 0) + (notStartedOnly ? 1 : 0) + (importacaoProcessoSearch.trim() ? 1 : 0)
+                    ? (importacaoProjectFilter ? 1 : 0) +
+                      (importacaoProcessoSearch.trim() ? 1 : 0) +
+                      (importacaoView === 'kanban'
+                        ? kanbanActiveStatuses.length + (kanbanNotStartedOnly ? 1 : 0)
+                        : notStartedOnly
+                          ? 1
+                          : 0)
                     : 0
                 }
                 onChange={(next) => {
@@ -665,6 +822,8 @@ export function ProjectSchedulePage() {
                     setImportacaoProjectFilter('');
                     setNotStartedOnly(false);
                     setImportacaoProcessoSearch('');
+                    setKanbanActiveStatuses([]);
+                    setKanbanNotStartedOnly(false);
                   }
                 }}
               />
@@ -675,17 +834,37 @@ export function ProjectSchedulePage() {
         {/* Aba Importação no mobile já tem esse resumo, de novo, dentro do `MobileScheduleList`
             ("Status das tarefas") — pedido do usuário pra tirar a duplicata aqui em cima. */}
         {!project && projectsToShow.length > 0 && !(isMobile && isImportacaoView) && (
-          <ProjectsHealthStrip
-            projects={isImportacaoView ? importacaoTasksExceptStatus : visibleProjectsExceptStatus}
-            totalCount={isImportacaoView ? ganttProjects.flatMap((p) => p.activities).length : visibleProjects.length}
-            totalLabel={isImportacaoView ? 'Total de Atividades' : undefined}
-            statusLabels={isImportacaoView ? IMPORTACAO_TASK_STATUS_LABELS : undefined}
-            activeStatuses={activeStatuses}
-            onToggleStatus={toggleStatus}
-            notStartedCount={isImportacaoView ? importacaoNotStartedCount : undefined}
-            notStartedActive={notStartedOnly}
-            onToggleNotStarted={isImportacaoView ? () => setNotStartedOnly((v) => !v) : undefined}
-          />
+          isImportacaoView && importacaoView === 'kanban' ? (
+            // Pedido do usuário ("uns card assim pra selecionar, mas agora por status no
+            // kanban") — MESMO componente, fonte de dado e filtro diferentes: conta a tarefa
+            // "atual" de cada card do Kanban (`importacaoKanbanCards`), e o clique filtra o
+            // RESULTADO já pronto (`importacaoKanbanCardsFiltered`) — não entra na derivação de
+            // etapa, então não tem o risco que os filtros da Tabela teriam (ver comentário em
+            // `kanbanActiveStatuses`).
+            <ProjectsHealthStrip
+              projects={importacaoKanbanStatusCardTasks}
+              totalCount={importacaoKanbanCards.length}
+              totalLabel="Total de Atividades"
+              statusLabels={IMPORTACAO_TASK_STATUS_LABELS}
+              activeStatuses={kanbanActiveStatuses}
+              onToggleStatus={toggleKanbanStatus}
+              notStartedCount={importacaoKanbanNotStartedCount}
+              notStartedActive={kanbanNotStartedOnly}
+              onToggleNotStarted={() => setKanbanNotStartedOnly((v) => !v)}
+            />
+          ) : (
+            <ProjectsHealthStrip
+              projects={isImportacaoView ? importacaoTasksExceptStatus : visibleProjectsExceptStatus}
+              totalCount={isImportacaoView ? ganttProjects.flatMap((p) => p.activities).length : visibleProjects.length}
+              totalLabel={isImportacaoView ? 'Total de Atividades' : undefined}
+              statusLabels={isImportacaoView ? IMPORTACAO_TASK_STATUS_LABELS : undefined}
+              activeStatuses={activeStatuses}
+              onToggleStatus={toggleStatus}
+              notStartedCount={isImportacaoView ? importacaoNotStartedCount : undefined}
+              notStartedActive={notStartedOnly}
+              onToggleNotStarted={isImportacaoView ? () => setNotStartedOnly((v) => !v) : undefined}
+            />
+          )
         )}
 
         {projectsToShow.length > 0 && !isMobile && (
@@ -785,8 +964,33 @@ export function ProjectSchedulePage() {
                   </Button>
                 </>
               )}
-              {/* Aba Importação — sem nível Projeto, então é só 2 estados (não o ciclo de 3 acima). */}
+              {/* "Teste" (pedido do usuário) — alterna entre a lista de sempre e o Kanban por
+                  etapa. Os controles abaixo (Recolher tudo/Buscar processo/ordenar/Editar) só
+                  fazem sentido no modo Tabela — não aparecem no Kanban. */}
               {!isMobile && isImportacaoView && (
+                <div className="flex items-center rounded-[9px] border border-border bg-page p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setImportacaoView('tabela')}
+                    className={`rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      importacaoView === 'tabela' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    Tabela
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportacaoView('kanban')}
+                    className={`rounded-[7px] px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      importacaoView === 'kanban' ? 'bg-card text-action shadow-sm' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    Kanban
+                  </button>
+                </div>
+              )}
+              {/* Aba Importação — sem nível Projeto, então é só 2 estados (não o ciclo de 3 acima). */}
+              {!isMobile && isImportacaoView && importacaoView === 'tabela' && (
                 <Button
                   variant={importacaoExpanded ? 'secondary' : 'primary'}
                   icon={importacaoExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
@@ -797,7 +1001,8 @@ export function ProjectSchedulePage() {
               )}
               {/* Busca por "Processo" (pedido do usuário, ao lado do "Recolher tudo") — mesmo
                   visual do campo "Buscar projeto ou responsável" (`ProjectFilters.tsx`), que não
-                  aparece nesta aba (`hideSearch`). */}
+                  aparece nesta aba (`hideSearch`). Continua aparecendo nos dois modos (Tabela e
+                  Kanban) — `importacaoKanbanCards` já reaproveita o mesmo `matchesProcesso`. */}
               {!isMobile && isImportacaoView && (
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted2" />
@@ -811,7 +1016,9 @@ export function ProjectSchedulePage() {
                 </div>
               )}
               {/* Ordena ATIVIDADE (pedido do usuário) — ciclo de 3 estados, rótulo descreve o
-                  destino do próximo clique, mesmo padrão do toggle acima. */}
+                  destino do próximo clique, mesmo padrão do toggle acima. Aparece nos dois modos
+                  (Tabela/Kanban, pedido do usuário) — `importacaoKanbanCards` já reaproveita a
+                  mesma regra de ordenação. */}
               {!isMobile && isImportacaoView && (
                 <button
                   type="button"
@@ -825,7 +1032,7 @@ export function ProjectSchedulePage() {
               {/* "Editar" na Importação (pedido do usuário) — só administrador vê (comprador não
                   tem o que editar aqui); liga o mesmo `editMode` do Cronograma normal (lápis de
                   renomear + lixeira de excluir atividade). */}
-              {!isMobile && isImportacaoView && isAdmin === true && (
+              {!isMobile && isImportacaoView && importacaoView === 'tabela' && isAdmin === true && (
                 <Button
                   variant={editMode ? 'secondary' : 'primary'}
                   icon={<Pencil className="h-4 w-4" />}
@@ -890,7 +1097,15 @@ export function ProjectSchedulePage() {
         />
       )}
 
-      {ganttProjects.length > 0 && !isMobile && (
+      {/* "Teste" (pedido do usuário) — Kanban por etapa no lugar da tabela, só desktop por
+          enquanto. `importacaoKanbanCards` já reflete os mesmos filtros de categoria/responsável/
+          Projeto/Processo que a tabela usa (não os 4 chips de status/"Não iniciadas" — ver
+          comentário no `useMemo`). */}
+      {!isMobile && isImportacaoView && importacaoView === 'kanban' && (
+        <ImportacaoKanban cards={importacaoKanbanCardsFiltered} today={today} holidays={holidays} onOpenTask={setSelectedTask} />
+      )}
+
+      {ganttProjects.length > 0 && !isMobile && !(isImportacaoView && importacaoView === 'kanban') && (
         <Card className="space-y-4 p-0">
           <div className="px-4 pb-4 pt-4">
             <GanttTable

@@ -5,3 +5,4 @@ export * from './code';
 export * from './schedule';
 export * from './portfolio';
 export * from './replan';
+export * from './importacaoStage';

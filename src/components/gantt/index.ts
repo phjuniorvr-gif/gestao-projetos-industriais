@@ -17,3 +17,4 @@ export * from './RejectTaskDialog';
 export * from './UpcomingTaskDetail';
 export * from './AddTaskPanel';
 export * from './AddActivityDialog';
+export * from './ImportacaoKanban';
