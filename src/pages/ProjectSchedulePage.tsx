@@ -760,6 +760,32 @@ export function ProjectSchedulePage() {
                 Esconder concluídas
               </button>
             )}
+            {/* Toggle Tabela⇄Kanban chega no mobile (pedido do usuário) — mesmo `importacaoView`
+                do desktop, só um controle próprio (mobile não tem a barra de toolbar desktop,
+                fica inteira atrás de `!isMobile`), estilo pílula igual aos outros botões de 2
+                estados desta página no mobile (ex. "Ordenar" logo abaixo). */}
+            {isMobile && isImportacaoView && (
+              <div className="flex min-h-11 items-center rounded-full border border-border bg-white p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setImportacaoView('tabela')}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    importacaoView === 'tabela' ? 'bg-sidebar text-white' : 'text-text-muted'
+                  }`}
+                >
+                  Tabela
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImportacaoView('kanban')}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    importacaoView === 'kanban' ? 'bg-sidebar text-white' : 'text-text-muted'
+                  }`}
+                >
+                  Kanban
+                </button>
+              </div>
+            )}
             {/* Mesmo ciclo de ordenação do botão desktop (`cycleImportacaoSort`/`importacaoSort`,
                 acima) — mobile não tem a barra de toolbar desktop (fica inteira atrás de
                 `!isMobile`), então precisa de um controle próprio, mesmo estilo de botão "Ordenar"
@@ -774,11 +800,11 @@ export function ProjectSchedulePage() {
                 {importacaoSortNextLabel}
               </button>
             )}
-            {/* "Unidade" volta pra Importação (pedido do usuário, estética) — renderizada aqui,
-                logo depois do botão de ordenação, não dentro de `<ProjectFilters>` (que continua
-                com `hideUnit`, senão apareceria duas vezes). "Projeto" (novo, substituiu Unidade
-                antes) continua também, só que depois dela agora. */}
-            {isImportacaoView && (
+            {/* "Unidade"/"Projeto" — pedido do usuário: some inteiro do MOBILE (não é só visual,
+                é a tela mesmo sem esses dois filtros lá). Continuam no desktop, sem mudança —
+                "Unidade" renderizada aqui, logo depois do botão de ordenação, não dentro de
+                `<ProjectFilters>` (que continua com `hideUnit`, senão apareceria duas vezes). */}
+            {!isMobile && isImportacaoView && (
               <FilterSelect
                 label="Unidade"
                 value={filters.unit}
@@ -786,7 +812,7 @@ export function ProjectSchedulePage() {
                 options={units}
               />
             )}
-            {isImportacaoView && (
+            {!isMobile && isImportacaoView && (
               <FilterSelect
                 label="Projeto"
                 value={importacaoProjectFilter}
@@ -831,8 +857,11 @@ export function ProjectSchedulePage() {
           </div>
         </div>
 
-        {/* Aba Importação no mobile já tem esse resumo, de novo, dentro do `MobileScheduleList`
-            ("Status das tarefas") — pedido do usuário pra tirar a duplicata aqui em cima. */}
+        {/* Aba Importação some no MOBILE inteiro (Tabela e Kanban) — pedido do usuário: no modo
+            Tabela já tinha um resumo duplicado dentro do `MobileScheduleList` ("Status das
+            tarefas"); no Kanban, os 6 cards apertados em 2 colunas na tela estreita ficaram
+            confusos/cortados (print do usuário) — removidos, sem substituto por enquanto. O
+            quadro de etapas em si (`ImportacaoKanban.tsx`) continua no mobile normalmente. */}
         {!project && projectsToShow.length > 0 && !(isMobile && isImportacaoView) && (
           isImportacaoView && importacaoView === 'kanban' ? (
             // Pedido do usuário ("uns card assim pra selecionar, mas agora por status no
@@ -1088,7 +1117,7 @@ export function ProjectSchedulePage() {
 
       {ganttProjects.length > 0 && effectiveCompact && !isMobile && <ScheduleLegend />}
 
-      {ganttProjects.length > 0 && isMobile && (
+      {ganttProjects.length > 0 && isMobile && !(isImportacaoView && importacaoView === 'kanban') && (
         <MobileScheduleList
           projects={importacaoDisplayProjects}
           collapsedActivityIds={collapsedActivityIds}
@@ -1097,11 +1126,14 @@ export function ProjectSchedulePage() {
         />
       )}
 
-      {/* "Teste" (pedido do usuário) — Kanban por etapa no lugar da tabela, só desktop por
-          enquanto. `importacaoKanbanCards` já reflete os mesmos filtros de categoria/responsável/
-          Projeto/Processo que a tabela usa (não os 4 chips de status/"Não iniciadas" — ver
-          comentário no `useMemo`). */}
-      {!isMobile && isImportacaoView && importacaoView === 'kanban' && (
+      {/* Kanban por etapa (pedido do usuário — "conseguimos fazer o Kanban em versão mobile") —
+          chega no mobile agora, mesmo componente do desktop (o grid já era responsivo desde a
+          criação: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` no quadro, `grid-cols-2
+          sm:grid-cols-4` nos cards de etapa — empilha em 1/2 colunas sozinho em tela estreita,
+          sem precisar de nenhum ajuste). `importacaoKanbanCards` já reflete os mesmos filtros de
+          categoria/responsável/Projeto/Processo que a tabela usa (não os 4 chips de status/"Não
+          iniciadas" — ver comentário no `useMemo`). */}
+      {isImportacaoView && importacaoView === 'kanban' && (
         <ImportacaoKanban cards={importacaoKanbanCardsFiltered} today={today} onOpenTask={setSelectedTask} />
       )}
 
