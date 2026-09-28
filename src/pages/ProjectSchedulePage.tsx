@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpDown, CalendarClock, ChevronsDownUp, ChevronsUpDown, GanttChart, ListPlus, Pencil, Table2 } from 'lucide-react';
-import { Button, Card, ConfirmDialog, EmptyState, Skeleton, UndoToast } from '../components/ui';
+import {
+  ArrowLeft,
+  ArrowUpDown,
+  CalendarClock,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  GanttChart,
+  ListPlus,
+  Pencil,
+  Search,
+  Table2,
+} from 'lucide-react';
+import { Button, Card, ConfirmDialog, EmptyState, Input, Skeleton, UndoToast } from '../components/ui';
 import {
   AddActivityDialog,
   AddTaskPanel,
@@ -101,6 +112,10 @@ export function ProjectSchedulePage() {
   // triando pendências de vários projetos quer poder isolar um projeto específico, e "Unidade"
   // (site/fábrica) não é tão útil pra esse recorte quanto pra Projetos/Cronograma normal.
   const [importacaoProjectFilter, setImportacaoProjectFilter] = useState('');
+  // Busca por "Processo" (pedido do usuário, ao lado do botão "Recolher tudo") — condição de
+  // ATIVIDADE (`Activity.processo`), não de tarefa; combinação "contém" (case-insensitive), não
+  // exata, pra achar "780" digitando só parte do texto.
+  const [importacaoProcessoSearch, setImportacaoProcessoSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   // Filtro de categoria "de verdade" usado pelo resto da tela — na aba Importação é sempre a
   // categoria travada (nunca o que estiver em `categoryFilter`, que fica sem uso nessa rota).
@@ -109,6 +124,16 @@ export function ProjectSchedulePage() {
   // exibição, mesmo raciocínio de categoryFilter/responsavelFilterId (dropa atividade/projeto que
   // ficou sem nenhuma tarefa depois do filtro).
   const [hideCompleted, setHideCompleted] = useState(false);
+
+  // Fora da Importação nunca filtra nada (só essa aba tem "Processo") — usado tanto no filtro da
+  // tabela (`filteredGanttProjects`) quanto na base dos cards de resumo (`importacaoTasksExceptStatus`),
+  // pra não duplicar a regra "contém, case-insensitive" nos dois lugares.
+  function matchesProcesso(a: { processo?: string }) {
+    if (!isImportacaoView) return true;
+    const q = importacaoProcessoSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (a.processo ?? '').toLowerCase().includes(q);
+  }
 
   const projectsToShow = useMemo(
     () => (id ? projects.filter((p) => p.id === id) : projects),
@@ -186,7 +211,7 @@ export function ProjectSchedulePage() {
     return visibleProjectsExceptStatus
       .filter((p) => !importacaoProjectFilter || p.id === importacaoProjectFilter)
       .flatMap((p) =>
-        p.activities.flatMap((a) =>
+        p.activities.filter(matchesProcesso).flatMap((a) =>
           a.tasks.filter(
             (t) =>
               t.category === importacaoCategoryId &&
@@ -195,6 +220,9 @@ export function ProjectSchedulePage() {
           ),
         ),
       );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `matchesProcesso` é recriada a cada
+    // render (fecha sobre `importacaoProcessoSearch`); listar a função no array não muda o
+    // comportamento, só listamos o estado do qual ela depende de verdade.
   }, [
     isImportacaoView,
     importacaoCategoryId,
@@ -202,6 +230,7 @@ export function ProjectSchedulePage() {
     responsavelFilterId,
     hideCompleted,
     importacaoProjectFilter,
+    importacaoProcessoSearch,
   ]);
 
   // Contagem do card "Não iniciadas" — mesma base dos 4 cards de status (sem o filtro de status
@@ -275,13 +304,15 @@ export function ProjectSchedulePage() {
       !responsavelFilterId &&
       !hideCompleted &&
       !(isImportacaoView && activeStatuses.length > 0) &&
-      !(isImportacaoView && notStartedOnly)
+      !(isImportacaoView && notStartedOnly) &&
+      !(isImportacaoView && importacaoProcessoSearch.trim())
     )
       return source;
     return source
       .map((p): ProjectView | null => {
         if (isImportacaoView && importacaoProjectFilter && p.id !== importacaoProjectFilter) return null;
         const activities = p.activities
+          .filter(matchesProcesso)
           .map((a): ActivityView | null => {
             const tasks = a.tasks.filter(
               (t) =>
@@ -300,6 +331,9 @@ export function ProjectSchedulePage() {
         return { ...p, activities, ...projectDates, status: computeProjectStatus(activities, projectDates.plannedEnd, today) };
       })
       .filter((p): p is ProjectView => p !== null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `matchesProcesso` (mesmo raciocínio
+    // do `useMemo` de `importacaoTasksExceptStatus` acima) fecha sobre `importacaoProcessoSearch`,
+    // já listada abaixo.
   }, [
     visibleProjects,
     visibleProjectsExceptStatus,
@@ -312,6 +346,7 @@ export function ProjectSchedulePage() {
     activeStatuses,
     notStartedOnly,
     importacaoProjectFilter,
+    importacaoProcessoSearch,
   ]);
 
   const ganttProjects = useMemo(() => {
@@ -617,6 +652,11 @@ export function ProjectSchedulePage() {
                 hideSearch={isImportacaoView}
                 hideYear={isMobile && isImportacaoView}
                 hideUnit={isImportacaoView}
+                extraActiveCount={
+                  isImportacaoView
+                    ? (importacaoProjectFilter ? 1 : 0) + (notStartedOnly ? 1 : 0) + (importacaoProcessoSearch.trim() ? 1 : 0)
+                    : 0
+                }
                 onChange={(next) => {
                   setFilters(next);
                   if (next === EMPTY_FILTERS) {
@@ -624,6 +664,7 @@ export function ProjectSchedulePage() {
                     setHideCompleted(false);
                     setImportacaoProjectFilter('');
                     setNotStartedOnly(false);
+                    setImportacaoProcessoSearch('');
                   }
                 }}
               />
@@ -753,6 +794,21 @@ export function ProjectSchedulePage() {
                 >
                   {importacaoExpanded ? 'Recolher tudo' : 'Expandir tarefas'}
                 </Button>
+              )}
+              {/* Busca por "Processo" (pedido do usuário, ao lado do "Recolher tudo") — mesmo
+                  visual do campo "Buscar projeto ou responsável" (`ProjectFilters.tsx`), que não
+                  aparece nesta aba (`hideSearch`). */}
+              {!isMobile && isImportacaoView && (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted2" />
+                  <Input
+                    value={importacaoProcessoSearch}
+                    onChange={(e) => setImportacaoProcessoSearch(e.target.value)}
+                    placeholder="Buscar processo"
+                    aria-label="Buscar processo"
+                    className="w-48 pl-8"
+                  />
+                </div>
               )}
               {/* Ordena ATIVIDADE (pedido do usuário) — ciclo de 3 estados, rótulo descreve o
                   destino do próximo clique, mesmo padrão do toggle acima. */}
@@ -920,6 +976,12 @@ export function ProjectSchedulePage() {
           );
           if (!owningProjectId) return;
           updateTaskActualDates(owningProjectId, taskId, patch);
+        }}
+        onSaveObservacao={(taskId, observacao) => {
+          const owningProjectId = activityIdToProjectId.get(
+            allTasks.find((t) => t.id === taskId)?.activityId ?? '',
+          );
+          if (owningProjectId) updateTaskObservacao(owningProjectId, taskId, observacao);
         }}
         onConfirmCompletion={(taskId) => {
           const owningProjectId = activityIdToProjectId.get(

@@ -30,6 +30,7 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
     isAdmin,
     updateTask,
     updateTaskActualDates,
+    updateTaskObservacao,
     confirmTaskCompletion,
     rejectTaskCompletion,
     setTaskPredecessors,
@@ -70,6 +71,10 @@ export function UpcomingTaskDetail({ data, selectedTaskId, onClose, isMobile }: 
           const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
           if (!owningProjectId) return;
           updateTaskActualDates(owningProjectId, taskId, patch);
+        }}
+        onSaveObservacao={(taskId, observacao) => {
+          const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');
+          if (owningProjectId) updateTaskObservacao(owningProjectId, taskId, observacao);
         }}
         onConfirmCompletion={(taskId) => {
           const owningProjectId = activityIdToProjectId.get(allTasks.find((t) => t.id === taskId)?.activityId ?? '');

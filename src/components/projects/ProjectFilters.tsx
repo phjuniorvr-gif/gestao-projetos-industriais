@@ -35,6 +35,13 @@ interface ProjectFiltersProps {
   /** Aba Importação (pedido do usuário) — some com "Unidade", substituído por um filtro de
    * "Projeto" renderizado à parte por quem usa este componente (mais útil ali do que site/fábrica). */
   hideUnit?: boolean;
+  /** Aba Importação (pedido do usuário, print mostrando "faltou um limpar filtro") — soma ao
+   * `activeCount` calculado daqui pra decidir se "Limpar filtros" aparece. Cobre estado que vive
+   * FORA de `filters` (`importacaoProjectFilter`/`notStartedOnly`/`importacaoProcessoSearch`,
+   * `ProjectSchedulePage.tsx`) — sem isso, ativar só um desses nunca mostrava o botão, mesmo com
+   * a tabela genuinamente filtrada. Clicar continua chamando `onChange(EMPTY_FILTERS)`; quem
+   * mantém esse estado extra é o `onChange` de quem usa este componente (já reseta os três). */
+  extraActiveCount?: number;
 }
 
 export function ProjectFilters({
@@ -46,8 +53,9 @@ export function ProjectFilters({
   hideSearch = false,
   hideYear = false,
   hideUnit = false,
+  extraActiveCount = 0,
 }: ProjectFiltersProps) {
-  const activeCount = computeActiveFilterCount(filters);
+  const activeCount = computeActiveFilterCount(filters) + extraActiveCount;
 
   return (
     <div className="flex flex-wrap items-center gap-2">

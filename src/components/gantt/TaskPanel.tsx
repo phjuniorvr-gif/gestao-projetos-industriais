@@ -49,6 +49,12 @@ interface TaskPanelProps {
    * `onSave` (que reescreve a árvore inteira do projeto). Só os dois campos "Início/Fim real"
    * usam isto. */
   onSaveActual: (taskId: string, patch: { actualStart?: string; actualEnd?: string }) => void;
+  /** Caminho de escrita próprio (update de 1 coluna, sem RPC/log) — mesmo motivo de `onSaveActual`
+   * não usar `onSave`: `observacao` fica de fora do upsert da árvore inteira de propósito (ver
+   * `saveProjectTree`), pra uma edição comum (nome, categoria...) nunca sobrescrever com o valor
+   * desatualizado que o cliente tinha em memória. Mesma função que `GanttRow.tsx` já usa
+   * (`onChangeObservacao`), só que a partir do painel em vez da célula da lista. */
+  onSaveObservacao: (taskId: string, observacao: string) => void;
   onSetPredecessors: (taskId: string, entries: DependencyEntry[]) => DependencyValidation;
   onReplan: (taskId: string, patch: ReplanPatch, motivo: string) => ReplanValidation;
   /** Fase 7 (Parte A) — quantas tarefas (em qualquer projeto do portfólio, não só as visíveis na
@@ -87,6 +93,7 @@ export function TaskPanel({
   onClose,
   onSave,
   onSaveActual,
+  onSaveObservacao,
   onSetPredecessors,
   onReplan,
   dependentCount,
@@ -122,6 +129,9 @@ export function TaskPanel({
   const [draftActualStart, setDraftActualStart] = useState('');
   const [draftActualEnd, setDraftActualEnd] = useState('');
   const [actualErrors, setActualErrors] = useState<string[]>([]);
+  // Observação (pedido do usuário — a célula da lista, GanttRow.tsx, é estreita e de uma linha
+  // só, difícil de ler quando tem mais de uma anotação; aqui ganha espaço e quebra de linha).
+  const [draftObservacao, setDraftObservacao] = useState('');
 
   // Rascunho reseta sempre que a tarefa selecionada muda — o painel não desmonta ao trocar de
   // tarefa (só ao fechar), então sem isso o rascunho da tarefa anterior vazaria pra próxima.
@@ -142,6 +152,7 @@ export function TaskPanel({
     setDraftActualStart(task.actualStart ?? '');
     setDraftActualEnd(task.actualEnd ?? '');
     setActualErrors([]);
+    setDraftObservacao(task.observacao ?? '');
     const idToRowNumber = new Map(allTasks.map((t) => [t.id, t.rowNumber]));
     setDependencyDrafts(
       task.dependencies.map((d) => ({
@@ -752,6 +763,19 @@ export function TaskPanel({
                 </p>
               ))}
             </div>
+          </FormField>
+
+          <FormField label="Observação">
+            <Textarea
+              value={draftObservacao}
+              onChange={(e) => setDraftObservacao(e.target.value)}
+              onBlur={() => {
+                if (draftObservacao !== (task.observacao ?? '')) onSaveObservacao(task.id, draftObservacao);
+              }}
+              rows={3}
+              className="w-full"
+              placeholder="Ex.: previsão de chegada, pendência com fornecedor…"
+            />
           </FormField>
         </div>
 
