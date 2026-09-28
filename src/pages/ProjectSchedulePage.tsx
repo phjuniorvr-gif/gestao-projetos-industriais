@@ -1102,7 +1102,7 @@ export function ProjectSchedulePage() {
           Projeto/Processo que a tabela usa (não os 4 chips de status/"Não iniciadas" — ver
           comentário no `useMemo`). */}
       {!isMobile && isImportacaoView && importacaoView === 'kanban' && (
-        <ImportacaoKanban cards={importacaoKanbanCardsFiltered} today={today} holidays={holidays} onOpenTask={setSelectedTask} />
+        <ImportacaoKanban cards={importacaoKanbanCardsFiltered} today={today} onOpenTask={setSelectedTask} />
       )}
 
       {ganttProjects.length > 0 && !isMobile && !(isImportacaoView && importacaoView === 'kanban') && (

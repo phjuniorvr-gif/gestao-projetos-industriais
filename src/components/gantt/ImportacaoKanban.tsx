@@ -1,9 +1,9 @@
 import { Factory, HelpCircle, PackageCheck, Truck } from 'lucide-react';
 import { Card } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
-import type { ActivityView, Holiday, ProjectView, TaskView } from '../../types';
+import type { ActivityView, ProjectView, TaskView } from '../../types';
 import {
-  businessDaysBetween,
+  calendarDaysBetween,
   diffDays,
   formatDatePtBr,
   IMPORTACAO_STAGE_LABELS,
@@ -21,7 +21,6 @@ export interface ImportacaoKanbanCard {
 interface ImportacaoKanbanProps {
   cards: ImportacaoKanbanCard[];
   today: string;
-  holidays: Holiday[];
   onOpenTask: (task: TaskView) => void;
 }
 
@@ -78,7 +77,7 @@ const STAGE_SUMMARY_ICON: Record<ImportacaoStage, typeof Factory> = {
  * cada processo pela etapa em que está agora (`computeImportacaoStage`, `utils/importacaoStage.ts`).
  * Processo com todas as tarefas concluídas nunca chega até aqui — já vem filtrado por quem monta
  * `cards` (`ProjectSchedulePage.tsx`). */
-export function ImportacaoKanban({ cards, today, holidays, onOpenTask }: ImportacaoKanbanProps) {
+export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanProps) {
   const groups: Record<ImportacaoStage, ImportacaoKanbanCard[]> = { fabricacao: [], transit: [], entrega: [], outras: [] };
   for (const card of cards) groups[card.stage].push(card);
 
@@ -120,7 +119,7 @@ export function ImportacaoKanban({ cards, today, holidays, onOpenTask }: Importa
             ) : (
               groups[stage].map(({ project, activity, task }) => {
                 const daysLine = formatDaysLine(task, today);
-                const duration = businessDaysBetween(task.plannedStart, task.plannedEnd, holidays, project.unit);
+                const duration = calendarDaysBetween(task.plannedStart, task.plannedEnd);
                 return (
                 <button
                   key={activity.id}
@@ -142,7 +141,7 @@ export function ImportacaoKanban({ cards, today, holidays, onOpenTask }: Importa
                       {formatDatePtBr(task.plannedStart)} — {formatDatePtBr(task.plannedEnd)}
                     </p>
                     <p className="text-xs text-text-muted">
-                      Duração: {duration} {duration === 1 ? 'dia útil' : 'dias úteis'}
+                      Duração: {duration} {plural(duration)}
                     </p>
                     <p className={`text-xs font-semibold ${daysLine.late ? 'text-status-delayed' : 'text-text-muted'}`}>
                       {daysLine.text}
