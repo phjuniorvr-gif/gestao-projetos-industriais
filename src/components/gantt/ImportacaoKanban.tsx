@@ -154,8 +154,13 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
                       <span className="font-mono text-text-muted2">{project.code}</span> — {activity.name}
                     </p>
                     <p className="text-xs text-text-muted">
-                      {formatDatePtBr(task.plannedStart)} — {formatDatePtBr(task.plannedEnd)}
+                      Previsto: {formatDatePtBr(task.plannedStart)} — {formatDatePtBr(task.plannedEnd)}
                     </p>
+                    {/* "Data Final" (pedido do usuário) é da ATIVIDADE inteira (roll-up de todas
+                        as tarefas — Fabricação+Transit+Entrega), não da tarefa atual do card
+                        ("Previsto" acima) — quando o processo termina de verdade, não só a etapa
+                        atual. */}
+                    <p className="text-xs text-text-muted">Data Final: {formatDatePtBr(activity.plannedEnd)}</p>
                     {deviationLine && (
                       <p className={`text-xs font-semibold ${deviationLine.late ? 'text-status-delayed' : 'text-text-muted'}`}>
                         {deviationLine.text}
