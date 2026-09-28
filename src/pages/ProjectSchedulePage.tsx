@@ -762,14 +762,15 @@ export function ProjectSchedulePage() {
             )}
             {/* Toggle Tabela⇄Kanban chega no mobile (pedido do usuário) — mesmo `importacaoView`
                 do desktop, só um controle próprio (mobile não tem a barra de toolbar desktop,
-                fica inteira atrás de `!isMobile`), estilo pílula igual aos outros botões de 2
-                estados desta página no mobile (ex. "Ordenar" logo abaixo). */}
+                fica inteira atrás de `!isMobile`). Raio `rounded-md` (achado do usuário, print —
+                `rounded-full` destoava dos outros controles da mesma barra, ex. "Fim previsto"),
+                mesmo raio dos outros botões de 2 estados desta página no mobile. */}
             {isMobile && isImportacaoView && (
-              <div className="flex min-h-11 items-center rounded-full border border-border bg-white p-0.5">
+              <div className="flex min-h-11 items-center rounded-md border border-border bg-white p-0.5">
                 <button
                   type="button"
                   onClick={() => setImportacaoView('tabela')}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${
                     importacaoView === 'tabela' ? 'bg-sidebar text-white' : 'text-text-muted'
                   }`}
                 >
@@ -778,7 +779,7 @@ export function ProjectSchedulePage() {
                 <button
                   type="button"
                   onClick={() => setImportacaoView('kanban')}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${
                     importacaoView === 'kanban' ? 'bg-sidebar text-white' : 'text-text-muted'
                   }`}
                 >
@@ -799,6 +800,21 @@ export function ProjectSchedulePage() {
                 <ArrowUpDown className="h-3.5 w-3.5" />
                 {importacaoSortNextLabel}
               </button>
+            )}
+            {/* "Buscar processo" chega no mobile (pedido do usuário, ao lado do botão de
+                ordenação) — mesma busca do desktop (`importacaoProcessoSearch`, contém no
+                `activity.processo`), só reaproveitada aqui com estilo mobile. */}
+            {isMobile && isImportacaoView && (
+              <div className="relative min-w-[140px] flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted2" />
+                <Input
+                  value={importacaoProcessoSearch}
+                  onChange={(e) => setImportacaoProcessoSearch(e.target.value)}
+                  placeholder="Buscar processo"
+                  aria-label="Buscar processo"
+                  className="min-h-11 w-full pl-8 text-xs"
+                />
+              </div>
             )}
             {/* "Unidade"/"Projeto" — pedido do usuário: some inteiro do MOBILE (não é só visual,
                 é a tela mesmo sem esses dois filtros lá). Continuam no desktop, sem mudança —

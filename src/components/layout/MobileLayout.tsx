@@ -16,11 +16,12 @@ const TITLE_BY_PATH: { test: (pathname: string) => boolean; title: string }[] = 
   { test: (p) => p === '/tarefas-proximas', title: 'Tarefas' },
 ];
 
-/** Filtro de ano só faz sentido nas abas com lista de projeto (Projetos/Cronograma/Importação) —
- * Resumo e Equipe não têm essa noção de "ano do projeto" na tela. Importação (pedido do usuário)
- * segue o mesmo padrão de Cronograma — o cabeçalho é quem mostra o seletor, não a própria página. */
+/** Filtro de ano só faz sentido nas abas com lista de projeto (Projetos/Cronograma) — Resumo e
+ * Equipe não têm essa noção de "ano do projeto" na tela. Importação (pedido do usuário, sessão
+ * seguinte) saiu da lista — sem uso claro pra "ano" ali, e a barra já estava disputando espaço
+ * com "Unidade"/"Projeto" (removidos antes) e a busca por Processo (nova, dentro da página). */
 function showsYearFilter(pathname: string): boolean {
-  return pathname === '/' || pathname === '/projetos' || pathname === '/importacao' || pathname.includes('/cronograma');
+  return pathname === '/' || pathname === '/projetos' || pathname.includes('/cronograma');
 }
 
 /** "Não iniciadas" (pedido do usuário, mesmo padrão do "Ano" acima) — só faz sentido em Tarefas. */
