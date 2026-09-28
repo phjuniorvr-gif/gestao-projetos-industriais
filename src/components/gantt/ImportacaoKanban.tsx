@@ -104,7 +104,15 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
   const visibleStages = activeStage ? [activeStage] : IMPORTACAO_STAGE_ORDER;
 
   return (
-    <div className="space-y-4">
+    // `pt-2` só no mobile (`sm:pt-0`) — achado do usuário, 2 prints: no celular a barra de
+    // ferramentas (Tabela/Kanban, ordenar, Buscar processo) é STICKY (`ProjectSchedulePage.tsx`)
+    // e fica por CIMA do conteúdo normal conforme a página rola (comportamento correto/esperado
+    // de qualquer cabeçalho sticky — o que estava faltando era um respiro entre ela e o quadro,
+    // já que aqui (diferente de outras rotas) o quadro é o primeiro conteúdo logo abaixo dela, sem
+    // nenhum elemento intermediário no mobile — os 3 prints anteriores (mover o anel, trocar por
+    // sombra inset) mexiam no card errado: o problema nunca foi o EFEITO do anel, era a barra
+    // sticky cobrindo os primeiros pixels do quadro por falta de espaço reservado.
+    <div className="space-y-4 pt-2 sm:pt-0">
       {/* Cards de resumo (pedido do usuário) — um por etapa, na mesma ordem das colunas abaixo
           (`IMPORTACAO_STAGE_ORDER`: Fabricação/Transit Time/Entrega/Outras etapas por último).
           "Total Importação" tirado de propósito (pedido do usuário — "ficou confuso"). Clicável
@@ -118,15 +126,25 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
           // qual etapa está filtrando, sem precisar do anel sozinho fazer esse trabalho todo.
           const dimmed = activeStage !== null && !active;
           return (
+            // Achado do usuário, 3 prints — nem mover o anel pro botão, nem trocar por sombra
+            // INSET resolveram. Causa real, só visível comparando com o print do inset: o
+            // cabeçalho colorido do card (`STAGE_SUMMARY_COLOR`) é filho do `Card`, fica RENTE à
+            // borda de cima (`Card` tem `p-0`, sem gap nenhum) e tem fundo OPACO — qualquer efeito
+            // desenhado na caixa do PRÓPRIO `Card` (ring, inset shadow, border) fica por BAIXO
+            // desse filho na ordem de pintura, escondido embaixo dele exatamente na faixa de cima
+            // (só sobrava uma lasquinha visível nos cantos, onde o `overflow-hidden` arredondado
+            // corta o filho quadrado). Fix: moldura por PADDING — o botão de fora ganha um
+            // preenchimento sólido (`p-[3px]`, cor muda de transparente pra `bg-action` quando
+            // ativo) e o `Card` fica DENTRO desse preenchimento, com um vão de verdade nos 4 lados
+            // — nada do `Card` (nem o cabeçalho opaco) consegue mais tampar a moldura, porque ela
+            // não é mais parte da caixa do `Card`, é um anel externo genuíno.
             <button
               key={stage}
               type="button"
               onClick={() => setActiveStage((s) => (s === stage ? null : stage))}
-              className="text-left"
+              className={`block rounded-xl p-[3px] text-left transition-colors ${active ? 'bg-action' : 'bg-transparent'}`}
             >
-              <Card
-                className={`overflow-hidden p-0 transition-[box-shadow,opacity] ${active ? 'ring-2 ring-action ring-offset-1' : ''} ${dimmed ? 'opacity-40' : ''}`}
-              >
+              <Card className={`overflow-hidden p-0 transition-opacity ${dimmed ? 'opacity-40' : ''}`}>
                 <div
                   className="px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ backgroundColor: STAGE_SUMMARY_COLOR[stage] }}
