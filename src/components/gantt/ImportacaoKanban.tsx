@@ -114,6 +114,9 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
         {IMPORTACAO_STAGE_ORDER.map((stage) => {
           const Icon = STAGE_SUMMARY_ICON[stage];
           const active = activeStage === stage;
+          // Card apagado quando OUTRO está selecionado (pedido do usuário) — reforça visualmente
+          // qual etapa está filtrando, sem precisar do anel sozinho fazer esse trabalho todo.
+          const dimmed = activeStage !== null && !active;
           return (
             <button
               key={stage}
@@ -122,7 +125,7 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
               className="text-left"
             >
               <Card
-                className={`overflow-hidden p-0 transition-shadow ${active ? 'ring-2 ring-action ring-offset-1' : ''}`}
+                className={`overflow-hidden p-0 transition-[box-shadow,opacity] ${active ? 'ring-2 ring-action ring-offset-1' : ''} ${dimmed ? 'opacity-40' : ''}`}
               >
                 <div
                   className="px-3 py-1.5 text-xs font-semibold text-white"
