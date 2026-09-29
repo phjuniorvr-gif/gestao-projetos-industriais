@@ -215,8 +215,20 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
                     <p className="truncate text-xs text-text-muted">
                       <span className="font-mono text-text-muted2">{project.code}</span> — {activity.name}
                     </p>
+                    {/* Base/Previsto/Real (pedido do usuário) — as 3 datas da TAREFA atual do
+                        card, mesma ordem que o resto do app usa pros 3 pares (`TaskPanel.tsx`):
+                        Base é a linha congelada (Fase 2.5, só muda com replanejamento admin);
+                        Previsto é o atual (pode já ter sido replanejado); Real é o que foi
+                        efetivamente informado (`actualStart`/`actualEnd`, `formatDatePtBr` já
+                        cobre `undefined` com "—", tarefa que não começou/terminou ainda). */}
+                    <p className="text-xs text-text-muted">
+                      Base: {formatDatePtBr(task.baseStart)} — {formatDatePtBr(task.baseEnd)}
+                    </p>
                     <p className="text-xs text-text-muted">
                       Previsto: {formatDatePtBr(task.plannedStart)} — {formatDatePtBr(task.plannedEnd)}
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      Real: {formatDatePtBr(task.actualStart)} — {formatDatePtBr(task.actualEnd)}
                     </p>
                     {/* "Data Final" (pedido do usuário) é da ATIVIDADE inteira (roll-up de todas
                         as tarefas — Fabricação+Transit+Entrega), não da tarefa atual do card
