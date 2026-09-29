@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Ship, Tag, Trash2, UserCheck, Workflow } from 'lucide-react';
+import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Ship, Tag, Trash2, UserCheck, Users, Workflow } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
 import { useAuth, usePapel, usePipelines, useProjects } from '../../hooks';
 
@@ -53,6 +53,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Confirmações',
     icon: UserCheck,
     isActive: (pathname) => pathname === '/confirmacoes',
+  },
+  {
+    to: '/equipe',
+    label: 'Equipe',
+    icon: Users,
+    isActive: (pathname) => pathname === '/equipe',
   },
 ];
 
@@ -111,12 +117,17 @@ export function Sidebar() {
   // `=== 'usuario'`/`=== 'comprador'` explícito (não o inverso de canViewAll) pra não estreitar o
   // menu por um instante a cada carregamento de página, enquanto o papel ainda não resolveu
   // (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
-  const navItems =
+  // "Equipe" (Kanban por responsável, pedido do usuário — "apenas o admin pode ter") é a única
+  // exceção dentro do bloco "mostra tudo": some pra `visualizador` também, não só usuario/comprador
+  // (checa `!== 'administrador'`, mesmo raciocínio de `undefined` contar como "mostra" — a página
+  // em si tem a guarda de verdade, esta filtragem é só pra não oferecer um link que vai barrar).
+  const navItems = (
     papel === 'usuario'
       ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas')
       : papel === 'comprador'
         ? NAV_ITEMS.filter((item) => item.to === '/importacao')
-        : NAV_ITEMS;
+        : NAV_ITEMS
+  ).filter((item) => item.to !== '/equipe' || papel === undefined || papel === 'administrador');
   const secondaryItems = papel === 'usuario' || papel === 'comprador' ? [] : SECONDARY_NAV_ITEMS;
 
   function renderNavItem(item: NavItem) {

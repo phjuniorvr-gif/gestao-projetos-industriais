@@ -11,3 +11,4 @@ export * from './SettingsPage';
 export * from './PendingConfirmationsPage';
 export * from './PipelinesPage';
 export * from './NewPipelinePage';
+export * from './TeamKanbanPage';

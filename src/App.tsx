@@ -13,6 +13,7 @@ import {
   ProjectSchedulePage,
   ProjectsPage,
   SettingsPage,
+  TeamKanbanPage,
   UpcomingTasksPage,
 } from './pages';
 import { MobileDashboardPage, MobilePipelinesPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage, MobileUpcomingTasksPage } from './pages/mobile';
@@ -44,7 +45,11 @@ export default function App() {
               <Route path="dashboard" element={isMobile ? <MobileDashboardPage /> : <DashboardPage />} />
               <Route path="cronograma" element={isMobile ? <MobileSchedulePage /> : <ProjectSchedulePage />} />
               <Route path="projetos/:id/cronograma" element={<ProjectSchedulePage />} />
-              <Route path="equipe" element={isMobile ? <MobileTeamPage /> : <Navigate to="/dashboard" replace />} />
+              {/* Desktop: Kanban da Equipe (pedido do usuário) — admin-only, guarda própria dentro
+                  do componente (mesmo padrão de `NewProjectPage.tsx`), já que este grupo
+                  `canViewAll` também libera visualizador. Mobile continua com `MobileTeamPage`
+                  (Fase 6, admin+visualizador). */}
+              <Route path="equipe" element={isMobile ? <MobileTeamPage /> : <TeamKanbanPage />} />
               <Route path="confirmacoes" element={<PendingConfirmationsPage />} />
               <Route path="atividades" element={<ActivitiesPage />} />
               <Route path="categorias" element={<CategoriesPage />} />
