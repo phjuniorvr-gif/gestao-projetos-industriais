@@ -44,6 +44,7 @@ import {
   computeProjectStatus,
   rollUpDates,
   rollUpStatus,
+  shouldShowStartDelayedBadge,
   sortProjectsByCriticality,
   todayISO,
 } from '../utils';
@@ -196,6 +197,12 @@ export function ProjectSchedulePage() {
   // início real, independente de predecessora — mesma flag do selo ⚠️ que `StatusBadge.tsx` já
   // mostra por tarefa). Boolean à parte, não entra em `activeStatuses`/`filters.status`.
   const [notStartedOnly, setNotStartedOnly] = useState(false);
+  // Achado do usuário, print — clicar num status card com "Não iniciadas" já ligado deixava os
+  // dois "presos" juntos (union), mesmo sem Ctrl — parecia travado, já que um clique simples nos 4
+  // cards de status SEMPRE substitui a seleção entre eles, mas nunca tocava em `notStartedOnly`
+  // (grupo à parte). Clique SIMPLES agora limpa o OUTRO grupo também (substitui de vez, como os 4
+  // cards já fazem entre si); Ctrl/Cmd+clique continua só acrescentando, sem limpar nada — mesma
+  // convenção, agora simétrica entre os dois grupos.
   const toggleStatus = (status: ProjectStatus, multi: boolean) => {
     const label = STATUS_LABEL[status];
     setFilters((f) => {
@@ -206,6 +213,7 @@ export function ProjectSchedulePage() {
       const isOnlySelected = f.status.length === 1 && f.status[0] === label;
       return { ...f, status: isOnlySelected ? [] : [label] };
     });
+    if (!multi) setNotStartedOnly(false);
   };
 
   // Cards de status do KANBAN (pedido do usuário — "uns card assim pra selecionar, mas agora por
@@ -216,6 +224,7 @@ export function ProjectSchedulePage() {
   // atividade já na etapa certa) — seguro, não interfere na derivação de ninguém.
   const [kanbanActiveStatuses, setKanbanActiveStatuses] = useState<ProjectStatus[]>([]);
   const [kanbanNotStartedOnly, setKanbanNotStartedOnly] = useState(false);
+  // Mesmo raciocínio de `toggleStatus` acima — clique simples limpa `kanbanNotStartedOnly` também.
   const toggleKanbanStatus = (status: ProjectStatus, multi: boolean) => {
     setKanbanActiveStatuses((current) => {
       if (multi) {
@@ -223,6 +232,7 @@ export function ProjectSchedulePage() {
       }
       return current.length === 1 && current[0] === status ? [] : [status];
     });
+    if (!multi) setKanbanNotStartedOnly(false);
   };
 
   // Aba Importação — base pros 4 cards de status da faixa de saúde (sem filtro de status, mesmo
@@ -261,8 +271,12 @@ export function ProjectSchedulePage() {
 
   // Contagem do card "Não iniciadas" — mesma base dos 4 cards de status (sem o filtro de status
   // NEM o de "não iniciadas" aplicados), senão ligar o próprio filtro zeraria o card que o liga.
+  // Achado do usuário, print — tarefa atrasada E não iniciada contava nos DOIS cards ("Atrasada" e
+  // "Não iniciadas"); atrasado prevalece (`shouldShowStartDelayedBadge`, a MESMA função que já
+  // decide se o selo da tarefa mostra "Não iniciada" em vez de "Atrasado" — reaproveitada aqui pra
+  // a contagem nunca divergir do que os selos individuais mostram).
   const importacaoNotStartedCount = useMemo(
-    () => importacaoTasksExceptStatus.filter((t) => t.isStartDelayed).length,
+    () => importacaoTasksExceptStatus.filter((t) => shouldShowStartDelayedBadge(t)).length,
     [importacaoTasksExceptStatus],
   );
 
@@ -361,7 +375,7 @@ export function ProjectSchedulePage() {
                 (!responsavelFilterId || t.responsavelId === responsavelFilterId) &&
                 (!hideCompleted || t.status !== 'completed') &&
                 (!isImportacaoView || activeStatuses.length === 0 || activeStatuses.includes(t.status)) &&
-                (!isImportacaoView || !notStartedOnly || t.isStartDelayed),
+                (!isImportacaoView || !notStartedOnly || shouldShowStartDelayedBadge(t)),
             );
             if (tasks.length === 0) return null;
             return { ...a, tasks, ...rollUpDates(tasks), status: rollUpStatus(tasks) };
@@ -497,9 +511,11 @@ export function ProjectSchedulePage() {
   ]);
 
   // Contagem do card "Não iniciadas" do Kanban — mesma base SEM os dois filtros (senão ligar o
-  // próprio filtro zeraria o card que o liga), mesmo cuidado de sempre.
+  // próprio filtro zeraria o card que o liga), mesmo cuidado de sempre. Achado do usuário, print
+  // — tarefa atrasada E não iniciada contava nos DOIS cards; atrasado prevalece
+  // (`shouldShowStartDelayedBadge`, a mesma função que já decide o selo da tarefa individual).
   const importacaoKanbanNotStartedCount = useMemo(
-    () => importacaoKanbanCards.filter((c) => c.task.isStartDelayed).length,
+    () => importacaoKanbanCards.filter((c) => shouldShowStartDelayedBadge(c.task)).length,
     [importacaoKanbanCards],
   );
 
@@ -534,7 +550,7 @@ export function ProjectSchedulePage() {
     if (kanbanActiveStatuses.length === 0 && !kanbanNotStartedOnly) return importacaoKanbanCards;
     return importacaoKanbanCards.filter((c) => {
       const matchesStatus = kanbanActiveStatuses.some((s) => (s === 'planned' ? isKanbanPlanned(c.task) : c.task.status === s));
-      const matchesNotStarted = kanbanNotStartedOnly && c.task.isStartDelayed;
+      const matchesNotStarted = kanbanNotStartedOnly && shouldShowStartDelayedBadge(c.task);
       return matchesStatus || matchesNotStarted;
     });
   }, [importacaoKanbanCards, kanbanActiveStatuses, kanbanNotStartedOnly]);
@@ -895,7 +911,10 @@ export function ProjectSchedulePage() {
               onToggleStatus={toggleKanbanStatus}
               notStartedCount={importacaoKanbanNotStartedCount}
               notStartedActive={kanbanNotStartedOnly}
-              onToggleNotStarted={() => setKanbanNotStartedOnly((v) => !v)}
+              onToggleNotStarted={(e) => {
+                setKanbanNotStartedOnly((v) => !v);
+                if (!(e.ctrlKey || e.metaKey)) setKanbanActiveStatuses([]);
+              }}
             />
           ) : (
             <ProjectsHealthStrip
@@ -907,7 +926,14 @@ export function ProjectSchedulePage() {
               onToggleStatus={toggleStatus}
               notStartedCount={isImportacaoView ? importacaoNotStartedCount : undefined}
               notStartedActive={notStartedOnly}
-              onToggleNotStarted={isImportacaoView ? () => setNotStartedOnly((v) => !v) : undefined}
+              onToggleNotStarted={
+                isImportacaoView
+                  ? (e) => {
+                      setNotStartedOnly((v) => !v);
+                      if (!(e.ctrlKey || e.metaKey)) setFilters((f) => ({ ...f, status: [] }));
+                    }
+                  : undefined
+              }
             />
           )
         )}

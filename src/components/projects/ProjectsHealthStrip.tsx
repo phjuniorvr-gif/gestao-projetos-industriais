@@ -1,5 +1,5 @@
 import { AlertTriangle, ListChecks } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import type { ProjectStatus } from '../../types';
 import { STATUS_COLOR, STATUS_LABEL } from '../../types';
 import { computeStatusDistribution } from '../../utils/portfolio';
@@ -33,7 +33,11 @@ interface ProjectsHealthStripProps {
    * conceito não se aplica do mesmo jeito. */
   notStartedCount?: number;
   notStartedActive?: boolean;
-  onToggleNotStarted?: () => void;
+  /** Recebe o evento (não `() => void`) — achado do usuário, print: clicar num status card com
+   * "Não iniciadas" já ligado deixava os dois "presos" juntos; agora clique SIMPLES limpa o outro
+   * grupo (mesma convenção "substitui" dos 4 cards entre si), Ctrl/Cmd+clique só acrescenta. Quem
+   * chama decide o que "limpar o outro grupo" significa (cada consumidor tem seu próprio estado). */
+  onToggleNotStarted?: (e: MouseEvent) => void;
 }
 
 const STATUS_CARD_ORDER: ProjectStatus[] = ['completed', 'in_progress', 'delayed', 'planned'];
@@ -56,6 +60,12 @@ export function ProjectsHealthStrip({
   const distribution = computeStatusDistribution(projects);
   const countOf = (status: ProjectStatus) => distribution.find((d) => d.status === status)?.count ?? 0;
   const showNotStarted = Boolean(onToggleNotStarted);
+  // Achado do usuário, print — selecionar um status apagava os OUTROS 3 status cards, mas o card
+  // "Não iniciadas" ficava de fora dessa regra (sempre na cor cheia). Os dois grupos de filtro
+  // (status/"Não iniciadas") já se combinam com OU em quem consome esses props (ver
+  // `ProjectSchedulePage.tsx`), então "algum filtro ativo" precisa considerar os dois — não só
+  // `activeStatuses`.
+  const anyFilterActive = activeStatuses.length > 0 || Boolean(notStartedActive);
 
   return (
     <div className={`grid grid-cols-2 gap-3 ${showNotStarted ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
@@ -77,11 +87,7 @@ export function ProjectsHealthStrip({
         >
           <Card
             className={`overflow-hidden p-0 transition-opacity ${
-              activeStatuses.includes(status)
-                ? 'ring-2 ring-offset-1'
-                : activeStatuses.length > 0
-                  ? 'opacity-50'
-                  : ''
+              activeStatuses.includes(status) ? 'ring-2 ring-offset-1' : anyFilterActive ? 'opacity-50' : ''
             }`}
             style={activeStatuses.includes(status) ? ({ '--tw-ring-color': STATUS_COLOR[status] } as CSSProperties) : undefined}
           >
@@ -97,10 +103,15 @@ export function ProjectsHealthStrip({
       ))}
 
       {showNotStarted && (
-        <button type="button" onClick={onToggleNotStarted} className="text-left" title="Início previsto já passou, sem início real">
+        <button
+          type="button"
+          onClick={onToggleNotStarted}
+          className="text-left"
+          title="Início previsto já passou, sem início real — Ctrl+clique pra combinar com um status"
+        >
           <Card
             className={`overflow-hidden p-0 transition-opacity ${
-              notStartedActive ? 'ring-2 ring-offset-1' : ''
+              notStartedActive ? 'ring-2 ring-offset-1' : anyFilterActive ? 'opacity-50' : ''
             }`}
             style={notStartedActive ? ({ '--tw-ring-color': 'var(--color-status-delayed)' } as CSSProperties) : undefined}
           >

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, ListChecks, X } from 'lucide-react';
 import type { ProjectStatus, ProjectView, TaskView } from '../../types';
-import { formatPeriod, rollUpStatus } from '../../utils';
+import { formatPeriod, rollUpStatus, shouldShowStartDelayedBadge } from '../../utils';
 import { computeStatusDistribution } from '../../utils/portfolio';
 import { StatusEmoji } from '../shared/StatusEmoji';
 import { Card } from '../ui';
@@ -63,7 +63,9 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
   // regra em dois lugares.
   function taskMatchesFilters(t: TaskView) {
     const statusOk = statusFilter.length > 0 ? statusFilter.includes(t.status) : !hideCompletedByDefault || t.status !== 'completed';
-    return statusOk && (!notStartedOnly || t.isStartDelayed);
+    // Achado do usuário, print — tarefa atrasada E não iniciada contava nos dois filtros;
+    // atrasado prevalece (`shouldShowStartDelayedBadge`, mesma função do selo individual).
+    return statusOk && (!notStartedOnly || shouldShowStartDelayedBadge(t));
   }
 
   // Sempre conta TODAS as tarefas (não só as visíveis) — senão selecionar "Atrasado" zeraria a
@@ -72,7 +74,7 @@ export function MobileScheduleList({ projects, collapsedActivityIds, onToggleAct
   // (feito pra projeto) já serve pra contar tarefa sem duplicar lógica.
   const allTasks = projects.flatMap((p) => p.activities.flatMap((a) => a.tasks));
   const distribution = computeStatusDistribution(allTasks);
-  const notStartedCount = allTasks.filter((t) => t.isStartDelayed).length;
+  const notStartedCount = allTasks.filter((t) => shouldShowStartDelayedBadge(t)).length;
   const totalActivitiesCount = projects.reduce(
     (sum, p) => sum + p.activities.filter((a) => a.tasks.length === 0 || a.tasks.some(taskMatchesFilters)).length,
     0,

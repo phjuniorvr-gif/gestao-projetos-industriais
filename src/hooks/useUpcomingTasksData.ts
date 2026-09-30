@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ActivityView, ProjectStatus, ProjectView, TaskView } from '../types';
-import { diffDays } from '../utils';
+import { diffDays, shouldShowStartDelayedBadge } from '../utils';
 import { useAuth } from './useAuth';
 import { useCategories } from './useCategories';
 import { useHolidays } from './useHolidays';
@@ -158,9 +158,10 @@ export function useUpcomingTasksData() {
       if (selectedResponsaveis.length > 0 && (!task.responsavelId || !selectedResponsaveis.includes(task.responsavelId)))
         return false;
       // "Não iniciada" = deveria ter começado (previsto <= hoje) e não começou — não conta quem
-      // ainda não chegou na data de início, esse é só "previsto". Mesma flag `isStartDelayed`
-      // que o selo do StatusBadge já usa, não um cálculo novo.
-      if (onlyNotStarted && !task.isStartDelayed) return false;
+      // ainda não chegou na data de início, esse é só "previsto". `shouldShowStartDelayedBadge`
+      // (mesma função que o selo do StatusBadge já usa) também exclui quem já está `status ===
+      // 'delayed'` — achado do usuário: atrasado prevalece, não pode contar como "não iniciada".
+      if (onlyNotStarted && !shouldShowStartDelayedBadge(task)) return false;
       if (!term) return true;
       const responsavel = people.find((p) => p.id === task.responsavelId)?.name ?? '';
       const haystack = `${project.code} ${project.name} ${activity.name} ${task.name} ${responsavel}`.toLowerCase();
