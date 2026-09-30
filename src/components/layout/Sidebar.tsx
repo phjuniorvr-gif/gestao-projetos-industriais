@@ -112,18 +112,18 @@ export function Sidebar() {
     '/confirmacoes': pendingConfirmationCount,
     '/pipeline': pipelines.length,
   };
-  // Só 'usuario' fica restrito a "Tarefas por vencer" e só 'comprador' fica restrito a
-  // "Importação" — administrador e visualizador (Fase 7+) enxergam o menu inteiro. Checa
-  // `=== 'usuario'`/`=== 'comprador'` explícito (não o inverso de canViewAll) pra não estreitar o
-  // menu por um instante a cada carregamento de página, enquanto o papel ainda não resolveu
-  // (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
+  // 'usuario' fica restrito a "Tarefas por vencer" + "Projetos" (leitura — pedido do usuário) e só
+  // 'comprador' fica restrito a "Importação" — administrador e visualizador (Fase 7+) enxergam o
+  // menu inteiro. Checa `=== 'usuario'`/`=== 'comprador'` explícito (não o inverso de canViewAll)
+  // pra não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
+  // não resolveu (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
   // "Equipe" (Kanban por responsável, pedido do usuário — "apenas o admin pode ter") é a única
   // exceção dentro do bloco "mostra tudo": some pra `visualizador` também, não só usuario/comprador
   // (checa `!== 'administrador'`, mesmo raciocínio de `undefined` contar como "mostra" — a página
   // em si tem a guarda de verdade, esta filtragem é só pra não oferecer um link que vai barrar).
   const navItems = (
     papel === 'usuario'
-      ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas')
+      ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas' || item.to === '/projetos')
       : papel === 'comprador'
         ? NAV_ITEMS.filter((item) => item.to === '/importacao')
         : NAV_ITEMS

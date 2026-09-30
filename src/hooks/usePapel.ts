@@ -48,3 +48,13 @@ export function canViewAll(papel: Papel | undefined): boolean {
 export function canViewImportacao(papel: Papel | undefined): boolean {
   return canViewAll(papel) || papel === 'comprador';
 }
+
+/** Alcança a rota `/projetos` — quem já enxerga tudo (`canViewAll`) mais o papel `usuario`, que
+ * antes só enxergava "Tarefas por vencer" (pedido do usuário: dar acesso de LEITURA à tela de
+ * Projetos, sem abrir escrita nenhuma — todo botão/campo de edição ali já trava por
+ * `isAdmin !== true`, o mesmo mecanismo que já protege `visualizador` hoje). Só esta rota (não
+ * `canViewAll` inteiro) — `/novo-projeto`/Pipeline/Dashboard/etc. continuam fora do alcance de
+ * `usuario`. */
+export function canViewProjetos(papel: Papel | undefined): boolean {
+  return canViewAll(papel) || papel === 'usuario';
+}
