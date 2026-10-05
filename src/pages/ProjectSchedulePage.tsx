@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ChevronsDownUp,
   ChevronsUpDown,
+  ClipboardList,
   GanttChart,
   ListPlus,
   Pencil,
@@ -21,6 +22,7 @@ import {
   getGanttColumns,
   getGanttLeftWidth,
   ImportacaoKanban,
+  ImportacaoResumoDialog,
   MobileScheduleList,
   offsetPx,
   RejectTaskDialog,
@@ -37,13 +39,15 @@ import {
   type ProjectFiltersState,
 } from '../components/projects';
 import type { MobileOutletContext } from '../components/layout';
-import { useCatalog, useCategories, useHolidays, useIsMobile, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
+import { canViewAll, useCatalog, useCategories, useHolidays, useIsMobile, usePapel, usePeople, usePerfil, useProjects, useUndoToast } from '../hooks';
 import { STATUS_LABEL, type ActivityView, type ProjectStatus, type ProjectView, type TaskView } from '../types';
 import {
+  buildImportacaoResumoText,
   computeImportacaoStage,
   computeProjectStatus,
   rollUpDates,
   rollUpStatus,
+  selectImportacaoResumoCards,
   shouldShowStartDelayedBadge,
   sortProjectsByCriticality,
   todayISO,
@@ -102,6 +106,7 @@ export function ProjectSchedulePage() {
     restoreActivityWithTasks,
   } = useProjects();
   const isAdmin = usePerfil();
+  const papel = usePapel();
   // A rota /projetos/:id/cronograma é pra onde o bottom sheet mobile ("Ver atividades") manda —
   // continua sendo a tela desktop mesmo (decisão da Fase 6), mas os controles pensados pra tela
   // larga (zoom, "Novo item", "Editar"...) só atrapalham lá; simplifica em vez de reconstruir.
@@ -336,6 +341,8 @@ export function ProjectSchedulePage() {
   const [deletingActivity, setDeletingActivity] = useState<ActivityView | null>(null);
   const [deletingTask, setDeletingTask] = useState<TaskView | null>(null);
   const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
+  // Resumo pra copiar e enviar ao comprador (pedido do usuário, sessão de 2026-10-05).
+  const [resumoOpen, setResumoOpen] = useState(false);
 
   const filteredGanttProjects = useMemo(() => {
     // `effectiveCategoryFilter` (não `categoryFilter` bruto) — na aba Importação é sempre a
@@ -511,6 +518,17 @@ export function ProjectSchedulePage() {
   ]);
 
   // Contagem do card "Não iniciadas" do Kanban — mesma base SEM os dois filtros (senão ligar o
+  // Resumo pra copiar/enviar ao comprador (pedido do usuário) — mesma base `importacaoKanbanCards`
+  // (já respeita Projeto/Buscar processo/responsável), filtrada só pra atrasado OU não iniciada
+  // (`selectImportacaoResumoCards`, mesma precedência "atrasado vence" já corrigida no resto do
+  // Kanban). Texto gerado sempre (não só quando o modal abre) — lista é pequena, não vale a pena
+  // adiar.
+  const importacaoResumoCards = useMemo(() => selectImportacaoResumoCards(importacaoKanbanCards), [importacaoKanbanCards]);
+  const importacaoResumoText = useMemo(
+    () => buildImportacaoResumoText(importacaoResumoCards, today),
+    [importacaoResumoCards, today],
+  );
+
   // próprio filtro zeraria o card que o liga), mesmo cuidado de sempre. Achado do usuário, print
   // — tarefa atrasada E não iniciada contava nos DOIS cards; atrasado prevalece
   // (`shouldShowStartDelayedBadge`, a mesma função que já decide o selo da tarefa individual).
@@ -832,6 +850,18 @@ export function ProjectSchedulePage() {
                 />
               </div>
             )}
+            {/* "Copiar resumo" no mobile (pedido do usuário) — mesmo botão do desktop, mesmo gate
+                (`canViewAll`), só estilo mobile. */}
+            {isMobile && isImportacaoView && canViewAll(papel) && (
+              <button
+                type="button"
+                onClick={() => setResumoOpen(true)}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-xs font-semibold text-text-muted"
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                Resumo{importacaoResumoCards.length > 0 ? ` (${importacaoResumoCards.length})` : ''}
+              </button>
+            )}
             {/* "Unidade"/"Projeto" — pedido do usuário: some inteiro do MOBILE (não é só visual,
                 é a tela mesmo sem esses dois filtros lá). Continuam no desktop, sem mudança —
                 "Unidade" renderizada aqui, logo depois do botão de ordenação, não dentro de
@@ -1112,6 +1142,19 @@ export function ProjectSchedulePage() {
                   Editar
                 </Button>
               )}
+              {/* "Copiar resumo" (pedido do usuário) — texto pronto só com processos
+                  atrasados/não iniciados, agrupados por etapa, pra colar numa mensagem pro
+                  comprador. Administrador + visualizador (mesmo grupo de `canViewAll`) — comprador
+                  não precisa gerar mensagem pra si mesmo. */}
+              {!isMobile && isImportacaoView && canViewAll(papel) && (
+                <Button
+                  variant="secondary"
+                  icon={<ClipboardList className="h-4 w-4" />}
+                  onClick={() => setResumoOpen(true)}
+                >
+                  Copiar resumo{importacaoResumoCards.length > 0 ? ` (${importacaoResumoCards.length})` : ''}
+                </Button>
+              )}
               {!isMobile && !project && !isImportacaoView && (
                 <button
                   type="button"
@@ -1387,6 +1430,13 @@ export function ProjectSchedulePage() {
           if (result.valid) setRejectingTaskId(null);
           return result;
         }}
+      />
+
+      <ImportacaoResumoDialog
+        open={resumoOpen}
+        text={importacaoResumoText}
+        cardCount={importacaoResumoCards.length}
+        onClose={() => setResumoOpen(false)}
       />
 
       <UndoToast toast={toast} onDismiss={dismiss} />
