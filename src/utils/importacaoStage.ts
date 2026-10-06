@@ -89,7 +89,7 @@ export function buildImportacaoResumoText(cards: ImportacaoResumoCard[], today: 
     for (const { project, activity, task } of stageCards) {
       const processo = activity.processo || '—';
       lines.push(`📦 *Processo ${processo}*`);
-      lines.push(`🏭 ${project.code} - ${activity.name} (Processo ${processo})`);
+      lines.push(`🏭 ${project.code} - ${activity.name}`);
       lines.push(formatResumoStatusLine(task, today));
       lines.push('📝 Observação:');
       lines.push(task.observacao?.trim() || '(sem observação)');
