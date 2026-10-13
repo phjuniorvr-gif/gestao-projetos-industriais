@@ -43,10 +43,28 @@ export function canViewAll(papel: Papel | undefined): boolean {
   return papel === 'administrador' || papel === 'visualizador';
 }
 
-/** Alcança a rota `/importacao` — quem já enxerga tudo (`canViewAll`) mais o papel `comprador`,
- * que só enxerga essa aba (Fase 7+, pedido do usuário). */
+/** Alcança a rota `/importacao` — quem já enxerga tudo (`canViewAll`) mais os papéis `comprador`
+ * (Fase 7+) e `gestor_requisicoes` (sessão 2026-10-13, acesso combinado com Requisições/Tarefas
+ * por vencer — ver `canViewRequisicoes`). */
 export function canViewImportacao(papel: Papel | undefined): boolean {
-  return canViewAll(papel) || papel === 'comprador';
+  return canViewAll(papel) || papel === 'comprador' || papel === 'gestor_requisicoes';
+}
+
+/** Alcança a rota `/requisicoes` (sessão 2026-10-13) — quem já enxerga tudo (`canViewAll`) mais
+ * `gestor_requisicoes` (dono da tela) e `comprador`: o banco (`valida_edicao_requisicao`) já
+ * libera o comprador pra avançar aprovada→comprada→recebida, então ele precisa alcançar essa
+ * rota pra usar essa capacidade — sem isso, a permissão do banco ficaria inatingível pela UI.
+ * Criar/editar requisição em si é mais restrito ainda — ver `canManageRequisicoes`. */
+export function canViewRequisicoes(papel: Papel | undefined): boolean {
+  return canViewAll(papel) || papel === 'gestor_requisicoes' || papel === 'comprador';
+}
+
+/** Quem pode criar uma requisição nova ou editar os dados dela (item/quantidade/valor/
+ * observação) — administrador + `gestor_requisicoes`, mesmo grupo que o INSERT da RLS exige
+ * (`eh_administrador_ou_gestor_requisicoes()`). `visualizador` alcança a tela (`canViewRequisicoes`)
+ * mas só pra consulta, mesmo padrão de sempre. */
+export function canManageRequisicoes(papel: Papel | undefined): boolean {
+  return papel === 'administrador' || papel === 'gestor_requisicoes';
 }
 
 /** Alcança a rota `/projetos` — quem já enxerga tudo (`canViewAll`) mais o papel `usuario`, que

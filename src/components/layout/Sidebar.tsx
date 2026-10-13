@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarClock, CalendarRange, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Ship, Tag, Trash2, UserCheck, Users, Workflow } from 'lucide-react';
+import { CalendarClock, CalendarRange, ClipboardList, FolderKanban, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Settings, Ship, Tag, Trash2, UserCheck, Users, Workflow } from 'lucide-react';
 import { AppLogo, ChangePasswordDialog } from '../ui';
 import { useAuth, usePapel, usePipelines, useProjects } from '../../hooks';
 
@@ -41,6 +41,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Importação',
     icon: Ship,
     isActive: (pathname) => pathname === '/importacao',
+  },
+  {
+    to: '/requisicoes',
+    label: 'Requisições',
+    icon: ClipboardList,
+    isActive: (pathname) => pathname === '/requisicoes',
   },
   {
     to: '/tarefas-proximas',
@@ -112,23 +118,31 @@ export function Sidebar() {
     '/confirmacoes': pendingConfirmationCount,
     '/pipeline': pipelines.length,
   };
-  // 'usuario' fica restrito a "Tarefas por vencer" + "Projetos" (leitura — pedido do usuário) e só
-  // 'comprador' fica restrito a "Importação" — administrador e visualizador (Fase 7+) enxergam o
-  // menu inteiro. Checa `=== 'usuario'`/`=== 'comprador'` explícito (não o inverso de canViewAll)
-  // pra não estreitar o menu por um instante a cada carregamento de página, enquanto o papel ainda
-  // não resolveu (`undefined` conta como "mostra tudo", igual admin/visualizador já resolvidos).
-  // "Equipe" (Kanban por responsável, pedido do usuário — "apenas o admin pode ter") é a única
-  // exceção dentro do bloco "mostra tudo": some pra `visualizador` também, não só usuario/comprador
-  // (checa `!== 'administrador'`, mesmo raciocínio de `undefined` contar como "mostra" — a página
-  // em si tem a guarda de verdade, esta filtragem é só pra não oferecer um link que vai barrar).
+  // 'usuario' fica restrito a "Tarefas por vencer" + "Projetos" (leitura — pedido do usuário);
+  // 'comprador' fica restrito a "Importação" + "Requisições" (sessão 2026-10-13 — o banco já
+  // libera o comprador avançar aprovada→comprada→recebida, então precisa alcançar essa rota);
+  // 'gestor_requisicoes' (mesma sessão) fica restrito a "Importação" + "Requisições" + "Tarefas
+  // por vencer" — administrador e visualizador (Fase 7+) enxergam o menu inteiro. Checa cada papel
+  // explícito (não o inverso de canViewAll) pra não estreitar o menu por um instante a cada
+  // carregamento de página, enquanto o papel ainda não resolveu (`undefined` conta como "mostra
+  // tudo", igual admin/visualizador já resolvidos). "Equipe" (Kanban por responsável, pedido do
+  // usuário — "apenas o admin pode ter") é a única exceção dentro do bloco "mostra tudo": some pra
+  // `visualizador` também, não só os papéis restritos (checa `!== 'administrador'`, mesmo
+  // raciocínio de `undefined` contar como "mostra" — a página em si tem a guarda de verdade, esta
+  // filtragem é só pra não oferecer um link que vai barrar).
   const navItems = (
     papel === 'usuario'
       ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas' || item.to === '/projetos')
       : papel === 'comprador'
-        ? NAV_ITEMS.filter((item) => item.to === '/importacao')
-        : NAV_ITEMS
+        ? NAV_ITEMS.filter((item) => item.to === '/importacao' || item.to === '/requisicoes')
+        : papel === 'gestor_requisicoes'
+          ? NAV_ITEMS.filter(
+              (item) => item.to === '/importacao' || item.to === '/requisicoes' || item.to === '/tarefas-proximas',
+            )
+          : NAV_ITEMS
   ).filter((item) => item.to !== '/equipe' || papel === undefined || papel === 'administrador');
-  const secondaryItems = papel === 'usuario' || papel === 'comprador' ? [] : SECONDARY_NAV_ITEMS;
+  const RESTRICTED_PAPEIS: Array<typeof papel> = ['usuario', 'comprador', 'gestor_requisicoes'];
+  const secondaryItems = RESTRICTED_PAPEIS.includes(papel) ? [] : SECONDARY_NAV_ITEMS;
 
   function renderNavItem(item: NavItem) {
     const active = item.isActive(pathname);

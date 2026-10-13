@@ -12,12 +12,13 @@ import {
   PipelinesPage,
   ProjectSchedulePage,
   ProjectsPage,
+  RequisicoesPage,
   SettingsPage,
   TeamKanbanPage,
   UpcomingTasksPage,
 } from './pages';
 import { MobileDashboardPage, MobilePipelinesPage, MobileProjectsPage, MobileSchedulePage, MobileTeamPage, MobileUpcomingTasksPage } from './pages/mobile';
-import { canViewAll, canViewImportacao, canViewProjetos, useIsMobile } from './hooks';
+import { canViewAll, canViewImportacao, canViewProjetos, canViewRequisicoes, useIsMobile } from './hooks';
 
 export default function App() {
   const isMobile = useIsMobile();
@@ -35,6 +36,13 @@ export default function App() {
                 resto) — pedido do usuário: login com papel Comprador só enxerga esta tela. */}
             <Route element={<RequireAccess allow={canViewImportacao} />}>
               <Route path="importacao" element={<ProjectSchedulePage />} />
+            </Route>
+            {/* Requisições de compra/material (sessão 2026-10-13) — administrador/visualizador
+                (canViewAll) + gestor_requisicoes (dono da tela) + comprador (precisa alcançar pra
+                avançar aprovada→comprada→recebida, liberado no banco). Sem variante mobile própria
+                ainda ("só desktop por agora") — mesmo componente nos dois, grid já responsivo. */}
+            <Route element={<RequireAccess allow={canViewRequisicoes} />}>
+              <Route path="requisicoes" element={<RequisicoesPage />} />
             </Route>
             {/* Pedido do usuário — papel `usuario` ganha acesso de LEITURA à tela de Projetos (era
                 barrada, só "Tarefas por vencer"). Rota própria, fora do grupo `canViewAll` abaixo,

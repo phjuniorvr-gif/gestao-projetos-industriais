@@ -59,13 +59,14 @@ export interface Person {
 // 'usuario' de antes da tela restrita existir (Fase 7+).
 // 'comprador' (pedido do usuário) — enxerga só a aba Importação, nada mais do menu; mesma
 // exceção de navegação que 'usuario' já tem hoje (restrito a "Tarefas por vencer").
-export type Papel = 'usuario' | 'administrador' | 'visualizador' | 'comprador';
+export type Papel = 'usuario' | 'administrador' | 'visualizador' | 'comprador' | 'gestor_requisicoes';
 
 export const PAPEL_LABEL: Record<Papel, string> = {
   usuario: 'Usuário',
   administrador: 'Administrador',
   visualizador: 'Visualizador',
   comprador: 'Comprador',
+  gestor_requisicoes: 'Gestor de Requisições',
 };
 
 export interface Usuario {
@@ -179,6 +180,41 @@ export interface Pipeline {
   name: string;
   description?: string;
   unit: string;
+  createdAt: string;
+}
+
+// Requisição de compra/material (sessão 2026-10-13) — independente de projeto/tarefa, papel novo
+// `gestor_requisicoes` cria/gerencia junto com administrador. Fluxo: pendente → em_cotacao →
+// aprovada|reprovada → comprada → recebida; avanço aprovada→comprada→recebida liberado pro
+// `comprador` no banco (trigger `valida_edicao_requisicao`), não só na UI.
+export type RequisicaoStatus = 'pendente' | 'em_cotacao' | 'aprovada' | 'reprovada' | 'comprada' | 'recebida';
+
+export const REQUISICAO_STATUS_ORDER: RequisicaoStatus[] = [
+  'pendente',
+  'em_cotacao',
+  'aprovada',
+  'reprovada',
+  'comprada',
+  'recebida',
+];
+
+export const REQUISICAO_STATUS_LABEL: Record<RequisicaoStatus, string> = {
+  pendente: 'Pendente',
+  em_cotacao: 'Em cotação',
+  aprovada: 'Aprovada',
+  reprovada: 'Reprovada',
+  comprada: 'Comprada',
+  recebida: 'Recebida',
+};
+
+export interface Requisicao {
+  id: string;
+  item: string;
+  quantidade: number;
+  valorEstimado?: number;
+  observacao?: string;
+  status: RequisicaoStatus;
+  criadoPorUserId: string;
   createdAt: string;
 }
 

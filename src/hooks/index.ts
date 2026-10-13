@@ -6,6 +6,7 @@ export * from './useHolidays';
 export * from './useReplanejamentos';
 export * from './usePeople';
 export * from './usePipelines';
+export * from './useRequisicoes';
 export * from './useUsuarios';
 export * from './useAuth';
 export * from './usePerfil';

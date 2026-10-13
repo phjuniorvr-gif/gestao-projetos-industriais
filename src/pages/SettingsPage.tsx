@@ -301,6 +301,7 @@ export function SettingsPage() {
                       <option value="administrador">Administrador</option>
                       <option value="visualizador">Visualizador</option>
                       <option value="comprador">Comprador</option>
+                      <option value="gestor_requisicoes">Gestor de Requisições</option>
                     </Select>
                   )}
                 </div>
@@ -331,6 +332,7 @@ export function SettingsPage() {
                 <option value="administrador">Administrador</option>
                 <option value="visualizador">Visualizador</option>
                 <option value="comprador">Comprador</option>
+                <option value="gestor_requisicoes">Gestor de Requisições</option>
               </Select>
               <Select value={newUserPersonId} onChange={(e) => setNewUserPersonId(e.target.value)} className="w-48">
                 <option value="">Pessoa vinculada: nenhuma</option>

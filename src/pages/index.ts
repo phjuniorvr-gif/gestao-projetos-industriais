@@ -10,5 +10,6 @@ export * from './UpcomingTasksPage';
 export * from './SettingsPage';
 export * from './PendingConfirmationsPage';
 export * from './PipelinesPage';
+export * from './RequisicoesPage';
 export * from './NewPipelinePage';
 export * from './TeamKanbanPage';
