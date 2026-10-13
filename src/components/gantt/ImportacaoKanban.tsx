@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Factory, HelpCircle, PackageCheck, Truck, X } from 'lucide-react';
+import { Factory, Handshake, HelpCircle, PackageCheck, Truck, X } from 'lucide-react';
 import { Card } from '../ui';
 import { StatusBadge } from '../shared/StatusBadge';
 import type { ActivityView, ProjectView, TaskView } from '../../types';
@@ -75,14 +75,18 @@ function formatDaysLine(task: TaskView, today: string): { text: string; late: bo
 // visual, sem ligação com status de tarefa (Entrega usa o azul de ação, não o verde de
 // "concluído" — processo em etapa de Entrega ainda não terminou). "Outras etapas" usa cinza
 // neutro (`--color-text-muted`) — não é uma etapa de verdade, é catálogo de quem ainda não está
-// no padrão Fabricação/Transit Time/Entrega.
+// no padrão Negociação/Fabricação/Transit Time/Entrega. "Negociação" (sessão 2026-10-13) usa o
+// navy da sidebar (`--color-sidebar`) — único token de marca sem significado de status já
+// emprestado por nenhuma das outras 4 colunas, evita colidir com elas.
 const STAGE_SUMMARY_COLOR: Record<ImportacaoStage, string> = {
+  negociacao: 'var(--color-sidebar)',
   fabricacao: 'var(--color-status-planned)',
   transit: 'var(--color-status-progress)',
   entrega: 'var(--color-action)',
   outras: 'var(--color-text-muted)',
 };
 const STAGE_SUMMARY_ICON: Record<ImportacaoStage, typeof Factory> = {
+  negociacao: Handshake,
   fabricacao: Factory,
   transit: Truck,
   entrega: PackageCheck,
@@ -94,7 +98,13 @@ const STAGE_SUMMARY_ICON: Record<ImportacaoStage, typeof Factory> = {
  * Processo com todas as tarefas concluídas nunca chega até aqui — já vem filtrado por quem monta
  * `cards` (`ProjectSchedulePage.tsx`). */
 export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanProps) {
-  const groups: Record<ImportacaoStage, ImportacaoKanbanCard[]> = { fabricacao: [], transit: [], entrega: [], outras: [] };
+  const groups: Record<ImportacaoStage, ImportacaoKanbanCard[]> = {
+    negociacao: [],
+    fabricacao: [],
+    transit: [],
+    entrega: [],
+    outras: [],
+  };
   for (const card of cards) groups[card.stage].push(card);
   // Filtro por etapa (pedido do usuário — "clicar no card, ai exemplo fabricação, só mostra o
   // fabricação") — clicar de novo no mesmo card volta a mostrar as 4 colunas. Sem prop/estado
@@ -114,11 +124,11 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
     // sticky cobrindo os primeiros pixels do quadro por falta de espaço reservado.
     <div className="space-y-4 pt-2 sm:pt-0">
       {/* Cards de resumo (pedido do usuário) — um por etapa, na mesma ordem das colunas abaixo
-          (`IMPORTACAO_STAGE_ORDER`: Fabricação/Transit Time/Entrega/Outras etapas por último).
-          "Total Importação" tirado de propósito (pedido do usuário — "ficou confuso"). Clicável
-          (pedido do usuário) — filtra o quadro abaixo pra só aquela etapa; clique de novo no
-          mesmo card limpa o filtro. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          (`IMPORTACAO_STAGE_ORDER`: Negociação/Fabricação/Transit Time/Entrega/Outras etapas por
+          último). "Total Importação" tirado de propósito (pedido do usuário — "ficou confuso").
+          Clicável (pedido do usuário) — filtra o quadro abaixo pra só aquela etapa; clique de novo
+          no mesmo card limpa o filtro. `sm:grid-cols-5` (era 4) desde que "Negociação" entrou. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {IMPORTACAO_STAGE_ORDER.map((stage) => {
           const Icon = STAGE_SUMMARY_ICON[stage];
           const active = activeStage === stage;
@@ -174,7 +184,7 @@ export function ImportacaoKanban({ cards, today, onOpenTask }: ImportacaoKanbanP
         </button>
       )}
 
-      <div className={activeStage ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'}>
+      <div className={activeStage ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5'}>
       {visibleStages.map((stage) => (
         // Cabeçalho por coluna (rótulo + contagem) removido — pedido do usuário, print mostrando
         // que já é redundante com os cards de resumo coloridos acima (mesma etapa, mesma

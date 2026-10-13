@@ -5,11 +5,16 @@ import { shouldShowStartDelayedBadge } from './status';
 // Kanban da aba Importação (sessão de 2026-09-28, "teste" a pedido do usuário) — agrupa cada
 // processo pela ETAPA em que está agora, sem nenhum campo novo no banco (regra de ouro): deriva
 // do nome + status das tarefas que a atividade já tem.
-export type ImportacaoStage = 'fabricacao' | 'transit' | 'entrega' | 'outras';
+export type ImportacaoStage = 'negociacao' | 'fabricacao' | 'transit' | 'entrega' | 'outras';
 
-export const IMPORTACAO_STAGE_ORDER: ImportacaoStage[] = ['fabricacao', 'transit', 'entrega', 'outras'];
+// 'negociacao' (pedido do usuário, sessão de 2026-10-13) vem ANTES de 'fabricacao' na ordem — é a
+// etapa que acontece antes do pedido ir pra fábrica (achado ao implementar: tarefas reais já
+// usavam "Negociação de Compra"/"Aprovação da Negociação de Compra" como nome, caindo em "Outras
+// etapas" até agora por não bater com nenhum dos 3 nomes conhecidos).
+export const IMPORTACAO_STAGE_ORDER: ImportacaoStage[] = ['negociacao', 'fabricacao', 'transit', 'entrega', 'outras'];
 
 export const IMPORTACAO_STAGE_LABELS: Record<ImportacaoStage, string> = {
+  negociacao: 'Negociação',
   fabricacao: 'Fabricação',
   transit: 'Transit Time',
   entrega: 'Entrega',
@@ -22,6 +27,7 @@ export const IMPORTACAO_STAGE_LABELS: Record<ImportacaoStage, string> = {
  * mesmo pra atividade fora do padrão de 3 tarefas. */
 function matchStageName(name: string): ImportacaoStage {
   const n = name.toLowerCase();
+  if (n.includes('negocia')) return 'negociacao';
   if (n.includes('fabrica')) return 'fabricacao';
   if (n.includes('transit')) return 'transit';
   if (n.includes('entrega')) return 'entrega';

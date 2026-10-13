@@ -56,6 +56,18 @@ describe('computeImportacaoStage', () => {
     expect(result?.stage).toBe('transit');
   });
 
+  it('1ª não concluída é Negociação de Compra — etapa negociacao', () => {
+    const tasks: FixtureTask[] = [
+      { name: 'Negociação de Compra', status: 'in_progress' },
+      { name: 'Fabricação do Equipamento', status: 'planned' },
+      { name: 'Transit Time', status: 'planned' },
+      { name: 'Entrega', status: 'planned' },
+    ];
+    const result = computeImportacaoStage(tasks);
+    expect(result?.stage).toBe('negociacao');
+    expect(result?.task.name).toBe('Negociação de Compra');
+  });
+
   it('nome que não bate com nenhuma etapa conhecida — outras', () => {
     const tasks: FixtureTask[] = [{ name: 'Embarque da Parafusadeira da China', status: 'delayed' }];
     const result = computeImportacaoStage(tasks);
