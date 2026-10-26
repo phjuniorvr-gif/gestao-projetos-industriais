@@ -84,12 +84,12 @@ export function RequisicaoDialog({
 
   async function handleSave() {
     if (!item.trim()) {
-      setError('Informe o item.');
+      setError('Informe a descrição.');
       return;
     }
     const qtd = Number(quantidade);
-    if (!quantidade.trim() || Number.isNaN(qtd) || qtd <= 0) {
-      setError('Informe uma quantidade válida.');
+    if (!quantidade.trim() || Number.isNaN(qtd) || !Number.isInteger(qtd) || qtd <= 0) {
+      setError('Informe o número da requisição (só números inteiros).');
       return;
     }
     const valor = valorEstimado.trim() ? Number(valorEstimado) : undefined;
@@ -144,14 +144,16 @@ export function RequisicaoDialog({
         </div>
 
         <div className="mt-3 space-y-3">
-          <FormField label="Item" required error={error}>
+          <FormField label="Descrição" required error={error}>
             <Input value={item} onChange={(e) => setItem(e.target.value)} className="w-full" disabled={fieldsLocked} placeholder="O que precisa comprar" />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Quantidade" required>
+            <FormField label="Requisição" required>
               <Input
                 type="number"
                 min="0"
+                step="1"
+                inputMode="numeric"
                 value={quantidade}
                 onChange={(e) => setQuantidade(e.target.value)}
                 className="w-full"

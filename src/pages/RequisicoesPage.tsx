@@ -133,7 +133,7 @@ export function RequisicoesPage() {
                       {resolveProjectLabel(r.projectId) && (
                         <p className="truncate text-xs font-semibold text-action">{resolveProjectLabel(r.projectId)}</p>
                       )}
-                      <p className="text-xs text-text-muted">Quantidade: {r.quantidade}</p>
+                      <p className="text-xs text-text-muted">Requisição: {r.quantidade}</p>
                       <p className="text-xs text-text-muted">Valor estimado: {formatValor(r.valorEstimado)}</p>
                       {r.observacao && <p className="truncate text-xs text-text-muted">{r.observacao}</p>}
                       <p className="text-xs text-text-muted2">
