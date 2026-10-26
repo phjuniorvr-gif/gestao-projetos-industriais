@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, FormField, Input, Textarea } from '../ui';
 import type { Requisicao, RequisicaoStatus } from '../../types';
+import { formatDatePtBr } from '../../utils';
 
 interface RequisicaoDialogProps {
   open: boolean;
@@ -159,7 +160,11 @@ export function RequisicaoDialog({
               disabled={fieldsLocked}
             />
           </FormField>
-          {!isCreate && <p className="text-xs text-text-muted">Criada por {criadoPorNome}</p>}
+          {!isCreate && requisicao && (
+            <p className="text-xs text-text-muted">
+              Criada por {criadoPorNome} em {formatDatePtBr(requisicao.createdAt.slice(0, 10))}
+            </p>
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">

@@ -53,8 +53,21 @@ export function RequisicoesPage() {
     return byStatus;
   }, [requisicoes]);
 
+  // Achado ao testar (print do usuário, "grava o nome do usuario e o dia"): já gravava (`criado_por`
+  // + `created_at`, desde a criação da tela) — o problema era só a RESOLUÇÃO do nome. `pessoas` tem
+  // `userId` vinculado pra todo mundo MENOS a conta administrador (verificado no banco: é a única
+  // linha de `perfis` sem `pessoas` correspondente) — então o próprio administrador criando/vendo
+  // sua requisição sempre caía no fallback genérico "Usuário". Corrigido com um segundo fallback
+  // ANTES do genérico: se quem está logado agora é o mesmo `userId` que criou, usa o e-mail da
+  // PRÓPRIA sessão (`session.user.email`, sempre disponível) — resolve o caso real sem precisar
+  // vincular uma pessoa pro administrador nem buscar `perfis` de outra pessoa (que RLS não deixa
+  // pra quem não é admin). Criador de outra pessoa ainda sem vínculo (caso raro, hoje não existe
+  // nenhum) continua caindo no "Usuário" genérico.
   function resolveCriadoPorNome(userId: string): string {
-    return people.find((p) => p.userId === userId)?.name ?? 'Usuário';
+    const pessoa = people.find((p) => p.userId === userId)?.name;
+    if (pessoa) return pessoa;
+    if (userId === session?.user.id && session.user.email) return session.user.email;
+    return 'Usuário';
   }
 
   const dialogOpen = selected !== null;
