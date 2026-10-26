@@ -216,6 +216,10 @@ export interface Requisicao {
   status: RequisicaoStatus;
   criadoPorUserId: string;
   createdAt: string;
+  /** Vínculo OPCIONAL com um projeto (sessão seguinte, pedido do usuário — "a pessoa tenha a
+   * opção de associar a um projeto") — requisição continua existindo sem projeto nenhum; não é
+   * apagada se o projeto associado for excluído depois (`on delete set null` no banco). */
+  projectId?: string;
 }
 
 // Condições derivadas (Fase 2.3, decisão no CLAUDE.md): blocked/completed_late/to_start não

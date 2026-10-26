@@ -10,6 +10,7 @@ interface RequisicaoRow {
   status: RequisicaoStatus;
   criado_por: string;
   created_at: string;
+  project_id: string | null;
 }
 
 function fromRow(row: RequisicaoRow): Requisicao {
@@ -22,6 +23,7 @@ function fromRow(row: RequisicaoRow): Requisicao {
     status: row.status,
     criadoPorUserId: row.criado_por,
     createdAt: row.created_at,
+    projectId: row.project_id ?? undefined,
   };
 }
 
@@ -37,6 +39,7 @@ export async function createRequisicao(input: {
   valorEstimado?: number;
   observacao?: string;
   criadoPorUserId: string;
+  projectId?: string;
 }): Promise<Requisicao> {
   const { data, error } = await supabase
     .from('requisicoes')
@@ -46,6 +49,7 @@ export async function createRequisicao(input: {
       valor_estimado: input.valorEstimado ?? null,
       observacao: input.observacao?.trim() || null,
       criado_por: input.criadoPorUserId,
+      project_id: input.projectId ?? null,
     })
     .select()
     .single();
@@ -53,11 +57,20 @@ export async function createRequisicao(input: {
   return fromRow(data as RequisicaoRow);
 }
 
-/** Edição geral (item/quantidade/valor/observação/status) — só administrador/gestor_requisicoes
- * passam no trigger `valida_edicao_requisicao`; qualquer outro papel recebe o erro do banco. */
+/** Edição geral (item/quantidade/valor/observação/status/projeto) — só administrador/
+ * gestor_requisicoes passam no trigger `valida_edicao_requisicao`; qualquer outro papel recebe o
+ * erro do banco. `projectId: null` desvincula de propósito — `undefined` continua sendo "não
+ * mexer nesse campo", mesma convenção de patch parcial já usada em `updatePerson`. */
 export async function updateRequisicao(
   id: string,
-  patch: Partial<{ item: string; quantidade: number; valorEstimado: number | null; observacao: string | null; status: RequisicaoStatus }>,
+  patch: Partial<{
+    item: string;
+    quantidade: number;
+    valorEstimado: number | null;
+    observacao: string | null;
+    status: RequisicaoStatus;
+    projectId: string | null;
+  }>,
 ): Promise<Requisicao> {
   const payload: Record<string, unknown> = {};
   if (patch.item !== undefined) payload.item = patch.item.trim();
@@ -65,6 +78,7 @@ export async function updateRequisicao(
   if (patch.valorEstimado !== undefined) payload.valor_estimado = patch.valorEstimado;
   if (patch.observacao !== undefined) payload.observacao = patch.observacao?.trim() || null;
   if (patch.status !== undefined) payload.status = patch.status;
+  if (patch.projectId !== undefined) payload.project_id = patch.projectId;
 
   const { data, error } = await supabase.from('requisicoes').update(payload).eq('id', id).select().single();
   if (error) throw error;

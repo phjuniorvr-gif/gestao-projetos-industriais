@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, EmptyState } from '../components/ui';
 import { RequisicaoDialog } from '../components/requisicoes';
-import { canCreateRequisicao, canManageRequisicoes, useAuth, usePapel, usePeople, useRequisicoes } from '../hooks';
+import { canCreateRequisicao, canManageRequisicoes, useAuth, usePapel, usePeople, useProjects, useRequisicoes } from '../hooks';
 import { REQUISICAO_STATUS_LABEL, REQUISICAO_STATUS_ORDER, type Requisicao, type RequisicaoStatus } from '../types';
 import { formatDatePtBr } from '../utils';
 
@@ -40,8 +40,26 @@ export function RequisicoesPage() {
   const canManage = canManageRequisicoes(papel);
   const isComprador = papel === 'comprador';
   const { people } = usePeople();
+  const { projects } = useProjects();
   const { requisicoes, loaded, createRequisicao, updateRequisicao, avancarStatus, deleteRequisicao } = useRequisicoes();
   const [selected, setSelected] = useState<Requisicao | null | 'new'>(null);
+
+  // Opções do seletor de projeto (sessão seguinte, pedido do usuário — "a pessoa tenha a opção de
+  // associar a um projeto") — mesmo formato "{código} — {nome}" já usado em outras listas do app
+  // (ex. `importacaoProjectOptions`), ordenado por código.
+  const projectOptions = useMemo(
+    () =>
+      [...projects]
+        .sort((a, b) => a.code.localeCompare(b.code, 'pt-BR', { numeric: true }))
+        .map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })),
+    [projects],
+  );
+
+  function resolveProjectLabel(projectId: string | undefined): string | undefined {
+    if (!projectId) return undefined;
+    const project = projects.find((p) => p.id === projectId);
+    return project ? `${project.code} — ${project.name}` : undefined;
+  }
 
   const groups = useMemo(() => {
     const byStatus: Record<RequisicaoStatus, Requisicao[]> = {
@@ -112,6 +130,9 @@ export function RequisicoesPage() {
                       style={{ borderLeftColor: STATUS_COLOR[status] }}
                     >
                       <p className="truncate text-sm font-semibold text-text">{r.item}</p>
+                      {resolveProjectLabel(r.projectId) && (
+                        <p className="truncate text-xs font-semibold text-action">{resolveProjectLabel(r.projectId)}</p>
+                      )}
                       <p className="text-xs text-text-muted">Quantidade: {r.quantidade}</p>
                       <p className="text-xs text-text-muted">Valor estimado: {formatValor(r.valorEstimado)}</p>
                       {r.observacao && <p className="truncate text-xs text-text-muted">{r.observacao}</p>}
@@ -133,6 +154,7 @@ export function RequisicoesPage() {
         canManage={canManage}
         isComprador={isComprador}
         criadoPorNome={dialogRequisicao ? resolveCriadoPorNome(dialogRequisicao.criadoPorUserId) : ''}
+        projectOptions={projectOptions}
         onClose={() => setSelected(null)}
         onCreate={(input) => createRequisicao({ ...input, criadoPorUserId: session?.user.id ?? '' })}
         onSave={(id, patch) => updateRequisicao(id, patch)}

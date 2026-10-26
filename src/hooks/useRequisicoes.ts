@@ -24,7 +24,14 @@ export function useRequisicoes() {
   }, []);
 
   const createRequisicao = useCallback(
-    async (input: { item: string; quantidade: number; valorEstimado?: number; observacao?: string; criadoPorUserId: string }) => {
+    async (input: {
+      item: string;
+      quantidade: number;
+      valorEstimado?: number;
+      observacao?: string;
+      criadoPorUserId: string;
+      projectId?: string;
+    }) => {
       const created = await createRequisicaoRemote(input);
       setRequisicoes((current) => [created, ...current]);
       return created;
@@ -41,6 +48,7 @@ export function useRequisicoes() {
         valorEstimado: number | null;
         observacao: string | null;
         status: RequisicaoStatus;
+        projectId: string | null;
       }>,
     ) => {
       const updated = await updateRequisicaoRemote(id, patch);

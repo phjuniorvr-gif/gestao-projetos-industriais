@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import { Button, Card, ConfirmDialog, FormField, Input, Textarea } from '../ui';
+import { Button, Card, ConfirmDialog, FormField, Input, Select, Textarea } from '../ui';
 import type { Requisicao, RequisicaoStatus } from '../../types';
 import { formatDatePtBr } from '../../utils';
 
@@ -16,9 +16,21 @@ interface RequisicaoDialogProps {
   /** Comprador — só vê os campos (sem editar) e avança aprovada→comprada→recebida. */
   isComprador: boolean;
   criadoPorNome: string;
+  /** Vínculo OPCIONAL com projeto (sessão seguinte, pedido do usuário) — lista já ordenada por
+   * código, resolvida na página (`projectOptions`, `useProjects()`). */
+  projectOptions: { value: string; label: string }[];
   onClose: () => void;
-  onCreate: (input: { item: string; quantidade: number; valorEstimado?: number; observacao?: string }) => Promise<unknown>;
-  onSave: (id: string, patch: { item: string; quantidade: number; valorEstimado?: number; observacao?: string }) => Promise<unknown>;
+  onCreate: (input: {
+    item: string;
+    quantidade: number;
+    valorEstimado?: number;
+    observacao?: string;
+    projectId?: string;
+  }) => Promise<unknown>;
+  onSave: (
+    id: string,
+    patch: { item: string; quantidade: number; valorEstimado?: number; observacao?: string; projectId: string | null },
+  ) => Promise<unknown>;
   onAdvanceStatus: (id: string, status: RequisicaoStatus) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
 }
@@ -39,6 +51,7 @@ export function RequisicaoDialog({
   canManage,
   isComprador,
   criadoPorNome,
+  projectOptions,
   onClose,
   onCreate,
   onSave,
@@ -49,6 +62,7 @@ export function RequisicaoDialog({
   const [quantidade, setQuantidade] = useState('');
   const [valorEstimado, setValorEstimado] = useState('');
   const [observacao, setObservacao] = useState('');
+  const [projectId, setProjectId] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -59,6 +73,7 @@ export function RequisicaoDialog({
     setQuantidade(requisicao ? String(requisicao.quantidade) : '');
     setValorEstimado(requisicao?.valorEstimado !== undefined ? String(requisicao.valorEstimado) : '');
     setObservacao(requisicao?.observacao ?? '');
+    setProjectId(requisicao?.projectId ?? '');
     setError('');
   }, [open, requisicao]);
 
@@ -85,9 +100,9 @@ export function RequisicaoDialog({
     setError('');
     setSaving(true);
     try {
-      const payload = { item: item.trim(), quantidade: qtd, valorEstimado: valor, observacao: observacao.trim() || undefined };
-      if (isCreate) await onCreate(payload);
-      else await onSave(requisicao.id, payload);
+      const base = { item: item.trim(), quantidade: qtd, valorEstimado: valor, observacao: observacao.trim() || undefined };
+      if (isCreate) await onCreate({ ...base, projectId: projectId || undefined });
+      else await onSave(requisicao.id, { ...base, projectId: projectId || null });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar.');
@@ -156,6 +171,16 @@ export function RequisicaoDialog({
               />
             </FormField>
           </div>
+          <FormField label="Projeto (opcional)">
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full" disabled={fieldsLocked}>
+              <option value="">Sem projeto</option>
+              {projectOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
           <FormField label="Observação">
             <Textarea
               value={observacao}
