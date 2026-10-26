@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, EmptyState } from '../components/ui';
 import { RequisicaoDialog } from '../components/requisicoes';
-import { canManageRequisicoes, useAuth, usePapel, usePeople, useRequisicoes } from '../hooks';
+import { canCreateRequisicao, canManageRequisicoes, useAuth, usePapel, usePeople, useRequisicoes } from '../hooks';
 import { REQUISICAO_STATUS_LABEL, REQUISICAO_STATUS_ORDER, type Requisicao, type RequisicaoStatus } from '../types';
 import { formatDatePtBr } from '../utils';
 
@@ -27,13 +27,16 @@ function formatValor(v: number | undefined): string {
 /**
  * Requisição de compra/material (sessão 2026-10-13, pedido do usuário) — Kanban por status
  * (`REQUISICAO_STATUS_ORDER`), desktop (sem layout mobile dedicado ainda, grid já responsivo).
- * Administrador/gestor_requisicoes criam e avançam pendente→em_cotacao→aprovada|reprovada;
- * comprador avança aprovada→comprada→recebida; visualizador só consulta — tudo reforçado no
- * banco (RLS + trigger `valida_edicao_requisicao`), esta tela só decide o que OFERECER.
+ * Qualquer papel logado cria (pedido do usuário — "quero mudar pra todos poder criar");
+ * administrador/gestor_requisicoes são quem EDITA depois de criada e avança
+ * pendente→em_cotacao→aprovada|reprovada; comprador avança aprovada→comprada→recebida —
+ * tudo reforçado no banco (RLS + trigger `valida_edicao_requisicao`), esta tela só decide o
+ * que OFERECER.
  */
 export function RequisicoesPage() {
   const { session } = useAuth();
   const papel = usePapel();
+  const canCreate = canCreateRequisicao(papel);
   const canManage = canManageRequisicoes(papel);
   const isComprador = papel === 'comprador';
   const { people } = usePeople();
@@ -79,7 +82,7 @@ export function RequisicoesPage() {
         title="Requisições"
         subtitle="Requisições de compra/material — pendente → em cotação → aprovada/reprovada → comprada → recebida"
         actions={
-          canManage ? (
+          canCreate ? (
             <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setSelected('new')}>
               Nova requisição
             </Button>
@@ -90,7 +93,7 @@ export function RequisicoesPage() {
       {!loaded ? null : requisicoes.length === 0 ? (
         <EmptyState
           title="Nenhuma requisição ainda"
-          description={canManage ? 'Clique em "Nova requisição" pra começar a lista.' : 'Ainda não há requisições cadastradas.'}
+          description={canCreate ? 'Clique em "Nova requisição" pra começar a lista.' : 'Ainda não há requisições cadastradas.'}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

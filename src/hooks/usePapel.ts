@@ -61,12 +61,23 @@ export function canViewRequisicoes(papel: Papel | undefined): boolean {
   return canViewAll(papel) || papel === 'gestor_requisicoes' || papel === 'comprador' || papel === 'usuario';
 }
 
-/** Quem pode criar uma requisição nova ou editar os dados dela (item/quantidade/valor/
- * observação) — administrador + `gestor_requisicoes`, mesmo grupo que o INSERT da RLS exige
- * (`eh_administrador_ou_gestor_requisicoes()`). `visualizador` alcança a tela (`canViewRequisicoes`)
- * mas só pra consulta, mesmo padrão de sempre. */
+/** Quem pode EDITAR os dados de uma requisição JÁ CRIADA (item/quantidade/valor/observação) e
+ * decidir pendente→em_cotacao→aprovada|reprovada — administrador + `gestor_requisicoes`, mesmo
+ * grupo que o trigger `valida_edicao_requisicao` exige pra tocar em qualquer coluna além de
+ * `status`. Diferente de `canCreateRequisicao` (criar é mais aberto) — ver essa função abaixo pro
+ * porquê da separação. */
 export function canManageRequisicoes(papel: Papel | undefined): boolean {
   return papel === 'administrador' || papel === 'gestor_requisicoes';
+}
+
+/** Quem pode CRIAR uma requisição nova — pedido do usuário pra abrir pra TODO MUNDO (antes só
+ * `canManageRequisicoes`). Separada de `canManageRequisicoes` de propósito: criar vira livre, mas
+ * editar depois de criada continua restrita (o trigger `valida_edicao_requisicao` só roda em
+ * UPDATE, nunca em INSERT, então a RLS de INSERT — aberta a qualquer autenticado — é quem governa
+ * de verdade; esta função só decide se a UI oferece o botão). `undefined` (carregando) conta como
+ * NÃO podendo, mesmo padrão fail-closed de sempre — evita o botão piscar antes do papel resolver. */
+export function canCreateRequisicao(papel: Papel | undefined): boolean {
+  return papel !== undefined;
 }
 
 /** Alcança a rota `/projetos` — quem já enxerga tudo (`canViewAll`) mais o papel `usuario`, que

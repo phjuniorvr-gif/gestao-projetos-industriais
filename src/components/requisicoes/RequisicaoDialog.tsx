@@ -6,7 +6,9 @@ import { formatDatePtBr } from '../../utils';
 
 interface RequisicaoDialogProps {
   open: boolean;
-  /** `null` = modo criação — só aberto pra quem já tem `canManage` (checado na página). */
+  /** `null` = modo criação — aberto pra qualquer papel logado (`canCreateRequisicao`, checado na
+   * página); campos ficam destravados em modo criação independente de `canManage` (ver
+   * `fieldsLocked` abaixo — só trava edição de requisição JÁ EXISTENTE). */
   requisicao: Requisicao | null;
   /** Administrador/gestor_requisicoes — edita item/quantidade/valor/observação, avança
    * pendente→em_cotacao→aprovada|reprovada, e exclui. */
@@ -22,11 +24,14 @@ interface RequisicaoDialogProps {
 }
 
 /**
- * Criar/editar requisição + avançar status (sessão 2026-10-13) — um diálogo só, comportamento
- * muda por papel: `canManage` edita os dados e decide pendente→em_cotacao→aprovada|reprovada;
- * `isComprador` só lê os dados e decide aprovada→comprada→recebida; qualquer outro papel (ex.
- * visualizador) só lê, sem botão nenhum. A validação de verdade é no banco (trigger
- * `valida_edicao_requisicao`) — esta UI só evita oferecer um botão que o servidor recusaria.
+ * Criar/editar requisição + avançar status — um diálogo só, comportamento muda por modo/papel:
+ * em modo CRIAÇÃO qualquer papel logado edita os campos livremente (pedido do usuário, sessão
+ * seguinte — "todos poder criar"); em modo EDIÇÃO (requisição já existente), `canManage` é quem
+ * edita os dados e decide pendente→em_cotacao→aprovada|reprovada; `isComprador` só lê os dados e
+ * decide aprovada→comprada→recebida; qualquer outro papel (ex. visualizador) só lê, sem botão
+ * nenhum. A validação de verdade é no banco (RLS de INSERT aberta + trigger
+ * `valida_edicao_requisicao` pro UPDATE) — esta UI só evita oferecer um botão que o servidor
+ * recusaria.
  */
 export function RequisicaoDialog({
   open,
