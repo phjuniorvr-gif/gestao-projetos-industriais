@@ -62,10 +62,10 @@ export function canViewRequisicoes(papel: Papel | undefined): boolean {
 }
 
 /** Quem pode EDITAR os dados de uma requisição JÁ CRIADA (item/quantidade/valor/observação) e
- * decidir pendente→em_cotacao→aprovada|reprovada — administrador + `gestor_requisicoes`, mesmo
- * grupo que o trigger `valida_edicao_requisicao` exige pra tocar em qualquer coluna além de
- * `status`. Diferente de `canCreateRequisicao` (criar é mais aberto) — ver essa função abaixo pro
- * porquê da separação. */
+ * decidir pendente→aprovada|reprovada→comprada→recebida livremente — administrador +
+ * `gestor_requisicoes`, mesmo grupo que o trigger `valida_edicao_requisicao` exige pra tocar em
+ * qualquer coluna além de `status`. Diferente de `canCreateRequisicao` (criar é mais aberto) — ver
+ * essa função abaixo pro porquê da separação. */
 export function canManageRequisicoes(papel: Papel | undefined): boolean {
   return papel === 'administrador' || papel === 'gestor_requisicoes';
 }

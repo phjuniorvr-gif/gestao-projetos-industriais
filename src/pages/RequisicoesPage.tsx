@@ -9,10 +9,9 @@ import { formatDatePtBr } from '../utils';
 
 // Cores por status (tokens já existentes no design system — sem cor nova) escolhidas pra não
 // repetir entre colunas VIZINHAS do quadro (`REQUISICAO_STATUS_ORDER`): pendente(cinza) →
-// em_cotacao(âmbar) → aprovada(azul) → reprovada(vermelho) → comprada(roxo) → recebida(verde).
+// aprovada(azul) → reprovada(vermelho) → comprada(roxo) → recebida(verde).
 const STATUS_COLOR: Record<RequisicaoStatus, string> = {
   pendente: 'var(--color-text-muted)',
-  em_cotacao: 'var(--color-status-progress)',
   aprovada: 'var(--color-action)',
   reprovada: 'var(--color-status-delayed)',
   comprada: 'var(--color-status-planned)',
@@ -29,9 +28,8 @@ function formatValor(v: number | undefined): string {
  * (`REQUISICAO_STATUS_ORDER`), desktop (sem layout mobile dedicado ainda, grid já responsivo).
  * Qualquer papel logado cria (pedido do usuário — "quero mudar pra todos poder criar");
  * administrador/gestor_requisicoes são quem EDITA depois de criada e avança
- * pendente→em_cotacao→aprovada|reprovada; comprador avança aprovada→comprada→recebida —
- * tudo reforçado no banco (RLS + trigger `valida_edicao_requisicao`), esta tela só decide o
- * que OFERECER.
+ * pendente→aprovada|reprovada; comprador avança aprovada→comprada→recebida — tudo reforçado no
+ * banco (RLS + trigger `valida_edicao_requisicao`), esta tela só decide o que OFERECER.
  */
 export function RequisicoesPage() {
   const { session } = useAuth();
@@ -69,7 +67,6 @@ export function RequisicoesPage() {
   const groups = useMemo(() => {
     const byStatus: Record<RequisicaoStatus, Requisicao[]> = {
       pendente: [],
-      em_cotacao: [],
       aprovada: [],
       reprovada: [],
       comprada: [],
@@ -108,7 +105,7 @@ export function RequisicoesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Requisições"
-        subtitle="Requisições de compra/material — pendente → em cotação → aprovada/reprovada → comprada → recebida"
+        subtitle="Requisições de compra/material — pendente → aprovada/reprovada → comprada → recebida"
         actions={
           canCreate ? (
             <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setSelected('new')}>
@@ -124,7 +121,7 @@ export function RequisicoesPage() {
           description={canCreate ? 'Clique em "Nova requisição" pra começar a lista.' : 'Ainda não há requisições cadastradas.'}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {REQUISICAO_STATUS_ORDER.map((status) => (
             <div key={status} className="space-y-2">
               <div className="px-1 text-xs font-semibold uppercase tracking-wide" style={{ color: STATUS_COLOR[status] }}>
