@@ -93,6 +93,11 @@ export function RequisicoesPage() {
 
   const dialogOpen = selected !== null;
   const dialogRequisicao = selected === 'new' ? null : selected;
+  // Pedido do usuário — "quero também um botão de editar e apagar pra pessoa que fez": quem criou
+  // a requisição edita os dados/exclui a PRÓPRIA, mesmo sem ser administrador/gestor_requisicoes.
+  // Avançar status continua exclusivo de `canManage`/`isComprador` (papel, não "dono") — ver
+  // `RequisicaoDialog.tsx`.
+  const isOwner = Boolean(dialogRequisicao && session?.user.id && dialogRequisicao.criadoPorUserId === session.user.id);
 
   return (
     <div className="space-y-6">
@@ -152,6 +157,7 @@ export function RequisicoesPage() {
         open={dialogOpen}
         requisicao={dialogRequisicao}
         canManage={canManage}
+        isOwner={isOwner}
         isComprador={isComprador}
         criadoPorNome={dialogRequisicao ? resolveCriadoPorNome(dialogRequisicao.criadoPorUserId) : ''}
         projectOptions={projectOptions}

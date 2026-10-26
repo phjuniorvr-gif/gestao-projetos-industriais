@@ -13,6 +13,11 @@ interface RequisicaoDialogProps {
   /** Administrador/gestor_requisicoes — edita item/quantidade/valor/observação, avança
    * pendente→em_cotacao→aprovada|reprovada, e exclui. */
   canManage: boolean;
+  /** Quem CRIOU esta requisição (pedido do usuário — "editar e apagar pra pessoa que fez") —
+   * edita os mesmos campos que `canManage` edita e exclui, mas NÃO ganha os botões de avançar
+   * status (isso continua exclusivo de papel: `canManage`/`isComprador`). Espelha o trigger
+   * `valida_edicao_requisicao` no banco, que já faz essa mesma distinção. */
+  isOwner: boolean;
   /** Comprador — só vê os campos (sem editar) e avança aprovada→comprada→recebida. */
   isComprador: boolean;
   criadoPorNome: string;
@@ -38,17 +43,20 @@ interface RequisicaoDialogProps {
 /**
  * Criar/editar requisição + avançar status — um diálogo só, comportamento muda por modo/papel:
  * em modo CRIAÇÃO qualquer papel logado edita os campos livremente (pedido do usuário, sessão
- * seguinte — "todos poder criar"); em modo EDIÇÃO (requisição já existente), `canManage` é quem
- * edita os dados e decide pendente→em_cotacao→aprovada|reprovada; `isComprador` só lê os dados e
- * decide aprovada→comprada→recebida; qualquer outro papel (ex. visualizador) só lê, sem botão
- * nenhum. A validação de verdade é no banco (RLS de INSERT aberta + trigger
- * `valida_edicao_requisicao` pro UPDATE) — esta UI só evita oferecer um botão que o servidor
- * recusaria.
+ * seguinte — "todos poder criar"); em modo EDIÇÃO (requisição já existente), `canManage` OU
+ * `isOwner` (quem criou, pedido seguinte — "editar e apagar pra pessoa que fez") editam os dados
+ * e excluem; só `canManage` decide pendente→em_cotacao→aprovada|reprovada; `isComprador` decide
+ * aprovada→comprada→recebida (sem editar os outros campos, a não ser que também seja o dono);
+ * qualquer outro papel (ex. visualizador, ou alguém vendo a requisição de outra pessoa) só lê,
+ * sem botão nenhum. A validação de verdade é no banco (RLS de INSERT aberta + trigger
+ * `valida_edicao_requisicao` pro UPDATE, que já reconhece o dono da mesma forma) — esta UI só
+ * evita oferecer um botão que o servidor recusaria.
  */
 export function RequisicaoDialog({
   open,
   requisicao,
   canManage,
+  isOwner,
   isComprador,
   criadoPorNome,
   projectOptions,
@@ -80,7 +88,10 @@ export function RequisicaoDialog({
   if (!open) return null;
 
   const isCreate = requisicao === null;
-  const fieldsLocked = !isCreate && !canManage;
+  // Dono edita os campos tanto quanto `canManage` (pedido do usuário) — só não ganha os botões
+  // de avançar status, que continuam condicionados a `canManage`/`isComprador` mais abaixo.
+  const canEditFields = canManage || isOwner;
+  const fieldsLocked = !isCreate && !canEditFields;
 
   async function handleSave() {
     if (!item.trim()) {
@@ -130,7 +141,7 @@ export function RequisicaoDialog({
       <Card className="w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-text">{isCreate ? 'Nova requisição' : 'Requisição'}</p>
-          {canManage && !isCreate && (
+          {canEditFields && !isCreate && (
             <button
               type="button"
               onClick={() => setConfirmingDelete(true)}
