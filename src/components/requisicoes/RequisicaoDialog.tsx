@@ -98,11 +98,11 @@ export function RequisicaoDialog({
       setError('Informe a descrição.');
       return;
     }
-    const qtd = Number(quantidade);
-    if (!quantidade.trim() || Number.isNaN(qtd) || !Number.isInteger(qtd) || qtd <= 0) {
-      setError('Informe o número da requisição (só números inteiros).');
+    if (!/^\d{1,8}$/.test(quantidade.trim())) {
+      setError('Informe o número da requisição (só números, até 8 dígitos).');
       return;
     }
+    const qtd = Number(quantidade);
     const valor = valorEstimado.trim() ? Number(valorEstimado) : undefined;
     if (valorEstimado.trim() && (Number.isNaN(valor) || (valor ?? 0) < 0)) {
       setError('Valor estimado inválido.');
@@ -161,12 +161,12 @@ export function RequisicaoDialog({
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Requisição" required>
               <Input
-                type="number"
-                min="0"
-                step="1"
+                type="text"
                 inputMode="numeric"
+                pattern="\d*"
+                maxLength={8}
                 value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
+                onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, '').slice(0, 8))}
                 className="w-full"
                 disabled={fieldsLocked}
               />
