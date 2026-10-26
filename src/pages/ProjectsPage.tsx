@@ -144,10 +144,15 @@ export function ProjectsPage() {
     [projects, filters.unit, filters.year, filters.search, people],
   );
 
+  // Sem chip de status selecionado, concluído fica escondido por padrão (a pedido do usuário) —
+  // selecionar "Concluído" (ou qualquer outro chip) sobrepõe isso, mesmo raciocínio já usado em
+  // `MobileSchedulePage.tsx`/`MobileScheduleList.tsx`. Os cards de saúde (`filteredExceptStatus`)
+  // continuam contando TODOS os status, inclusive concluído, pra não zerar o próprio chip que
+  // revelaria essa lista.
   const filtered = useMemo(
     () =>
       filters.status.length === 0
-        ? filteredExceptStatus
+        ? filteredExceptStatus.filter((p) => p.status !== 'completed')
         : filteredExceptStatus.filter((p) => filters.status.includes(STATUS_LABEL[p.status])),
     [filteredExceptStatus, filters.status],
   );

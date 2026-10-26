@@ -46,13 +46,18 @@ export function RequisicoesPage() {
 
   // Opções do seletor de projeto (sessão seguinte, pedido do usuário — "a pessoa tenha a opção de
   // associar a um projeto") — mesmo formato "{código} — {nome}" já usado em outras listas do app
-  // (ex. `importacaoProjectOptions`), ordenado por código.
+  // (ex. `importacaoProjectOptions`), ordenado por código. Projeto concluído some da lista — mesmo
+  // pedido/raciocínio que escondeu concluído da tabela de Projetos (associar requisição nova a um
+  // projeto já encerrado não faz sentido) — exceto o projeto JÁ vinculado à requisição aberta no
+  // momento, senão editar uma requisição antiga faria parecer que ela perdeu o vínculo.
+  const openRequisicaoProjectId = selected && selected !== 'new' ? selected.projectId : undefined;
   const projectOptions = useMemo(
     () =>
       [...projects]
+        .filter((p) => p.status !== 'completed' || p.id === openRequisicaoProjectId)
         .sort((a, b) => a.code.localeCompare(b.code, 'pt-BR', { numeric: true }))
         .map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })),
-    [projects],
+    [projects, openRequisicaoProjectId],
   );
 
   function resolveProjectLabel(projectId: string | undefined): string | undefined {
