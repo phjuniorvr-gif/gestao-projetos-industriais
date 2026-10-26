@@ -50,13 +50,15 @@ export function canViewImportacao(papel: Papel | undefined): boolean {
   return canViewAll(papel) || papel === 'comprador' || papel === 'gestor_requisicoes';
 }
 
-/** Alcança a rota `/requisicoes` (sessão 2026-10-13) — quem já enxerga tudo (`canViewAll`) mais
- * `gestor_requisicoes` (dono da tela) e `comprador`: o banco (`valida_edicao_requisicao`) já
- * libera o comprador pra avançar aprovada→comprada→recebida, então ele precisa alcançar essa
- * rota pra usar essa capacidade — sem isso, a permissão do banco ficaria inatingível pela UI.
- * Criar/editar requisição em si é mais restrito ainda — ver `canManageRequisicoes`. */
+/** Alcança a rota `/requisicoes` — pedido do usuário pra liberar a aba pra TODO MUNDO (inclusive
+ * `usuario`, antes restrito a Tarefas por vencer/Projetos). Cobre literalmente os 5 valores de
+ * `Papel` hoje; mantido como enumeração explícita (não `papel !== undefined`) pelo mesmo padrão
+ * dos outros `canView*` — se um papel novo for criado depois, PRECISA entrar aqui também pra
+ * continuar valendo "todo mundo". Visualização é sempre liberada; criar/editar/avançar status
+ * continuam restritos por `canManageRequisicoes`/pelo banco (`valida_edicao_requisicao`), que não
+ * mudaram — abrir a ROTA não abriu nenhuma escrita nova. */
 export function canViewRequisicoes(papel: Papel | undefined): boolean {
-  return canViewAll(papel) || papel === 'gestor_requisicoes' || papel === 'comprador';
+  return canViewAll(papel) || papel === 'gestor_requisicoes' || papel === 'comprador' || papel === 'usuario';
 }
 
 /** Quem pode criar uma requisição nova ou editar os dados dela (item/quantidade/valor/

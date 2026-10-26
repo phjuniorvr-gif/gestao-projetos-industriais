@@ -13,20 +13,25 @@ export function MobileTabBar() {
   const { pathname } = useLocation();
   const papel = usePapel();
 
-  // Só 'usuario' fica restrito a "Tarefas"; 'comprador' fica restrito a "Importação" +
-  // "Requisições" (sessão 2026-10-13 — avançar aprovada→comprada→recebida é tarefa dele, provável
-  // de acontecer pelo celular); 'gestor_requisicoes' (mesma sessão) fica restrito a "Importação" +
-  // "Requisições" + "Tarefas" — administrador e visualizador (Fase 7+) enxergam a barra inteira.
-  // Mesmo raciocínio do Sidebar desktop: checa cada papel explícito pra não estreitar a barra por
-  // um instante enquanto o papel ainda não resolveu. Sem aba "Projetos" nem "Equipe" — a pedido do
-  // usuário, não precisa delas no mobile (a rota `/equipe` continua existindo, só sem entrada
-  // direta na barra). "Pipeline" (a pedido do usuário) segue a mesma exceção de permissão do
-  // desktop (administrador OU visualizador, não é admin-only). Requisições não tem layout mobile
-  // dedicado ainda (decisão da sessão — "só desktop por agora"), mas o grid já é responsivo (mesma
-  // técnica do Kanban da Importação/Equipe), então funciona sem ajuste nenhum, só não é otimizado.
+  // 'usuario' fica restrito a "Tarefas" + "Requisições" (pedido seguinte — "liberar a aba pra todo
+  // mundo", `canViewRequisicoes` agora inclui `usuario`); 'comprador' fica restrito a "Importação"
+  // + "Requisições" (sessão 2026-10-13 — avançar aprovada→comprada→recebida é tarefa dele,
+  // provável de acontecer pelo celular); 'gestor_requisicoes' (mesma sessão) fica restrito a
+  // "Importação" + "Requisições" + "Tarefas" — administrador e visualizador (Fase 7+) enxergam a
+  // barra inteira. Mesmo raciocínio do Sidebar desktop: checa cada papel explícito pra não
+  // estreitar a barra por um instante enquanto o papel ainda não resolveu. Sem aba "Projetos" nem
+  // "Equipe" — a pedido do usuário, não precisa delas no mobile (a rota `/equipe` continua
+  // existindo, só sem entrada direta na barra). "Pipeline" (a pedido do usuário) segue a mesma
+  // exceção de permissão do desktop (administrador OU visualizador, não é admin-only). Requisições
+  // não tem layout mobile dedicado ainda (decisão da sessão — "só desktop por agora"), mas o grid
+  // já é responsivo (mesma técnica do Kanban da Importação/Equipe), então funciona sem ajuste
+  // nenhum, só não é otimizado.
   const tabItems: TabItem[] =
     papel === 'usuario'
-      ? [{ to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' }]
+      ? [
+          { to: '/tarefas-proximas', label: 'Tarefas', icon: CalendarClock, isActive: (p) => p === '/tarefas-proximas' },
+          { to: '/requisicoes', label: 'Requisições', icon: ClipboardList, isActive: (p) => p === '/requisicoes' },
+        ]
       : papel === 'comprador'
         ? [
             { to: '/importacao', label: 'Importação', icon: Ship, isActive: (p) => p === '/importacao' },

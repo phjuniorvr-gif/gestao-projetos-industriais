@@ -118,21 +118,22 @@ export function Sidebar() {
     '/confirmacoes': pendingConfirmationCount,
     '/pipeline': pipelines.length,
   };
-  // 'usuario' fica restrito a "Tarefas por vencer" + "Projetos" (leitura — pedido do usuário);
-  // 'comprador' fica restrito a "Importação" + "Requisições" (sessão 2026-10-13 — o banco já
-  // libera o comprador avançar aprovada→comprada→recebida, então precisa alcançar essa rota);
-  // 'gestor_requisicoes' (mesma sessão) fica restrito a "Importação" + "Requisições" + "Tarefas
-  // por vencer" — administrador e visualizador (Fase 7+) enxergam o menu inteiro. Checa cada papel
-  // explícito (não o inverso de canViewAll) pra não estreitar o menu por um instante a cada
-  // carregamento de página, enquanto o papel ainda não resolveu (`undefined` conta como "mostra
-  // tudo", igual admin/visualizador já resolvidos). "Equipe" (Kanban por responsável, pedido do
-  // usuário — "apenas o admin pode ter") é a única exceção dentro do bloco "mostra tudo": some pra
-  // `visualizador` também, não só os papéis restritos (checa `!== 'administrador'`, mesmo
-  // raciocínio de `undefined` contar como "mostra" — a página em si tem a guarda de verdade, esta
-  // filtragem é só pra não oferecer um link que vai barrar).
+  // 'usuario' fica restrito a "Tarefas por vencer" + "Projetos" (leitura — pedido do usuário) +
+  // "Requisições" (pedido seguinte — "liberar a aba pra todo mundo", `canViewRequisicoes` agora
+  // inclui `usuario`); 'comprador' fica restrito a "Importação" + "Requisições" (sessão 2026-10-13
+  // — o banco já libera o comprador avançar aprovada→comprada→recebida, então precisa alcançar
+  // essa rota); 'gestor_requisicoes' (mesma sessão) fica restrito a "Importação" + "Requisições" +
+  // "Tarefas por vencer" — administrador e visualizador (Fase 7+) enxergam o menu inteiro. Checa
+  // cada papel explícito (não o inverso de canViewAll) pra não estreitar o menu por um instante a
+  // cada carregamento de página, enquanto o papel ainda não resolveu (`undefined` conta como
+  // "mostra tudo", igual admin/visualizador já resolvidos). "Equipe" (Kanban por responsável,
+  // pedido do usuário — "apenas o admin pode ter") é a única exceção dentro do bloco "mostra
+  // tudo": some pra `visualizador` também, não só os papéis restritos (checa `!== 'administrador'`,
+  // mesmo raciocínio de `undefined` contar como "mostra" — a página em si tem a guarda de verdade,
+  // esta filtragem é só pra não oferecer um link que vai barrar).
   const navItems = (
     papel === 'usuario'
-      ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas' || item.to === '/projetos')
+      ? NAV_ITEMS.filter((item) => item.to === '/tarefas-proximas' || item.to === '/projetos' || item.to === '/requisicoes')
       : papel === 'comprador'
         ? NAV_ITEMS.filter((item) => item.to === '/importacao' || item.to === '/requisicoes')
         : papel === 'gestor_requisicoes'
