@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Clock, PackageCheck, Plus, ShoppingCart, XCircle, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock, PackageCheck, Plus, ShoppingCart, type LucideIcon } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { Button, Card, EmptyState, SummaryCard } from '../components/ui';
 import { RequisicaoDialog } from '../components/requisicoes';
@@ -9,11 +9,10 @@ import { formatDatePtBr } from '../utils';
 
 // Cores por status (tokens já existentes no design system — sem cor nova) escolhidas pra não
 // repetir entre colunas VIZINHAS do quadro (`REQUISICAO_STATUS_ORDER`): pendente(cinza) →
-// aprovada(azul) → reprovada(vermelho) → comprada(roxo) → recebida(verde).
+// aprovada(azul) → comprada(roxo) → recebida(verde).
 const STATUS_COLOR: Record<RequisicaoStatus, string> = {
   pendente: 'var(--color-text-muted)',
   aprovada: 'var(--color-action)',
-  reprovada: 'var(--color-status-delayed)',
   comprada: 'var(--color-status-planned)',
   recebida: 'var(--color-status-done)',
 };
@@ -21,7 +20,6 @@ const STATUS_COLOR: Record<RequisicaoStatus, string> = {
 const STATUS_ICON: Record<RequisicaoStatus, LucideIcon> = {
   pendente: Clock,
   aprovada: CheckCircle2,
-  reprovada: XCircle,
   comprada: ShoppingCart,
   recebida: PackageCheck,
 };
@@ -36,8 +34,8 @@ function formatValor(v: number | undefined): string {
  * (`REQUISICAO_STATUS_ORDER`), desktop (sem layout mobile dedicado ainda, grid já responsivo).
  * Qualquer papel logado cria (pedido do usuário — "quero mudar pra todos poder criar");
  * administrador/gestor_requisicoes são quem EDITA depois de criada e avança
- * pendente→aprovada|reprovada; comprador avança aprovada→comprada→recebida — tudo reforçado no
- * banco (RLS + trigger `valida_edicao_requisicao`), esta tela só decide o que OFERECER.
+ * pendente→aprovada; comprador avança aprovada→comprada→recebida — tudo reforçado no banco
+ * (RLS + trigger `valida_edicao_requisicao`), esta tela só decide o que OFERECER.
  */
 export function RequisicoesPage() {
   const { session } = useAuth();
@@ -76,7 +74,6 @@ export function RequisicoesPage() {
     const byStatus: Record<RequisicaoStatus, Requisicao[]> = {
       pendente: [],
       aprovada: [],
-      reprovada: [],
       comprada: [],
       recebida: [],
     };
@@ -113,7 +110,7 @@ export function RequisicoesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Requisições"
-        subtitle="Requisições de compra/material — pendente → aprovada/reprovada → comprada → recebida"
+        subtitle="Requisições de compra/material — pendente → aprovada → comprada → recebida"
         actions={
           canCreate ? (
             <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setSelected('new')}>
@@ -135,7 +132,7 @@ export function RequisicoesPage() {
           description={canCreate ? 'Clique em "Nova requisição" pra começar a lista.' : 'Ainda não há requisições cadastradas.'}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {REQUISICAO_STATUS_ORDER.map((status) => (
             <div key={status} className="space-y-2">
               <SummaryCard

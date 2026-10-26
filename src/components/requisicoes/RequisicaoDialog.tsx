@@ -5,10 +5,12 @@ import { REQUISICAO_STATUS_LABEL, REQUISICAO_STATUS_ORDER, type Requisicao, type
 import { formatDatePtBr } from '../../utils';
 
 /** Opções do select de status (pedido do usuário — "um flag pra ir mudando de status", em vez dos
- * botões por transição que existiam antes): administrador/gestor_requisicoes veem os 5 status —
- * já bypassam toda checagem do trigger `valida_edicao_requisicao`, então pular etapa é permitido
- * de verdade no banco, não só na UI. Comprador só vê a transição que o trigger de fato aceita
- * (aprovada→comprada, comprada→recebida) — fora dessas duas situações não tem o que oferecer. */
+ * botões por transição que existiam antes): administrador/gestor_requisicoes veem os 4 status
+ * (`REQUISICAO_STATUS_ORDER`, sem "em_cotacao"/"reprovada" — removidos do fluxo na sessão de
+ * 2026-10-26) — já bypassam toda checagem do trigger `valida_edicao_requisicao`, então pular etapa
+ * é permitido de verdade no banco, não só na UI. Comprador só vê a transição que o trigger de fato
+ * aceita (aprovada→comprada, comprada→recebida) — fora dessas duas situações não tem o que
+ * oferecer. */
 function statusOptionsFor(status: RequisicaoStatus, canManage: boolean, isComprador: boolean): RequisicaoStatus[] {
   if (canManage) return REQUISICAO_STATUS_ORDER;
   if (isComprador && status === 'aprovada') return ['aprovada', 'comprada'];
@@ -23,7 +25,7 @@ interface RequisicaoDialogProps {
    * `fieldsLocked` abaixo — só trava edição de requisição JÁ EXISTENTE). */
   requisicao: Requisicao | null;
   /** Administrador/gestor_requisicoes — edita item/quantidade/valor/observação, avança
-   * pendente→aprovada|reprovada→comprada→recebida (select com os 5 status, livre), e exclui. */
+   * pendente→aprovada→comprada→recebida (select com os 4 status, livre), e exclui. */
   canManage: boolean;
   /** Quem CRIOU esta requisição (pedido do usuário — "editar e apagar pra pessoa que fez") —
    * edita os mesmos campos que `canManage` edita e exclui, mas NÃO ganha o select de status

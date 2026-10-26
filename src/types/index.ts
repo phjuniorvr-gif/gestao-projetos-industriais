@@ -184,19 +184,18 @@ export interface Pipeline {
 }
 
 // Requisição de compra/material (sessão 2026-10-13) — independente de projeto/tarefa, papel novo
-// `gestor_requisicoes` cria/gerencia junto com administrador. Fluxo: pendente → aprovada|reprovada
-// → comprada → recebida ('em_cotacao' existiu até a sessão de 2026-10-26, removida a pedido do
-// usuário — sem substituto, o fluxo pulou direto pra aprovada/reprovada); avanço
+// `gestor_requisicoes` cria/gerencia junto com administrador. Fluxo: pendente → aprovada →
+// comprada → recebida ('em_cotacao' e 'reprovada' existiram até a sessão de 2026-10-26, removidas
+// a pedido do usuário — sem substituto, o fluxo pula direto de pendente pra aprovada); avanço
 // aprovada→comprada→recebida liberado pro `comprador` no banco (trigger
 // `valida_edicao_requisicao`), não só na UI.
-export type RequisicaoStatus = 'pendente' | 'aprovada' | 'reprovada' | 'comprada' | 'recebida';
+export type RequisicaoStatus = 'pendente' | 'aprovada' | 'comprada' | 'recebida';
 
-export const REQUISICAO_STATUS_ORDER: RequisicaoStatus[] = ['pendente', 'aprovada', 'reprovada', 'comprada', 'recebida'];
+export const REQUISICAO_STATUS_ORDER: RequisicaoStatus[] = ['pendente', 'aprovada', 'comprada', 'recebida'];
 
 export const REQUISICAO_STATUS_LABEL: Record<RequisicaoStatus, string> = {
   pendente: 'Pendente',
   aprovada: 'Aprovada',
-  reprovada: 'Reprovada',
   comprada: 'Comprada',
   recebida: 'Recebida',
 };
