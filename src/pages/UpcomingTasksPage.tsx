@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CalendarClock, FolderKanban, ListChecks, ListTree, Search } from 'lucide-react';
 import { PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/shared/StatusBadge';
-import { Card, EmptyState, Input, MultiSelectFilter } from '../components/ui';
+import { Card, EmptyState, Input, MultiSelectFilter, SummaryCard } from '../components/ui';
 import { UpcomingTaskDetail } from '../components/gantt';
 import { useIsMobile, usePapel, useUpcomingTasksData, STATUS_RANK, WINDOW_DAY_OPTIONS } from '../hooks';
 import { formatDatePtBr } from '../utils';
@@ -460,39 +460,3 @@ function SortableHeader({
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-  active,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  icon: typeof ListChecks;
-  color: string;
-  /** Presente só nos cards clicáveis (Atrasadas/A vencer) — os outros três são só leitura. */
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  const card = (
-    <Card className={`overflow-hidden p-0 ${active ? 'ring-2 ring-offset-1' : ''}`} style={active ? ({ '--tw-ring-color': color } as CSSProperties) : undefined}>
-      <div className="px-3 py-1.5 text-xs font-semibold text-white" style={{ backgroundColor: color }}>
-        {label}
-      </div>
-      <div className="flex items-center justify-between px-3 py-3">
-        <span className="text-2xl font-bold text-text">{value}</span>
-        <Icon className="h-6 w-6" style={{ color }} />
-      </div>
-    </Card>
-  );
-
-  if (!onClick) return card;
-
-  return (
-    <button type="button" onClick={onClick} aria-pressed={active} className="text-left transition-opacity hover:opacity-90">
-      {card}
-    </button>
-  );
-}

@@ -15,3 +15,4 @@ export * from './LockBadge';
 export * from './BottomSheet';
 export * from './AppLogo';
 export * from './MultiSelectFilter';
+export * from './SummaryCard';

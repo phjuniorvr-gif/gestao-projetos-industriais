@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { CheckCircle2, Clock, PackageCheck, Plus, ShoppingCart, XCircle, type LucideIcon } from 'lucide-react';
 import { PageHeader } from '../components/layout';
-import { Button, Card, EmptyState } from '../components/ui';
+import { Button, Card, EmptyState, SummaryCard } from '../components/ui';
 import { RequisicaoDialog } from '../components/requisicoes';
 import { canCreateRequisicao, canManageRequisicoes, useAuth, usePapel, usePeople, useProjects, useRequisicoes } from '../hooks';
 import { REQUISICAO_STATUS_LABEL, REQUISICAO_STATUS_ORDER, type Requisicao, type RequisicaoStatus } from '../types';
@@ -16,6 +16,14 @@ const STATUS_COLOR: Record<RequisicaoStatus, string> = {
   reprovada: 'var(--color-status-delayed)',
   comprada: 'var(--color-status-planned)',
   recebida: 'var(--color-status-done)',
+};
+
+const STATUS_ICON: Record<RequisicaoStatus, LucideIcon> = {
+  pendente: Clock,
+  aprovada: CheckCircle2,
+  reprovada: XCircle,
+  comprada: ShoppingCart,
+  recebida: PackageCheck,
 };
 
 function formatValor(v: number | undefined): string {
@@ -115,6 +123,12 @@ export function RequisicoesPage() {
         }
       />
 
+      {/* Pedido do usuário — "uns cards semelhantes a esse" (print de "Tarefas por vencer"),
+          corrigido pra "quero cards desses" apontando pros cabeçalhos do próprio quadro (PENDENTE
+          · 3 etc.) — viraram `SummaryCard` de verdade. Pedido seguinte — "tira o total... deixa
+          cada etapa empilhada": sem card "Total" avulso nem faixa separada; o card de cada status
+          empilha dentro da PRÓPRIA coluna (card no topo, lista de requisições embaixo), mesmo
+          componente `SummaryCard`, só-leitura. */}
       {!loaded ? null : requisicoes.length === 0 ? (
         <EmptyState
           title="Nenhuma requisição ainda"
@@ -124,9 +138,12 @@ export function RequisicoesPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {REQUISICAO_STATUS_ORDER.map((status) => (
             <div key={status} className="space-y-2">
-              <div className="px-1 text-xs font-semibold uppercase tracking-wide" style={{ color: STATUS_COLOR[status] }}>
-                {REQUISICAO_STATUS_LABEL[status]} · {groups[status].length}
-              </div>
+              <SummaryCard
+                label={REQUISICAO_STATUS_LABEL[status]}
+                value={groups[status].length}
+                icon={STATUS_ICON[status]}
+                color={STATUS_COLOR[status]}
+              />
               {groups[status].length === 0 ? (
                 <p className="px-1 text-xs text-text-muted2">Nenhuma requisição.</p>
               ) : (
