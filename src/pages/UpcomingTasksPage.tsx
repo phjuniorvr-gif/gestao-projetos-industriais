@@ -116,30 +116,28 @@ export function UpcomingTasksPage() {
   }, [filtered, sortColumn, projectSortDir, prazoSortDir, statusSortDir]);
 
   // Dedup por atividade (pedido do usuário, print mostrando 2 cards de "Integração do EGA" lado a
-  // lado em "Atrasado") — várias tarefas da MESMA atividade no MESMO status poluíam o quadro com
-  // cards repetidos; fica só a MAIS ANTIGA (menor `daysLeft` = prazo mais vencido/mais próximo de
-  // vencer) representando a atividade naquela coluna. Escopo é só o Kanban — a Tabela continua uma
-  // linha por tarefa, sem dedup (não é o que foi pedido, e lá cada linha já é compacta o bastante).
+  // lado em "Atrasado") — SEGUNDO achado, outro print: a mesma atividade também aparecia em DUAS
+  // COLUNAS diferentes (uma tarefa "Planejado" com início atrasado, outra "Atrasado" de verdade) —
+  // "tem que aparecer apenas uma", no quadro inteiro, não só dentro da mesma coluna. Dedup então é
+  // GLOBAL por `activity.id` (ignora status ao escolher a vencedora): só a MAIS ANTIGA (menor
+  // `daysLeft` entre TODAS as tarefas da atividade, de qualquer status) sobrevive, e o card entra
+  // na coluna do STATUS dela — nunca duas colunas com a mesma atividade ao mesmo tempo. Escopo é
+  // só o Kanban — a Tabela continua uma linha por tarefa, sem dedup (não é o que foi pedido).
   // `hiddenCount` (não pedido, mas evita esconder informação de vez) — quantas outras tarefas da
-  // mesma atividade/status ficaram de fora, pra mostrar um "+N" discreto no card em vez de sumir
-  // sem rastro.
+  // mesma atividade (em qualquer coluna) ficaram de fora, pra mostrar um "+N" discreto no card em
+  // vez de sumir sem rastro.
   type KanbanCardRow = (typeof filtered)[number] & { hiddenCount: number };
   const kanbanGroups = useMemo(() => {
-    const byStatus: Record<ProjectStatus, typeof filtered> = { planned: [], in_progress: [], delayed: [], completed: [] };
-    for (const row of filtered) byStatus[row.task.status].push(row);
+    const oldestByActivity = new Map<string, (typeof filtered)[number]>();
+    const countByActivity = new Map<string, number>();
+    for (const row of filtered) {
+      countByActivity.set(row.activity.id, (countByActivity.get(row.activity.id) ?? 0) + 1);
+      const current = oldestByActivity.get(row.activity.id);
+      if (!current || row.daysLeft < current.daysLeft) oldestByActivity.set(row.activity.id, row);
+    }
     const deduped: Record<ProjectStatus, KanbanCardRow[]> = { planned: [], in_progress: [], delayed: [], completed: [] };
-    for (const status of Object.keys(byStatus) as ProjectStatus[]) {
-      const oldestByActivity = new Map<string, (typeof filtered)[number]>();
-      const countByActivity = new Map<string, number>();
-      for (const row of byStatus[status]) {
-        countByActivity.set(row.activity.id, (countByActivity.get(row.activity.id) ?? 0) + 1);
-        const current = oldestByActivity.get(row.activity.id);
-        if (!current || row.daysLeft < current.daysLeft) oldestByActivity.set(row.activity.id, row);
-      }
-      deduped[status] = Array.from(oldestByActivity.values()).map((row) => ({
-        ...row,
-        hiddenCount: (countByActivity.get(row.activity.id) ?? 1) - 1,
-      }));
+    for (const row of oldestByActivity.values()) {
+      deduped[row.task.status].push({ ...row, hiddenCount: (countByActivity.get(row.activity.id) ?? 1) - 1 });
     }
     return deduped;
   }, [filtered]);
@@ -304,7 +302,10 @@ export function UpcomingTasksPage() {
                           <span className="shrink-0 font-mono text-xs text-text-muted2">{project.code}</span>
                         </div>
                         <p className="truncate text-xs text-text-muted">
-                          {project.code} — {project.name} · {activity.name}
+                          {project.code} — {project.name}
+                        </p>
+                        <p className="truncate text-xs text-text-muted">
+                          {activity.name}
                           {hiddenCount > 0 && (
                             <span className="ml-1 font-semibold text-text-muted2">
                               +{hiddenCount} {hiddenCount === 1 ? 'tarefa' : 'tarefas'}
