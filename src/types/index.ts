@@ -200,6 +200,29 @@ export const REQUISICAO_STATUS_LABEL: Record<RequisicaoStatus, string> = {
   recebida: 'Recebida',
 };
 
+// Tipo de pedido (sessão de 2026-10-28, pedido do usuário) — lista fechada de 4 valores,
+// nomenclatura própria da empresa (prefixo "Z" de código SAP/ERP), sem equivalente derivável de
+// outro dado — campo digitado de verdade (escolhido num select), não viola a regra de ouro.
+export type TipoPedido = 'ZCOS' | 'ZNN' | 'ZCAR' | 'ZURG';
+
+export const TIPO_PEDIDO_ORDER: TipoPedido[] = ['ZCOS', 'ZNN', 'ZCAR', 'ZURG'];
+
+export const TIPO_PEDIDO_LABEL: Record<TipoPedido, string> = {
+  ZCOS: 'ZCOS - Uso e Consumo',
+  ZNN: 'ZNN - Não negociáveis',
+  ZCAR: 'ZCAR - Cartão Corporativo',
+  ZURG: 'ZURG - Req Urgência',
+};
+
+/** Aprovador (sessão de 2026-10-28, pedido do usuário — "não é essa lista [pessoas], será uma
+ * lista nova... a pessoa pode criar o aprovador e vai criando a lista") — lista PRÓPRIA, tabela
+ * `aprovadores` independente de `pessoas`, sem os campos que só fazem sentido pra pessoa
+ * vinculada a projeto/tarefa (`active`/`userId`). */
+export interface Aprovador {
+  id: string;
+  name: string;
+}
+
 export interface Requisicao {
   id: string;
   item: string;
@@ -213,6 +236,18 @@ export interface Requisicao {
    * opção de associar a um projeto") — requisição continua existindo sem projeto nenhum; não é
    * apagada se o projeto associado for excluído depois (`on delete set null` no banco). */
   projectId?: string;
+  /** Aprovador — lista PRÓPRIA (`Aprovador`/`aprovadores`, ver acima), não `pessoas`. OPCIONAL,
+   * igual projeto. */
+  aprovadorId?: string;
+  /** Tipo de pedido — ver `TipoPedido` acima. Rótulo visível virou "Tipo de Requisição" (pedido
+   * seguinte do usuário), nome do campo/coluna no banco não mudou. OPCIONAL (requisições
+   * existentes antes desta sessão não têm valor). */
+  tipoPedido?: TipoPedido;
+  /** Número de pedido (sessão de 2026-10-28, pedido do usuário — "um outro campo, onde coloca um
+   * numero de pedido digitado de 10 caracteres") — texto livre, só dígitos, até 10 caracteres,
+   * validado no cliente (`RequisicaoDialog.tsx`, mesmo padrão de `quantidade`/"N° da Req").
+   * Guardado como TEXT (não `numeric`) pra não perder zero à esquerda. OPCIONAL. */
+  numeroPedido?: string;
 }
 
 // Condições derivadas (Fase 2.3, decisão no CLAUDE.md): blocked/completed_late/to_start não

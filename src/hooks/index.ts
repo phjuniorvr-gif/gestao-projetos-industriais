@@ -7,6 +7,7 @@ export * from './useReplanejamentos';
 export * from './usePeople';
 export * from './usePipelines';
 export * from './useRequisicoes';
+export * from './useAprovadores';
 export * from './useUsuarios';
 export * from './useAuth';
 export * from './usePerfil';

@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, FormField, Input, Select, Textarea } from '../ui';
-import { REQUISICAO_STATUS_LABEL, REQUISICAO_STATUS_ORDER, type Requisicao, type RequisicaoStatus } from '../../types';
+import { AprovadorSelect } from './AprovadorSelect';
+import {
+  REQUISICAO_STATUS_LABEL,
+  REQUISICAO_STATUS_ORDER,
+  TIPO_PEDIDO_LABEL,
+  TIPO_PEDIDO_ORDER,
+  type Aprovador,
+  type Requisicao,
+  type RequisicaoStatus,
+  type TipoPedido,
+} from '../../types';
 import { formatDatePtBr } from '../../utils';
 
 /** Opções do select de status (pedido do usuário — "um flag pra ir mudando de status", em vez dos
@@ -38,6 +48,12 @@ interface RequisicaoDialogProps {
   /** Vínculo OPCIONAL com projeto (sessão seguinte, pedido do usuário) — lista já ordenada por
    * código, resolvida na página (`projectOptions`, `useProjects()`). */
   projectOptions: { value: string; label: string }[];
+  /** Aprovador (sessão de 2026-10-28, pedido do usuário — "não é essa lista [pessoas], será uma
+   * lista nova... a pessoa pode criar o aprovador e vai criando a lista") — lista PRÓPRIA,
+   * independente de `pessoas` (`aprovadores`, `useAprovadores()`), mesma mecânica de combobox +
+   * "+ novo…" inline que `PersonSelect` já usa pra gerente/responsável, só com dado próprio. */
+  aprovadores: Aprovador[];
+  onCreateAprovador: (name: string) => Promise<Aprovador>;
   onClose: () => void;
   onCreate: (input: {
     item: string;
@@ -45,10 +61,22 @@ interface RequisicaoDialogProps {
     valorEstimado?: number;
     observacao?: string;
     projectId?: string;
+    aprovadorId?: string;
+    tipoPedido?: TipoPedido;
+    numeroPedido?: string;
   }) => Promise<unknown>;
   onSave: (
     id: string,
-    patch: { item: string; quantidade: number; valorEstimado?: number; observacao?: string; projectId: string | null },
+    patch: {
+      item: string;
+      quantidade: number;
+      valorEstimado?: number;
+      observacao?: string;
+      projectId: string | null;
+      aprovadorId: string | null;
+      tipoPedido: TipoPedido | null;
+      numeroPedido: string | null;
+    },
   ) => Promise<unknown>;
   onAdvanceStatus: (id: string, status: RequisicaoStatus) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
@@ -76,6 +104,8 @@ export function RequisicaoDialog({
   isComprador,
   criadoPorNome,
   projectOptions,
+  aprovadores,
+  onCreateAprovador,
   onClose,
   onCreate,
   onSave,
@@ -87,6 +117,9 @@ export function RequisicaoDialog({
   const [valorEstimado, setValorEstimado] = useState('');
   const [observacao, setObservacao] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [aprovadorId, setAprovadorId] = useState('');
+  const [tipoPedido, setTipoPedido] = useState('');
+  const [numeroPedido, setNumeroPedido] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -98,6 +131,9 @@ export function RequisicaoDialog({
     setValorEstimado(requisicao?.valorEstimado !== undefined ? String(requisicao.valorEstimado) : '');
     setObservacao(requisicao?.observacao ?? '');
     setProjectId(requisicao?.projectId ?? '');
+    setAprovadorId(requisicao?.aprovadorId ?? '');
+    setTipoPedido(requisicao?.tipoPedido ?? '');
+    setNumeroPedido(requisicao?.numeroPedido ?? '');
     setError('');
   }, [open, requisicao]);
 
@@ -133,8 +169,23 @@ export function RequisicaoDialog({
     setSaving(true);
     try {
       const base = { item: item.trim(), quantidade: qtd, valorEstimado: valor, observacao: observacao.trim() || undefined };
-      if (isCreate) await onCreate({ ...base, projectId: projectId || undefined });
-      else await onSave(requisicao.id, { ...base, projectId: projectId || null });
+      if (isCreate) {
+        await onCreate({
+          ...base,
+          projectId: projectId || undefined,
+          aprovadorId: aprovadorId || undefined,
+          tipoPedido: (tipoPedido || undefined) as TipoPedido | undefined,
+          numeroPedido: numeroPedido || undefined,
+        });
+      } else {
+        await onSave(requisicao.id, {
+          ...base,
+          projectId: projectId || null,
+          aprovadorId: aprovadorId || null,
+          tipoPedido: (tipoPedido || null) as TipoPedido | null,
+          numeroPedido: numeroPedido || null,
+        });
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar.');
@@ -202,6 +253,39 @@ export function RequisicaoDialog({
                 className="w-full"
                 disabled={fieldsLocked}
                 placeholder="R$"
+              />
+            </FormField>
+          </div>
+          <FormField label="Aprovador (opcional)">
+            <AprovadorSelect
+              value={aprovadorId || undefined}
+              onChange={(id) => setAprovadorId(id ?? '')}
+              aprovadores={aprovadores}
+              onCreateAprovador={onCreateAprovador}
+              disabled={fieldsLocked}
+            />
+          </FormField>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Tipo de Requisição (opcional)">
+              <Select value={tipoPedido} onChange={(e) => setTipoPedido(e.target.value)} className="w-full" disabled={fieldsLocked}>
+                <option value="">Sem tipo</option>
+                {TIPO_PEDIDO_ORDER.map((t) => (
+                  <option key={t} value={t}>
+                    {TIPO_PEDIDO_LABEL[t]}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="N° do pedido (opcional)">
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="\d*"
+                maxLength={10}
+                value={numeroPedido}
+                onChange={(e) => setNumeroPedido(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="w-full"
+                disabled={fieldsLocked}
               />
             </FormField>
           </div>

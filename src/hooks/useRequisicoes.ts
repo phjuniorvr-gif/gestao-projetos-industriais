@@ -6,7 +6,7 @@ import {
   fetchRequisicoes,
   updateRequisicao as updateRequisicaoRemote,
 } from '../services/requisicoesRepo';
-import type { Requisicao, RequisicaoStatus } from '../types';
+import type { Requisicao, RequisicaoStatus, TipoPedido } from '../types';
 
 /** Sem Context/Provider — diferente de `useProjects`/`usePipelines`, só a página `/requisicoes`
  * consome isso hoje (nenhum badge de menu depende de ver o dado atualizado em duas telas ao
@@ -31,6 +31,9 @@ export function useRequisicoes() {
       observacao?: string;
       criadoPorUserId: string;
       projectId?: string;
+      aprovadorId?: string;
+      tipoPedido?: TipoPedido;
+      numeroPedido?: string;
     }) => {
       const created = await createRequisicaoRemote(input);
       setRequisicoes((current) => [created, ...current]);
@@ -49,6 +52,9 @@ export function useRequisicoes() {
         observacao: string | null;
         status: RequisicaoStatus;
         projectId: string | null;
+        aprovadorId: string | null;
+        tipoPedido: TipoPedido | null;
+        numeroPedido: string | null;
       }>,
     ) => {
       const updated = await updateRequisicaoRemote(id, patch);

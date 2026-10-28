@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { Requisicao, RequisicaoStatus } from '../types';
+import type { Requisicao, RequisicaoStatus, TipoPedido } from '../types';
 
 interface RequisicaoRow {
   id: string;
@@ -11,6 +11,9 @@ interface RequisicaoRow {
   criado_por: string;
   created_at: string;
   project_id: string | null;
+  aprovador_id: string | null;
+  tipo_pedido: TipoPedido | null;
+  numero_pedido: string | null;
 }
 
 function fromRow(row: RequisicaoRow): Requisicao {
@@ -24,6 +27,9 @@ function fromRow(row: RequisicaoRow): Requisicao {
     criadoPorUserId: row.criado_por,
     createdAt: row.created_at,
     projectId: row.project_id ?? undefined,
+    aprovadorId: row.aprovador_id ?? undefined,
+    tipoPedido: row.tipo_pedido ?? undefined,
+    numeroPedido: row.numero_pedido ?? undefined,
   };
 }
 
@@ -40,6 +46,9 @@ export async function createRequisicao(input: {
   observacao?: string;
   criadoPorUserId: string;
   projectId?: string;
+  aprovadorId?: string;
+  tipoPedido?: TipoPedido;
+  numeroPedido?: string;
 }): Promise<Requisicao> {
   const { data, error } = await supabase
     .from('requisicoes')
@@ -50,6 +59,9 @@ export async function createRequisicao(input: {
       observacao: input.observacao?.trim() || null,
       criado_por: input.criadoPorUserId,
       project_id: input.projectId ?? null,
+      aprovador_id: input.aprovadorId ?? null,
+      tipo_pedido: input.tipoPedido ?? null,
+      numero_pedido: input.numeroPedido ?? null,
     })
     .select()
     .single();
@@ -57,10 +69,11 @@ export async function createRequisicao(input: {
   return fromRow(data as RequisicaoRow);
 }
 
-/** Edição geral (item/quantidade/valor/observação/status/projeto) — só administrador/
- * gestor_requisicoes passam no trigger `valida_edicao_requisicao`; qualquer outro papel recebe o
- * erro do banco. `projectId: null` desvincula de propósito — `undefined` continua sendo "não
- * mexer nesse campo", mesma convenção de patch parcial já usada em `updatePerson`. */
+/** Edição geral (item/quantidade/valor/observação/status/projeto/aprovador/tipo de pedido) — só
+ * administrador/gestor_requisicoes (ou o dono, ver trigger) passam no `valida_edicao_requisicao`;
+ * qualquer outro papel recebe o erro do banco. `projectId`/`aprovadorId: null` desvinculam de
+ * propósito — `undefined` continua sendo "não mexer nesse campo", mesma convenção de patch
+ * parcial já usada em `updatePerson`. */
 export async function updateRequisicao(
   id: string,
   patch: Partial<{
@@ -70,6 +83,9 @@ export async function updateRequisicao(
     observacao: string | null;
     status: RequisicaoStatus;
     projectId: string | null;
+    aprovadorId: string | null;
+    tipoPedido: TipoPedido | null;
+    numeroPedido: string | null;
   }>,
 ): Promise<Requisicao> {
   const payload: Record<string, unknown> = {};
@@ -79,6 +95,9 @@ export async function updateRequisicao(
   if (patch.observacao !== undefined) payload.observacao = patch.observacao?.trim() || null;
   if (patch.status !== undefined) payload.status = patch.status;
   if (patch.projectId !== undefined) payload.project_id = patch.projectId;
+  if (patch.aprovadorId !== undefined) payload.aprovador_id = patch.aprovadorId;
+  if (patch.tipoPedido !== undefined) payload.tipo_pedido = patch.tipoPedido;
+  if (patch.numeroPedido !== undefined) payload.numero_pedido = patch.numeroPedido;
 
   const { data, error } = await supabase.from('requisicoes').update(payload).eq('id', id).select().single();
   if (error) throw error;
