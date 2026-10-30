@@ -851,8 +851,8 @@ export function ProjectSchedulePage() {
               </div>
             )}
             {/* "Copiar resumo" no mobile (pedido do usuário) — mesmo botão do desktop, mesmo gate
-                (`canViewAll`), só estilo mobile. */}
-            {isMobile && isImportacaoView && canViewAll(papel) && (
+                (`canViewAll` + `gestor_requisicoes`), só estilo mobile. */}
+            {isMobile && isImportacaoView && (canViewAll(papel) || papel === 'gestor_requisicoes') && (
               <button
                 type="button"
                 onClick={() => setResumoOpen(true)}
@@ -1144,9 +1144,9 @@ export function ProjectSchedulePage() {
               )}
               {/* "Copiar resumo" (pedido do usuário) — texto pronto só com processos
                   atrasados/não iniciados, agrupados por etapa, pra colar numa mensagem pro
-                  comprador. Administrador + visualizador (mesmo grupo de `canViewAll`) — comprador
-                  não precisa gerar mensagem pra si mesmo. */}
-              {!isMobile && isImportacaoView && canViewAll(papel) && (
+                  comprador. Administrador + visualizador (`canViewAll`) + `gestor_requisicoes`
+                  (pedido seguinte do usuário) — comprador não precisa gerar mensagem pra si mesmo. */}
+              {!isMobile && isImportacaoView && (canViewAll(papel) || papel === 'gestor_requisicoes') && (
                 <Button
                   variant="secondary"
                   icon={<ClipboardList className="h-4 w-4" />}
